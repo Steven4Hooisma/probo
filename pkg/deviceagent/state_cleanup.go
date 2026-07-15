@@ -43,9 +43,11 @@ const (
 //
 // Every path is attempted even if an earlier removal fails.
 //
-// enrolling.lock is intentionally retained: flock binds to the inode,
-// so unlinking the path while LoadOrExchangeAPIKey holds the lock would
-// let a concurrent caller create a new inode and bypass serialization.
+// The run-dir enrolling.lock is not unlinked here: flock binds to the
+// inode, so removing the path while LoadOrExchangeAPIKey holds the lock
+// would let a concurrent caller create a new inode and bypass
+// serialization. Reboot clears /var/run; installers may remove the whole
+// run tree after the agent is stopped.
 func RemoveLocalState(dir string) error {
 	if dir == "" {
 		return errors.New("state directory is empty")
@@ -64,6 +66,7 @@ func RemoveLocalState(dir string) error {
 	// Use the original dir (not Abs/Clean) so custom relative --dir values
 	// resolve the same sibling run tree as MarkEnrolled / IsEnrolled.
 	runDir := EnrollmentRunDir(dir)
+
 	runDirAbs, err := filepath.Abs(runDir)
 	if err != nil {
 		return fmt.Errorf("cannot resolve enrollment run dir: %w", err)
@@ -86,6 +89,7 @@ func RemoveLocalState(dir string) error {
 	}
 
 	var errs error
+
 	for _, path := range knownPaths {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			errs = errors.Join(errs, fmt.Errorf("cannot remove %s: %w", path, err))
