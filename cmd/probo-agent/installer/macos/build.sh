@@ -11,28 +11,26 @@
 #   --output  PATH    Output .pkg path. Defaults to
 #                     dist/probo-agent_${VER}_darwin_${ARCH}.pkg.
 #
-# Optional environment variables (auditor-mode compatible):
-#   CODESIGN_IDENTITY             Developer ID Application identity. When
-#                                 set, signs the agent binary and Probo
-#                                 Agent.app with hardened runtime before
-#                                 packaging.
+# Required environment variables:
+#   CODESIGN_IDENTITY    Developer ID Application identity. Signs the
+#                        agent binary, Probo Agent.app, and embedded helper.
+#   APPLE_TEAM_ID        Apple Developer Team ID (helper client requirement).
+#
+# Optional (auditor-mode compatible):
 #   INSTALLER_IDENTITY            Developer ID Installer identity. When
 #                                 set, passes --sign to productbuild.
 #   APPLE_ID                      Apple ID for notarytool store-credentials.
 #   APPLE_ID_PASSWORD             App-specific password; used only to
 #                                 populate a keychain profile (not passed
 #                                 to long-lived notarytool submit).
-#   APPLE_TEAM_ID                 Apple Developer Team ID.
-#   NOTARYTOOL_KEYCHAIN_PROFILE   Existing notarytool keychain profile.
-#                                 Defaults to probo-agent-notary when
-#                                 storing from APPLE_ID / APPLE_ID_PASSWORD.
+#   NOTARYTOOL_KEYCHAIN_PROFILE   Keychain profile name for store/submit.
+#                                 Defaults to probo-agent-notary.
 #
-# Notarization is enabled when NOTARYTOOL_KEYCHAIN_PROFILE is set, or
-# when APPLE_ID and APPLE_ID_PASSWORD are both set (APPLE_TEAM_ID also
-# required). CODESIGN_IDENTITY and INSTALLER_IDENTITY are then required.
-# The script stores credentials into the keychain profile when a
-# password is provided, then notarizes and staples the .app before
-# packaging and the signed .pkg via --keychain-profile.
+# Notarization is enabled when APPLE_ID and APPLE_ID_PASSWORD are both
+# set. INSTALLER_IDENTITY is then required. The script stores credentials
+# into the keychain profile, then notarizes and staples the .app before
+# packaging and the signed .pkg via --keychain-profile so the password
+# is not on submit argv for the long --wait.
 #
 # Must run on macOS: pkgbuild, productbuild, and swift build are
 # Apple-only tools. The build also compiles Probo Agent.app (the
@@ -47,13 +45,13 @@ BINARY=""
 ARCH=""
 VERSION=""
 OUTPUT=""
-IDENTIFIER="com.getprobo.agent"
+IDENTIFIER="com.probo.agent"
 CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
 INSTALLER_IDENTITY="${INSTALLER_IDENTITY:-}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_ID_PASSWORD="${APPLE_ID_PASSWORD:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
-NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-}"
+NOTARYTOOL_KEYCHAIN_PROFILE="${NOTARYTOOL_KEYCHAIN_PROFILE:-probo-agent-notary}"
 
 usage() {
     sed -ne '/^#/!q; s/^# \{0,1\}//; 2,$ p' < "$0"
@@ -140,30 +138,26 @@ if ! command -v swift >/dev/null 2>&1; then
     echo "error: swift is required to build Probo Agent.app (run on macOS)" >&2
     exit 1
 fi
+if [ -z "${CODESIGN_IDENTITY}" ]; then
+    echo "error: CODESIGN_IDENTITY is required (privileged helper must be signed)" >&2
+    exit 2
+fi
+if [ -z "${APPLE_TEAM_ID}" ]; then
+    echo "error: APPLE_TEAM_ID is required (SMAuthorizedClients team requirement)" >&2
+    exit 2
+fi
 
 notarize_enabled=false
-if [ -n "${NOTARYTOOL_KEYCHAIN_PROFILE}" ]; then
-    notarize_enabled=true
-elif [ -n "${APPLE_ID}" ] && [ -n "${APPLE_ID_PASSWORD}" ] && [ -n "${APPLE_TEAM_ID}" ]; then
-    NOTARYTOOL_KEYCHAIN_PROFILE="probo-agent-notary"
+if [ -n "${APPLE_ID}" ] && [ -n "${APPLE_ID_PASSWORD}" ]; then
     notarize_enabled=true
 fi
-if [ "${notarize_enabled}" = true ]; then
-    if [ -z "${CODESIGN_IDENTITY}" ]; then
-        echo "error: notarization requires CODESIGN_IDENTITY" >&2
-        exit 2
-    fi
-    if [ -z "${INSTALLER_IDENTITY}" ]; then
-        echo "error: notarization requires INSTALLER_IDENTITY" >&2
-        exit 2
-    fi
+if [ "${notarize_enabled}" = true ] && [ -z "${INSTALLER_IDENTITY}" ]; then
+    echo "error: notarization requires INSTALLER_IDENTITY" >&2
+    exit 2
 fi
 
 sign_macho() {
     local path="$1"
-    if [ -z "${CODESIGN_IDENTITY}" ]; then
-        return 0
-    fi
     codesign \
         --force \
         --options runtime \
@@ -175,8 +169,15 @@ sign_macho() {
 
 sign_app_bundle() {
     local app_path="$1"
-    if [ -z "${CODESIGN_IDENTITY}" ]; then
-        return 0
+    local helper_path="${app_path}/Contents/Library/LaunchServices/com.probo.agent.helper"
+    if [ -x "${helper_path}" ]; then
+        codesign \
+            --force \
+            --options runtime \
+            --timestamp \
+            --sign "${CODESIGN_IDENTITY}" \
+            "${helper_path}"
+        codesign --verify --verbose=2 "${helper_path}"
     fi
     codesign \
         --force \
@@ -194,11 +195,8 @@ sign_app_bundle() {
 }
 
 ensure_notarytool_credentials() {
-    if [ -z "${APPLE_ID_PASSWORD}" ]; then
-        return 0
-    fi
-    if [ -z "${APPLE_ID}" ]; then
-        echo "error: APPLE_ID_PASSWORD requires APPLE_ID to store notarytool credentials" >&2
+    if [ -z "${APPLE_ID}" ] || [ -z "${APPLE_ID_PASSWORD}" ]; then
+        echo "error: APPLE_ID and APPLE_ID_PASSWORD are required to store notarytool credentials" >&2
         exit 2
     fi
     # Password appears on argv only for this short-lived store. Submits
@@ -327,6 +325,7 @@ sed \
     -e "s|@@VERSION@@|${VERSION}|g" \
     -e "s|@@PKG_ARCH@@|${PKG_ARCH}|g" \
     -e "s|@@HOST_ARCHS@@|${HOST_ARCHS}|g" \
+    -e "s|@@IDENTIFIER@@|${IDENTIFIER}|g" \
     "${SCRIPT_DIR}/Distribution.xml.tmpl" > "${DISTRIBUTION}"
 
 mkdir -p "$(dirname "${OUTPUT}")"
