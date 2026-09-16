@@ -626,6 +626,76 @@ func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.Conne
 			Oauth2Scopes:                   scopes,
 			APIKeyExtraSettings:            connectorProviderSettingInfos(reg.APIKeyExtraSettings),
 			ClientCredentialsExtraSettings: connectorProviderSettingInfos(reg.ClientCredentialsExtraSettings),
+			PrivateKeyJwtSupported:         reg.SupportsPrivateKeyJWT,
+		})
+	}
+
+	slices.SortFunc(
+		infos,
+		func(a, b *types.ConnectorProviderInfo) int {
+			return strings.Compare(a.DisplayName, b.DisplayName)
+		},
+	)
+
+	return infos, nil
+}
+
+// DeviceSourceProviders is the resolver for the deviceSourceProviders field.
+func (r *queryResolver) DeviceSourceProviders(ctx context.Context) ([]*types.ConnectorProviderInfo, error) {
+	identity := authn.IdentityFromContext(ctx)
+
+	// Listing what could be connected is the same decision as listing the
+	// access-review catalog: it exposes provider metadata only, no tenant data.
+	if _, err := r.authorize(ctx, identity.ID, accessreview.ActionDriverCatalogList); err != nil {
+		return nil, err
+	}
+
+	registrations := r.providerRegistry.DeviceSources()
+	infos := make([]*types.ConnectorProviderInfo, 0, len(registrations))
+
+	for _, reg := range registrations {
+		if reg == nil {
+			continue
+		}
+
+		provider := reg.Provider
+		_, oauthErr := r.connectorRegistry.Get(string(provider))
+		oauthConfigured := oauthErr == nil
+
+		// A device source is connectable when the deployment can actually
+		// present a credential for it. Apple Business Manager needs no
+		// operator configuration at all — the customer supplies the whole
+		// credential — so the private-key-JWT path alone is enough.
+		if !oauthConfigured &&
+			!reg.SupportsAPIKey &&
+			!reg.SupportsClientCredentials &&
+			!reg.SupportsPrivateKeyJWT &&
+			!r.providerRegistry.ManagedConnectorReady(provider) {
+			continue
+		}
+
+		scopes := r.providerRegistry.ProviderOAuth2Scopes(provider)
+		if scopes == nil {
+			scopes = []string{}
+		}
+
+		var documentationURL *string
+		if reg.DocumentationURL != "" {
+			documentationURL = new(reg.DocumentationURL)
+		}
+
+		infos = append(infos, &types.ConnectorProviderInfo{
+			Provider:                       provider,
+			DisplayName:                    reg.DisplayName,
+			DocumentationURL:               documentationURL,
+			OauthConfigured:                oauthConfigured,
+			APIKeySupported:                reg.SupportsAPIKey,
+			APIKeyManaged:                  r.providerRegistry.ManagedConnectorReady(provider),
+			ClientCredentialsSupported:     reg.SupportsClientCredentials,
+			PrivateKeyJwtSupported:         reg.SupportsPrivateKeyJWT,
+			Oauth2Scopes:                   scopes,
+			APIKeyExtraSettings:            connectorProviderSettingInfos(reg.APIKeyExtraSettings),
+			ClientCredentialsExtraSettings: connectorProviderSettingInfos(reg.ClientCredentialsExtraSettings),
 		})
 	}
 

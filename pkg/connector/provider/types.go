@@ -28,6 +28,7 @@ import (
 
 	"go.probo.inc/probo/pkg/accessreview/drivers"
 	"go.probo.inc/probo/pkg/coredata"
+	"go.probo.inc/probo/pkg/itam/devicesources"
 )
 
 // Endpoints groups every host-bearing URL a provider owns, so a deployment
@@ -73,6 +74,17 @@ type Endpoints struct {
 	// data root to move. Empty for every provider whose data host is either
 	// static (APIBase) or supplied per connection.
 	Identity string
+
+	// TokenAudience is the `aud` claim a private_key_jwt assertion must carry.
+	// It lives here, beside Token, because it is host-bearing and MUST move
+	// with the token endpoint: a deployment that repoints Token at a sandbox
+	// while the assertion still claims the vendor's audience mints a
+	// credential the sandbox cannot accept. It is deliberately a separate
+	// string rather than a copy of Token — Apple documents the versioned
+	// `/v2/token` path as the audience while the exchange POSTs to the
+	// unversioned one, so the two genuinely differ. Empty for every provider
+	// that does not use private_key_jwt.
+	TokenAudience string
 
 	// APIBase is the data API root the driver joins paths onto, or — for a
 	// GraphQL provider (Linear, Monday, Railway), which exposes a single
@@ -151,6 +163,16 @@ type Registration struct {
 	// Protocol support / GraphQL surface.
 	SupportsAPIKey            bool
 	SupportsClientCredentials bool
+	// SupportsPrivateKeyJWT marks a provider authenticated with an RFC 7523
+	// private_key_jwt assertion (Client ID + Key ID + private key) rather than
+	// a secret the customer pastes. The console renders its own connect dialog
+	// for this path, and Endpoints.Token plus Endpoints.TokenAudience must both
+	// be set — Register enforces that pairing.
+	SupportsPrivateKeyJWT bool
+	// PrivateKeyJWTScope is sent verbatim as the `scope` form parameter on the
+	// token exchange (Apple Business Manager requires "business.api"). Empty
+	// omits the parameter.
+	PrivateKeyJWTScope string
 	// APIKeyExtraSettings declares the per-provider settings fields the
 	// console's API-key connect dialog renders and submits, in render order.
 	// It covers a ManagedAPIKey provider too (Crisp): the customer supplies
@@ -245,7 +267,13 @@ type Registration struct {
 	// above the literal would compile and test green while silently ignoring
 	// any later override of reg.Endpoints. Passing it at call time makes that
 	// failure unrepresentable.
-	NewDriver               func(context.Context, *http.Client, *coredata.Connector, *log.Logger, Endpoints) (drivers.Driver, error)
+	NewDriver func(context.Context, *http.Client, *coredata.Connector, *log.Logger, Endpoints) (drivers.Driver, error)
+	// NewDeviceSource builds the read-only device-inventory driver for this
+	// provider. It is independent of NewDriver: a provider may feed the device
+	// register, the access review, or both, and the two catalogs are filtered
+	// on the corresponding factory being non-nil. Leaving it nil keeps the
+	// provider out of the device-source catalog entirely.
+	NewDeviceSource         func(context.Context, *http.Client, *coredata.Connector, *log.Logger, Endpoints) (devicesources.Driver, error)
 	NewNameResolver         func(context.Context, *http.Client, *coredata.Connector, *log.Logger, Endpoints) drivers.NameResolver
 	SetOrganizationSettings func(*coredata.Connector, string) error
 }

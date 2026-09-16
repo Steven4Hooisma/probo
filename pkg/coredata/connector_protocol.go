@@ -30,6 +30,12 @@ type ConnectorProtocol string
 const (
 	ConnectorProtocolOAuth2 ConnectorProtocol = "OAUTH2"
 	ConnectorProtocolAPIKey ConnectorProtocol = "API_KEY"
+	// ConnectorProtocolPrivateKeyJWT authenticates by signing a short-lived
+	// client assertion with a customer-held private key and exchanging it for
+	// a bearer token (RFC 7523). Unlike API_KEY the stored credential never
+	// leaves Probo on the wire, and unlike OAUTH2 there is no user-facing
+	// authorization step. Apple Business Manager requires it.
+	ConnectorProtocolPrivateKeyJWT ConnectorProtocol = "PRIVATE_KEY_JWT"
 )
 
 var (
@@ -42,6 +48,7 @@ func ConnectorProtocols() []ConnectorProtocol {
 	return []ConnectorProtocol{
 		ConnectorProtocolOAuth2,
 		ConnectorProtocolAPIKey,
+		ConnectorProtocolPrivateKeyJWT,
 	}
 }
 
@@ -49,7 +56,8 @@ func (v ConnectorProtocol) IsValid() bool {
 	switch v {
 	case
 		ConnectorProtocolOAuth2,
-		ConnectorProtocolAPIKey:
+		ConnectorProtocolAPIKey,
+		ConnectorProtocolPrivateKeyJWT:
 		return true
 	}
 

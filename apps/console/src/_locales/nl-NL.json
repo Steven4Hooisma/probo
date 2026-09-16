@@ -6004,7 +6004,35 @@
       "serialNumber": "Serienummer",
       "agentVersion": "Agentversie",
       "enrolledAt": "Geregistreerd op",
-      "lastSeen": "Laatst gezien"
+      "lastSeen": "Laatst gezien",
+      "source": "Bron"
+    },
+    "sources": {
+      "agent": "Agent",
+      "appleBusinessManager": "Apple Business Manager"
+    },
+    "deviceSources": {
+      "appleBusinessManager": "Apple Business Manager",
+      "title": "{{provider}} koppelen",
+      "description": "Apparaten in je {{provider}}-account worden in deze inventaris gespiegeld en elk uur ververst. Probo schrijft nooit terug naar {{provider}}.",
+      "fields": {
+        "clientId": "Client-ID",
+        "keyId": "Sleutel-ID",
+        "privateKey": "Privésleutel",
+        "privateKeyHelp": "Plak de inhoud van het .pem-bestand dat je bij het aanmaken van het API-account hebt gedownload. Deze wordt versleuteld opgeslagen en niet opnieuw getoond."
+      },
+      "actions": {
+        "connect": "Koppelen",
+        "connecting": "Koppelen…",
+        "connectProvider": "{{provider}} koppelen"
+      },
+      "messages": {
+        "connected": "Gekoppeld met {{provider}}",
+        "syncedCount_one": "{{count}} apparaat gesynchroniseerd",
+        "syncedCount_other": "{{count}} apparaten gesynchroniseerd",
+        "connectedSyncPending": "Gekoppeld met {{provider}}, maar de eerste synchronisatie is mislukt. Deze wordt automatisch opnieuw geprobeerd.",
+        "connectFailed": "Koppelen mislukt"
+      }
     },
     "values": {
       "pending": "(in behandeling)",

@@ -33,8 +33,14 @@ import (
 // TestEveryProviderRegistered asserts that every
 // coredata.ConnectorProvider constant has a matching Registration in
 // the registry, that the registration carries the minimum metadata
-// (Provider, DisplayName), and that the access-review NewDriver
-// closure is wired — so the provider can actually drive a review.
+// (Provider, DisplayName), and that at least one consumer factory is
+// wired — so the provider can actually drive something.
+//
+// A provider needs NewDriver to feed an access review and NewDeviceSource to
+// feed the device register; providers exist for each alone (Apple Business
+// Manager publishes hardware and no accounts, so it has no access-review
+// driver). Requiring one of the two, rather than NewDriver specifically, is
+// what keeps a registration that drives nothing at all out of the binary.
 func TestEveryProviderRegistered(t *testing.T) {
 	t.Parallel()
 
@@ -49,7 +55,12 @@ func TestEveryProviderRegistered(t *testing.T) {
 			require.NotNil(t, reg, "provider %q Registration is nil", p)
 			require.Equalf(t, p, reg.Provider, "provider %q has mismatching Registration.Provider", p)
 			assert.NotEmptyf(t, reg.DisplayName, "provider %q has empty DisplayName", p)
-			assert.NotNilf(t, reg.NewDriver, "provider %q has nil NewDriver", p)
+			assert.Truef(
+				t,
+				reg.NewDriver != nil || reg.NewDeviceSource != nil,
+				"provider %q wires neither NewDriver nor NewDeviceSource",
+				p,
+			)
 		})
 	}
 }

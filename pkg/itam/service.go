@@ -29,7 +29,9 @@ import (
 
 	"go.gearno.de/kit/log"
 	"go.gearno.de/kit/pg"
+	"go.probo.inc/probo/pkg/connector/provider"
 	"go.probo.inc/probo/pkg/coredata"
+	"go.probo.inc/probo/pkg/crypto/cipher"
 	"go.probo.inc/probo/pkg/crypto/hash"
 	"go.probo.inc/probo/pkg/crypto/rand"
 	"go.probo.inc/probo/pkg/gid"
@@ -98,6 +100,13 @@ type (
 		pg                      *pg.Client
 		logger                  *log.Logger
 		enrollmentTokenValidity time.Duration
+
+		// encryptionKey decrypts the stored connector credential and
+		// providerRegistry resolves the device-source driver behind it. Both
+		// are needed only by the device sync; the agent-facing paths never
+		// touch a connector.
+		encryptionKey    cipher.EncryptionKey
+		providerRegistry *provider.Registry
 	}
 
 	CreateDeviceRequest struct {
@@ -144,6 +153,8 @@ type (
 func NewService(
 	pgClient *pg.Client,
 	iamSvc *iam.Service,
+	encryptionKey cipher.EncryptionKey,
+	providerRegistry *provider.Registry,
 	cfg ServiceConfig,
 	logger *log.Logger,
 ) *Service {
@@ -158,6 +169,8 @@ func NewService(
 		pg:                      pgClient,
 		logger:                  logger,
 		enrollmentTokenValidity: validity,
+		encryptionKey:           encryptionKey,
+		providerRegistry:        providerRegistry,
 	}
 }
 

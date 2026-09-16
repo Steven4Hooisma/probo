@@ -129,6 +129,59 @@ func (r *mutationResolver) CreateClientCredentialsConnector(ctx context.Context,
 	}, nil
 }
 
+// CreatePrivateKeyJwtConnector is the resolver for the createPrivateKeyJwtConnector field.
+func (r *mutationResolver) CreatePrivateKeyJwtConnector(ctx context.Context, input types.CreatePrivateKeyJwtConnectorInput) (*types.CreatePrivateKeyJwtConnectorPayload, error) {
+	scope, err := r.authorize(ctx, input.OrganizationID, probo.ActionConnectorCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	reg, ok := r.providerRegistry.Get(input.Provider)
+	if !ok || !reg.SupportsPrivateKeyJWT {
+		return nil, gqlutils.Invalid(ctx, fmt.Errorf("provider %q does not support private key JWT authentication", input.Provider))
+	}
+
+	// The token endpoint, audience and scope come from the server's
+	// registration, never from the client: accepting them as input would let a
+	// caller point a customer's private key at an issuer they control and
+	// harvest signed assertions.
+	conn := &connector.PrivateKeyJWTConnection{
+		ClientID:      input.ClientID,
+		KeyID:         input.KeyID,
+		PrivateKeyPEM: input.PrivateKeyPem,
+		TokenURL:      reg.Endpoints.Token,
+		Audience:      reg.Endpoints.TokenAudience,
+		Scope:         reg.PrivateKeyJWTScope,
+	}
+
+	// Validating here turns a mistyped or wrong-type key into a field error on
+	// the connect form rather than a sync failure an hour later, when nobody is
+	// watching.
+	if err := conn.Validate(); err != nil {
+		return nil, gqlutils.Invalid(ctx, err)
+	}
+
+	cnnctr, err := r.probo.Connectors.Create(ctx, scope, probo.CreateConnectorRequest{
+		OrganizationID: input.OrganizationID,
+		Provider:       input.Provider,
+		Protocol:       coredata.ConnectorProtocolPrivateKeyJWT,
+		Connection:     conn,
+	})
+	if err != nil {
+		if errors.Is(err, coredata.ErrResourceAlreadyExists) {
+			return nil, gqlutils.Conflict(ctx, err)
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot create private key jwt connector", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return &types.CreatePrivateKeyJwtConnectorPayload{
+		Connector: types.NewConnector(cnnctr),
+	}, nil
+}
+
 // DeleteConnector is the resolver for the deleteConnector field.
 func (r *mutationResolver) DeleteConnector(ctx context.Context, input types.DeleteConnectorInput) (*types.DeleteConnectorPayload, error) {
 	scope, err := r.authorize(ctx, input.ConnectorID, probo.ActionConnectorDelete)

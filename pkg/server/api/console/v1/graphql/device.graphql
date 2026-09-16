@@ -56,6 +56,15 @@ enum DevicePostureStatus
         )
 }
 
+enum DeviceSource
+    @goModel(model: "go.probo.inc/probo/pkg/coredata.DeviceSource") {
+    AGENT @goEnum(value: "go.probo.inc/probo/pkg/coredata.DeviceSourceAgent")
+    APPLE_BUSINESS_MANAGER
+        @goEnum(
+            value: "go.probo.inc/probo/pkg/coredata.DeviceSourceAppleBusinessManager"
+        )
+}
+
 enum DeviceOrderField
     @goModel(model: "go.probo.inc/probo/pkg/coredata.DeviceOrderField") {
     CREATED_AT
@@ -81,6 +90,13 @@ input DeviceOrder
 type Device implements Node {
     id: ID!
     state: DeviceState!
+    """
+    source says where the row came from and therefore which fields can be
+    trusted to be populated. An AGENT device reports its own hostname,
+    platform, OS and posture; an externally sourced device leaves all of those
+    null and fills the inventory block below instead.
+    """
+    source: DeviceSource!
     hostname: String
     serialNumber: String
     hardwareUuid: String
@@ -92,6 +108,34 @@ type Device implements Node {
     revokedAt: Datetime
     createdAt: Datetime!
     updatedAt: Datetime!
+
+    """
+    model, productFamily, productType, color, orderNumber and
+    purchaseSourceType are purchase-time facts published by the inventory
+    system. They are null for an agent-enrolled device.
+    """
+    model: String
+    productFamily: String
+    productType: String
+    color: String
+    orderNumber: String
+    purchaseSourceType: String
+    """
+    deviceAddedAt is when the origin system first recorded the device, which
+    is earlier than createdAt whenever the device predates the connector.
+    """
+    deviceAddedAt: Datetime
+    """
+    lastSyncedAt is when the most recent successful sync last saw this device.
+    A device the provider has stopped publishing is revoked rather than
+    deleted, so a stale value here on a REVOKED row is the record of that.
+    """
+    lastSyncedAt: Datetime
+    """
+    connector is the connector this device was synced from, or null for an
+    agent-enrolled device.
+    """
+    connector: Connector @goField(forceResolver: true)
 
     owner: Profile @goField(forceResolver: true)
     latestPostures: [DevicePosture!]! @goField(forceResolver: true)
@@ -275,4 +319,34 @@ extend type Mutation {
     setDeviceOwner(
         input: SetDeviceOwnerInput!
     ): SetDeviceOwnerPayload!
+}
+
+extend type Mutation {
+    """
+    syncConnectorDevices reconciles the device register against one connector's
+    inventory immediately, instead of waiting for the periodic sync. It is
+    idempotent: devices are matched on the provider's own identifier, so
+    running it twice changes nothing the second time.
+    """
+    syncConnectorDevices(
+        input: SyncConnectorDevicesInput!
+    ): SyncConnectorDevicesPayload!
+}
+
+input SyncConnectorDevicesInput {
+    organizationId: ID!
+    connectorId: ID!
+}
+
+type SyncConnectorDevicesPayload {
+    """
+    devicesSeen is how many devices the provider published, not how many rows
+    changed: a sync that finds nothing new still reports the full inventory.
+    """
+    devicesSeen: Int!
+    """
+    devicesRevoked is how many previously synced devices the provider no
+    longer publishes and which were therefore revoked by this run.
+    """
+    devicesRevoked: Int!
 }

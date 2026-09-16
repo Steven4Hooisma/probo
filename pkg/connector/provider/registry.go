@@ -189,6 +189,31 @@ func (r *Registry) Register(reg *Registration) error {
 		return fmt.Errorf("cannot register connector provider %q: APIKeyExtraSettings requires SupportsAPIKey or ManagedAPIKey", reg.Provider)
 	}
 
+	// A private_key_jwt provider mints its credential from Endpoints.Token and
+	// Endpoints.TokenAudience. Registering one without both would build an
+	// assertion with an empty audience — which the issuer rejects as
+	// invalid_client, an error that reads like a bad customer key rather than
+	// a missing registration field. Reject it at startup instead.
+	if reg.SupportsPrivateKeyJWT {
+		if reg.Endpoints.Token == "" {
+			return fmt.Errorf("cannot register connector provider %q: SupportsPrivateKeyJWT requires Endpoints.Token", reg.Provider)
+		}
+
+		if reg.Endpoints.TokenAudience == "" {
+			return fmt.Errorf("cannot register connector provider %q: SupportsPrivateKeyJWT requires Endpoints.TokenAudience", reg.Provider)
+		}
+	}
+
+	// TokenAudience only has meaning on the private_key_jwt path; setting it
+	// elsewhere is a silently ineffective field.
+	if reg.Endpoints.TokenAudience != "" && !reg.SupportsPrivateKeyJWT {
+		return fmt.Errorf("cannot register connector provider %q: Endpoints.TokenAudience requires SupportsPrivateKeyJWT", reg.Provider)
+	}
+
+	if reg.PrivateKeyJWTScope != "" && !reg.SupportsPrivateKeyJWT {
+		return fmt.Errorf("cannot register connector provider %q: PrivateKeyJWTScope requires SupportsPrivateKeyJWT", reg.Provider)
+	}
+
 	if len(reg.ClientCredentialsExtraSettings) > 0 && !reg.SupportsClientCredentials {
 		return fmt.Errorf("cannot register connector provider %q: ClientCredentialsExtraSettings requires SupportsClientCredentials", reg.Provider)
 	}
@@ -270,6 +295,24 @@ func (r *Registry) PublicClients() []*Registration {
 
 	for _, reg := range r.providers {
 		if reg.PublicClient {
+			out = append(out, reg)
+		}
+	}
+
+	return out
+}
+
+// DeviceSources returns every Registration that can mirror a device
+// inventory, i.e. those with a non-nil NewDeviceSource. Order is not stable;
+// callers must sort when determinism matters.
+func (r *Registry) DeviceSources() []*Registration {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var out []*Registration
+
+	for _, reg := range r.providers {
+		if reg.NewDeviceSource != nil {
 			out = append(out, reg)
 		}
 	}

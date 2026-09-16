@@ -781,10 +781,28 @@ func (impl *Implm) Run(
 	itamService := itam.NewService(
 		pgClient,
 		iamService,
+		encryptionKey,
+		providerRegistry,
 		itam.ServiceConfig{
 			EnrollmentTokenValidity: time.Duration(impl.cfg.ITAM.DeviceEnrollmentTokenValidity) * time.Second,
 		},
 		l.Named("itam"),
+	)
+
+	// Device-source providers are read off the registry rather than listed
+	// here, so a provider that gains a NewDeviceSource factory starts syncing
+	// without a second edit in probod.
+	var deviceSourceProviders []coredata.ConnectorProvider
+	for _, reg := range providerRegistry.DeviceSources() {
+		deviceSourceProviders = append(deviceSourceProviders, reg.Provider)
+	}
+
+	deviceSyncWorker := itam.NewDeviceSyncWorker(
+		itamService,
+		pgClient,
+		deviceSourceProviders,
+		itam.DefaultDeviceSyncInterval,
+		l.Named("device-sync"),
 	)
 
 	serverHandler, err := server.NewServer(
@@ -1003,6 +1021,16 @@ func (impl *Implm) Run(
 		func() {
 			if err := iamService.Run(iamServiceCtx); err != nil {
 				cancel(fmt.Errorf("iam service crashed: %w", err))
+			}
+		},
+	)
+
+	deviceSyncWorkerCtx, stopDeviceSyncWorker := context.WithCancel(context.Background())
+
+	wg.Go(
+		func() {
+			if err := deviceSyncWorker.Run(deviceSyncWorkerCtx); err != nil {
+				cancel(fmt.Errorf("device sync worker crashed: %w", err))
 			}
 		},
 	)
@@ -1236,6 +1264,7 @@ func (impl *Implm) Run(
 	stopDocumentNotification()
 	stopExportJobExporter()
 	stopAccessReviewWorker()
+	stopDeviceSyncWorker()
 	stopIAMService()
 	stopITAMGC()
 	stopMailer()

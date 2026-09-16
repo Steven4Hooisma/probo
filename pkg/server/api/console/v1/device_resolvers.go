@@ -15,6 +15,7 @@ import (
 	"go.probo.inc/probo/pkg/iam"
 	"go.probo.inc/probo/pkg/itam"
 	"go.probo.inc/probo/pkg/page"
+	"go.probo.inc/probo/pkg/probo"
 	"go.probo.inc/probo/pkg/server/api/authn"
 	"go.probo.inc/probo/pkg/server/api/authz"
 	"go.probo.inc/probo/pkg/server/api/console/v1/dataloader"
@@ -22,6 +23,29 @@ import (
 	"go.probo.inc/probo/pkg/server/api/console/v1/types"
 	"go.probo.inc/probo/pkg/server/gqlutils"
 )
+
+// Connector is the resolver for the connector field.
+func (r *deviceResolver) Connector(ctx context.Context, obj *types.Device) (*types.Connector, error) {
+	// An agent-enrolled device has no originating connector, which is an
+	// absent value rather than a denied one.
+	if obj.Connector == nil {
+		return nil, nil
+	}
+
+	scope, err := r.authorize(ctx, obj.Connector.ID, probo.ActionConnectorGet)
+	if err != nil {
+		return nil, err
+	}
+
+	cnnctr, err := r.probo.Connectors.Get(ctx, scope, obj.Connector.ID)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot load device connector", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewConnector(cnnctr), nil
+}
 
 // Owner is the resolver for the owner field.
 func (r *deviceResolver) Owner(ctx context.Context, obj *types.Device) (*types.Profile, error) {
@@ -291,6 +315,37 @@ func (r *mutationResolver) SetDeviceOwner(ctx context.Context, input types.SetDe
 	}
 
 	return &types.SetDeviceOwnerPayload{Device: types.NewDevice(d)}, nil
+}
+
+// SyncConnectorDevices is the resolver for the syncConnectorDevices field.
+func (r *mutationResolver) SyncConnectorDevices(ctx context.Context, input types.SyncConnectorDevicesInput) (*types.SyncConnectorDevicesPayload, error) {
+	scope, err := r.authorize(ctx, input.OrganizationID, itam.ActionDeviceSync)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := r.itam.SyncDevices(
+		ctx,
+		scope,
+		itam.SyncDevicesRequest{
+			OrganizationID: input.OrganizationID,
+			ConnectorID:    input.ConnectorID,
+		},
+	)
+	if err != nil {
+		// The failure is nearly always the customer's credential or the
+		// provider being unreachable, so it is surfaced rather than swallowed:
+		// this mutation exists precisely so an operator can see whether the
+		// connection works.
+		r.logger.WarnCtx(ctx, "cannot sync connector devices", log.Error(err))
+
+		return nil, gqlutils.Invalid(ctx, err)
+	}
+
+	return &types.SyncConnectorDevicesPayload{
+		DevicesSeen:    result.Seen,
+		DevicesRevoked: int(result.Revoked),
+	}, nil
 }
 
 // Device returns schema.DeviceResolver implementation.

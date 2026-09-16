@@ -57,8 +57,27 @@ type (
 		LastSeenAt     *time.Time      `db:"last_seen_at"`
 		RevokedAt      *time.Time      `db:"revoked_at"`
 		DeletedAt      *time.Time      `db:"deleted_at"`
-		CreatedAt      time.Time       `db:"created_at"`
-		UpdatedAt      time.Time       `db:"updated_at"`
+
+		// Source determines which of the fields above are populated. An AGENT
+		// device is enrolled by the Probo agent and reports its own hardware
+		// identity; every other source is mirrored from a third-party
+		// inventory and fills the block below instead.
+		Source             DeviceSource `db:"source"`
+		ConnectorID        *gid.GID     `db:"connector_id"`
+		ExternalID         *string      `db:"external_id"`
+		Model              *string      `db:"model"`
+		ProductFamily      *string      `db:"product_family"`
+		ProductType        *string      `db:"product_type"`
+		Color              *string      `db:"color"`
+		OrderNumber        *string      `db:"order_number"`
+		PurchaseSourceType *string      `db:"purchase_source_type"`
+		// DeviceAddedAt is when the origin system first saw the device, not
+		// when Probo did — CreatedAt already records the latter.
+		DeviceAddedAt *time.Time `db:"device_added_at"`
+		LastSyncedAt  *time.Time `db:"last_synced_at"`
+
+		CreatedAt time.Time `db:"created_at"`
+		UpdatedAt time.Time `db:"updated_at"`
 	}
 
 	Devices []*Device
@@ -198,6 +217,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM
@@ -257,6 +287,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM
@@ -318,6 +359,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM
@@ -379,6 +431,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM
@@ -427,6 +490,14 @@ func (d Device) Insert(
 		labels = emptyJSONObject
 	}
 
+	// The agent enrollment path predates device sourcing and leaves Source
+	// unset. Defaulting here rather than at every call site keeps the zero
+	// value meaning what it always did instead of failing the enum cast.
+	source := d.Source
+	if source == "" {
+		source = DeviceSourceAgent
+	}
+
 	q := `
 INSERT INTO devices (
     id,
@@ -445,6 +516,17 @@ INSERT INTO devices (
     enrolled_at,
     last_seen_at,
     revoked_at,
+    source,
+    connector_id,
+    external_id,
+    model,
+    product_family,
+    product_type,
+    color,
+    order_number,
+    purchase_source_type,
+    device_added_at,
+    last_synced_at,
     created_at,
     updated_at
 ) VALUES (
@@ -464,29 +546,51 @@ INSERT INTO devices (
     @enrolled_at,
     @last_seen_at,
     @revoked_at,
+    @source,
+    @connector_id,
+    @external_id,
+    @model,
+    @product_family,
+    @product_type,
+    @color,
+    @order_number,
+    @purchase_source_type,
+    @device_added_at,
+    @last_synced_at,
     @created_at,
     @updated_at
 )
 `
 	args := pgx.StrictNamedArgs{
-		"device_id":        d.ID,
-		"tenant_id":        scope.GetTenantID(),
-		"organization_id":  d.OrganizationID,
-		"state":            d.State,
-		"hardware_uuid":    d.HardwareUUID,
-		"serial_number":    d.SerialNumber,
-		"hostname":         d.Hostname,
-		"platform":         d.Platform,
-		"os_version":       d.OSVersion,
-		"agent_version":    d.AgentVersion,
-		"api_key_hash":     d.APIKeyHash,
-		"owner_profile_id": d.OwnerID,
-		"labels":           labels,
-		"enrolled_at":      d.EnrolledAt,
-		"last_seen_at":     d.LastSeenAt,
-		"revoked_at":       d.RevokedAt,
-		"created_at":       d.CreatedAt,
-		"updated_at":       d.UpdatedAt,
+		"device_id":            d.ID,
+		"tenant_id":            scope.GetTenantID(),
+		"organization_id":      d.OrganizationID,
+		"state":                d.State,
+		"hardware_uuid":        d.HardwareUUID,
+		"serial_number":        d.SerialNumber,
+		"hostname":             d.Hostname,
+		"platform":             d.Platform,
+		"os_version":           d.OSVersion,
+		"agent_version":        d.AgentVersion,
+		"api_key_hash":         d.APIKeyHash,
+		"owner_profile_id":     d.OwnerID,
+		"labels":               labels,
+		"enrolled_at":          d.EnrolledAt,
+		"last_seen_at":         d.LastSeenAt,
+		"revoked_at":           d.RevokedAt,
+		"source":               d.Source,
+		"connector_id":         d.ConnectorID,
+		"external_id":          d.ExternalID,
+		"model":                d.Model,
+		"product_family":       d.ProductFamily,
+		"product_type":         d.ProductType,
+		"color":                d.Color,
+		"order_number":         d.OrderNumber,
+		"purchase_source_type": d.PurchaseSourceType,
+		"device_added_at":      d.DeviceAddedAt,
+		"last_synced_at":       d.LastSyncedAt,
+		"created_at":           d.CreatedAt,
+		"updated_at":           d.UpdatedAt,
 	}
 
 	_, err := conn.Exec(ctx, q, args)
@@ -762,6 +866,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM
@@ -820,6 +935,17 @@ SELECT
 	last_seen_at,
 	revoked_at,
 	deleted_at,
+	source,
+	connector_id,
+	external_id,
+	model,
+	product_family,
+	product_type,
+	color,
+	order_number,
+	purchase_source_type,
+	device_added_at,
+	last_synced_at,
 	created_at,
 	updated_at
 FROM

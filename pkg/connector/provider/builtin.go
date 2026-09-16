@@ -58,6 +58,7 @@ func NewBuiltinRegistryWith(opts ...Option) (*Registry, error) {
 
 	for _, reg := range []*Registration{
 		anthropicRegistration(),
+		appleBusinessManagerRegistration(),
 		apolloRegistration(),
 		asanaRegistration(),
 		betterStackRegistration(),

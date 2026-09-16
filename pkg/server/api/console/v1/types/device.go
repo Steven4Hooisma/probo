@@ -123,9 +123,26 @@ func NewDevice(d *coredata.Device) *Device {
 		RevokedAt:    d.RevokedAt,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
+
+		Source:             d.Source,
+		Model:              d.Model,
+		ProductFamily:      d.ProductFamily,
+		ProductType:        d.ProductType,
+		Color:              d.Color,
+		OrderNumber:        d.OrderNumber,
+		PurchaseSourceType: d.PurchaseSourceType,
+		DeviceAddedAt:      d.DeviceAddedAt,
+		LastSyncedAt:       d.LastSyncedAt,
 	}
 	if d.OwnerID != nil {
 		device.Owner = &Profile{ID: *d.OwnerID}
+	}
+
+	// Connector is carried as an id-only stub for the field resolver to
+	// hydrate, the same way Owner is: loading it here would fetch a connector
+	// for every row of a device list that never selects the field.
+	if d.ConnectorID != nil {
+		device.Connector = &Connector{ID: *d.ConnectorID}
 	}
 
 	return device

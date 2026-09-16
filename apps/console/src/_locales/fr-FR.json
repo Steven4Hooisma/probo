@@ -5984,7 +5984,35 @@
       "serialNumber": "Numéro de série",
       "agentVersion": "Version de l’agent",
       "enrolledAt": "Enrôlé le",
-      "lastSeen": "Dernière connexion"
+      "lastSeen": "Dernière connexion",
+      "source": "Source"
+    },
+    "sources": {
+      "agent": "Agent",
+      "appleBusinessManager": "Apple Business Manager"
+    },
+    "deviceSources": {
+      "appleBusinessManager": "Apple Business Manager",
+      "title": "Connecter {{provider}}",
+      "description": "Les appareils de votre compte {{provider}} sont copiés dans cet inventaire et actualisés toutes les heures. Probo n'écrit jamais dans {{provider}}.",
+      "fields": {
+        "clientId": "Identifiant client",
+        "keyId": "Identifiant de clé",
+        "privateKey": "Clé privée",
+        "privateKeyHelp": "Collez le contenu du fichier .pem téléchargé lors de la création du compte API. Il est chiffré au repos et ne sera plus affiché."
+      },
+      "actions": {
+        "connect": "Connecter",
+        "connecting": "Connexion…",
+        "connectProvider": "Connecter {{provider}}"
+      },
+      "messages": {
+        "connected": "Connecté à {{provider}}",
+        "syncedCount_one": "{{count}} appareil synchronisé",
+        "syncedCount_other": "{{count}} appareils synchronisés",
+        "connectedSyncPending": "Connecté à {{provider}}, mais la première synchronisation a échoué. Elle sera relancée automatiquement.",
+        "connectFailed": "Échec de la connexion"
+      }
     },
     "values": {
       "pending": "(en attente)",

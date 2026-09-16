@@ -33,6 +33,11 @@ const (
 	ActionDeviceRevoke       = "itam:device:revoke"
 	ActionDeviceDelete       = "itam:device:delete"
 	ActionDeviceAssignOwner  = "itam:device:assign"
+	// ActionDeviceSync authorizes reconciling the device register against a
+	// connector's inventory. It is separate from ActionDeviceCreate because a
+	// sync also revokes devices, so granting it is a broader decision than
+	// granting the ability to add one.
+	ActionDeviceSync = "itam:device:sync"
 
 	// DevicePosture actions
 	ActionDevicePostureList = "itam:device-posture:list"

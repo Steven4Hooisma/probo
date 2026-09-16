@@ -36,7 +36,14 @@ import { SortableTable, SortableTh } from "#/components/SortableTable";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
 
 import { DeviceRow } from "./_components/DeviceRow";
+import { ConnectDeviceSourceDialog } from "./dialogs/ConnectDeviceSourceDialog";
 import { CreateDeviceDialog } from "./dialogs/CreateDeviceDialog";
+
+// Apple Business Manager is the only device source today. It is named here
+// rather than read from deviceSourceProviders because the connect dialog it
+// opens collects Apple's specific credential shape; a second source with a
+// different shape needs its own dialog, not another entry in a list.
+const APPLE_BUSINESS_MANAGER = "APPLE_BUSINESS_MANAGER";
 
 export const devicesPageQuery = graphql`
   query DevicesPageQuery($organizationId: ID!) {
@@ -48,6 +55,7 @@ export const devicesPageQuery = graphql`
         canRevokeDevice: permission(action: "itam:device:revoke")
         canDeleteDevice: permission(action: "itam:device:delete")
         canCreateDevice: permission(action: "itam:device:create")
+        canSyncDevice: permission(action: "itam:device:sync")
         ...DevicesPageFragment
       }
     }
@@ -117,6 +125,22 @@ export function DevicesPage({ queryRef }: DevicesPageProps) {
         title={t("devices.title")}
         description={t("devices.description")}
       >
+        {organization.canSyncDevice && (
+          <ConnectDeviceSourceDialog
+            organizationId={organizationId}
+            provider={APPLE_BUSINESS_MANAGER}
+            providerName={t("devices.deviceSources.appleBusinessManager")}
+            onConnected={() => {
+              pagination.refetch({}, { fetchPolicy: "store-and-network" });
+            }}
+          >
+            <Button variant="secondary" icon={IconPlusLarge}>
+              {t("devices.deviceSources.actions.connectProvider", {
+                provider: t("devices.deviceSources.appleBusinessManager"),
+              })}
+            </Button>
+          </ConnectDeviceSourceDialog>
+        )}
         {organization.canCreateDevice && (
           <CreateDeviceDialog
             organizationId={organizationId}
@@ -138,6 +162,7 @@ export function DevicesPage({ queryRef }: DevicesPageProps) {
         <Thead>
           <Tr>
             <SortableTh field="HOSTNAME">{t("devices.fields.hostname")}</SortableTh>
+            <Th>{t("devices.fields.source")}</Th>
             <Th>{t("devices.fields.owner")}</Th>
             <Th>{t("devices.fields.state")}</Th>
             <Th>{t("devices.fields.platform")}</Th>

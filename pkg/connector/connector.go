@@ -70,6 +70,10 @@ type (
 const (
 	ProtocolOAuth2 ProtocolType = "OAUTH2"
 	ProtocolAPIKey ProtocolType = "API_KEY"
+	// ProtocolPrivateKeyJWT is RFC 7523 private_key_jwt client
+	// authentication: a locally signed assertion is exchanged for a bearer
+	// token, so no shared secret is ever transmitted.
+	ProtocolPrivateKeyJWT ProtocolType = "PRIVATE_KEY_JWT"
 )
 
 func UnmarshalConnection(protocol string, provider string, data []byte) (Connection, error) {
@@ -97,6 +101,14 @@ func UnmarshalConnection(protocol string, provider string, data []byte) (Connect
 		var conn APIKeyConnection
 		if err := json.Unmarshal(data, &conn); err != nil {
 			return nil, fmt.Errorf("cannot unmarshal api key connection: %w", err)
+		}
+
+		return &conn, nil
+
+	case string(ProtocolPrivateKeyJWT):
+		var conn PrivateKeyJWTConnection
+		if err := json.Unmarshal(data, &conn); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal private key jwt connection: %w", err)
 		}
 
 		return &conn, nil

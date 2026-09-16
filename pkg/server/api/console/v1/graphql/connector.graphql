@@ -110,6 +110,10 @@ enum ConnectorProvider
         )
     UPCLOUD
         @goEnum(value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderUpCloud")
+    APPLE_BUSINESS_MANAGER
+        @goEnum(
+            value: "go.probo.inc/probo/pkg/coredata.ConnectorProviderAppleBusinessManager"
+        )
 }
 
 type ConnectorProviderInfo {
@@ -146,6 +150,13 @@ type ConnectorProviderInfo {
     client cannot render one path's settings on the other.
     """
     clientCredentialsExtraSettings: [ConnectorProviderSettingInfo!]!
+    """
+    privateKeyJwtSupported is true when the provider authenticates with an
+    RFC 7523 private-key JWT assertion (Client ID, Key ID and a private key)
+    rather than a secret. Apple Business Manager accepts no other method, so a
+    client must render that dialog instead of the API-key one.
+    """
+    privateKeyJwtSupported: Boolean!
 }
 
 type ConnectorProviderSettingInfo {
@@ -192,6 +203,9 @@ extend type Mutation {
     createClientCredentialsConnector(
         input: CreateClientCredentialsConnectorInput!
     ): CreateClientCredentialsConnectorPayload!
+    createPrivateKeyJwtConnector(
+        input: CreatePrivateKeyJwtConnectorInput!
+    ): CreatePrivateKeyJwtConnectorPayload!
     deleteConnector(input: DeleteConnectorInput!): DeleteConnectorPayload!
     deleteSlackConnection(
         input: DeleteSlackConnectionInput!
@@ -246,6 +260,30 @@ input CreateClientCredentialsConnectorInput {
 
 type CreateClientCredentialsConnectorPayload {
     connector: Connector
+}
+
+input CreatePrivateKeyJwtConnectorInput {
+    organizationId: ID!
+    provider: ConnectorProvider!
+    """
+    clientId and keyId are the identifiers the provider issues alongside the
+    key; for Apple Business Manager they are the API account's Client ID and
+    Key ID.
+    """
+    clientId: String!
+    keyId: String!
+    """
+    privateKeyPem is the EC private key downloaded from the provider, in PEM
+    form. It is write-only: it is encrypted at rest and never returned by any
+    query. The token endpoint, audience and scope are not accepted from the
+    client — they come from the server's provider registration, so a caller
+    cannot redirect a customer's key at an issuer of their choosing.
+    """
+    privateKeyPem: String!
+}
+
+type CreatePrivateKeyJwtConnectorPayload {
+    connector: Connector!
 }
 
 input DeleteConnectorInput {
