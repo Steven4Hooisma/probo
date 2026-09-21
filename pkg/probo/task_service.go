@@ -31,8 +31,12 @@ import (
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/page"
+	"go.probo.inc/probo/pkg/prosemirror"
+	"go.probo.inc/probo/pkg/timespan"
 	"go.probo.inc/probo/pkg/validator"
 )
+
+const richTextMaxJSONBytes = 64 << 10
 
 type (
 	TaskService struct {
@@ -40,29 +44,41 @@ type (
 	}
 
 	CreateTaskRequest struct {
-		OrganizationID gid.GID
-		MeasureID      *gid.GID
-		Name           string
-		Description    *string
-		Priority       coredata.TaskPriority
-		TimeEstimate   *time.Duration
-		AssignedToID   *gid.GID
-		Deadline       *time.Time
+		OrganizationID     gid.GID
+		MeasureID          *gid.GID
+		Name               string
+		Content            *string
+		State              *coredata.TaskState
+		Priority           coredata.TaskPriority
+		TimeEstimate       *timespan.TimeSpan
+		AssignedToID       *gid.GID
+		Deadline           *time.Time
+		IdentityID         *gid.GID
+		RecurrenceInterval *timespan.TimeSpan
 	}
 
 	UpdateTaskRequest struct {
-		TaskID       gid.GID
-		Name         *string
-		Description  **string
-		State        *coredata.TaskState
-		Priority     *coredata.TaskPriority
-		TimeEstimate **time.Duration
-		Deadline     **time.Time
-		AssignedToID **gid.GID
-		MeasureID    **gid.GID
-		Rank         *int
+		TaskID             gid.GID
+		Name               *string
+		Content            **string
+		State              *coredata.TaskState
+		Priority           *coredata.TaskPriority
+		TimeEstimate       **timespan.TimeSpan
+		Deadline           **time.Time
+		AssignedToID       **gid.GID
+		MeasureID          **gid.GID
+		Rank               *int
+		IdentityID         *gid.GID
+		RecurrenceInterval **timespan.TimeSpan
+	}
+
+	UpdateTaskResult struct {
+		Task     *coredata.Task
+		NextTask *coredata.Task
 	}
 )
+
+const maxRecurrenceInterval = 10 * 365 * 24 * time.Hour
 
 func (ctr *CreateTaskRequest) Validate() error {
 	v := validator.New()
@@ -70,10 +86,50 @@ func (ctr *CreateTaskRequest) Validate() error {
 	v.Check(ctr.OrganizationID, "organization_id", validator.Required(), validator.GID(coredata.OrganizationEntityType))
 	v.Check(ctr.MeasureID, "measure_id", validator.GID(coredata.MeasureEntityType))
 	v.Check(ctr.Name, "name", validator.SafeTextNoNewLine(TitleMaxLength))
-	v.Check(ctr.Description, "description", validator.SafeText(ContentMaxLength))
+	v.Check(
+		ctr.Content,
+		"content",
+		validator.MaxLen(richTextMaxJSONBytes),
+		validator.ProseMirrorDocumentContent(),
+		validator.ProseMirrorDocumentMaxTextLength(ContentMaxLength),
+	)
+	v.Check(ctr.State, "state", validator.OneOfSlice(coredata.TaskStates()))
 	v.Check(ctr.Priority, "priority", validator.Required(), validator.OneOfSlice(coredata.TaskPriorities()))
 	v.Check(ctr.TimeEstimate, "time_estimate", validator.RangeDuration(0, 1000*time.Hour))
 	v.Check(ctr.AssignedToID, "assigned_to_id", validator.GID(coredata.MembershipProfileEntityType))
+	v.Check(ctr.IdentityID, "identity_id", validator.GID(coredata.IdentityEntityType))
+	v.Check(ctr.RecurrenceInterval, "recurrence_interval", validator.RangeDuration(time.Nanosecond, maxRecurrenceInterval))
+
+	if ctr.RecurrenceInterval != nil && ctr.Deadline == nil {
+		v.Check(ctr.Deadline, "deadline", func(any) *validator.ValidationError {
+			return &validator.ValidationError{
+				Code:    validator.ErrorCodeCustom,
+				Message: "deadline is required when the task is recurring",
+			}
+		})
+	}
+
+	if ctr.RecurrenceInterval != nil && ctr.Deadline != nil {
+		v.Check(ctr.RecurrenceInterval, "recurrence_interval", func(any) *validator.ValidationError {
+			if recurrenceAdvancesDeadline(*ctr.Deadline, *ctr.RecurrenceInterval) {
+				return nil
+			}
+
+			return &validator.ValidationError{
+				Code:    validator.ErrorCodeCustom,
+				Message: "must advance the deadline",
+			}
+		})
+	}
+
+	if ctr.RecurrenceInterval != nil && ctr.State != nil && *ctr.State == coredata.TaskStateDone {
+		v.Check(ctr.State, "state", func(any) *validator.ValidationError {
+			return &validator.ValidationError{
+				Code:    validator.ErrorCodeCustom,
+				Message: "a recurring task cannot be created as done",
+			}
+		})
+	}
 
 	return v.Error()
 }
@@ -83,13 +139,21 @@ func (utr *UpdateTaskRequest) Validate() error {
 
 	v.Check(utr.TaskID, "task_id", validator.Required(), validator.GID(coredata.TaskEntityType))
 	v.Check(utr.Name, "name", validator.SafeTextNoNewLine(TitleMaxLength))
-	v.Check(utr.Description, "description", validator.SafeText(ContentMaxLength))
+	v.Check(
+		utr.Content,
+		"content",
+		validator.MaxLen(richTextMaxJSONBytes),
+		validator.ProseMirrorDocumentContent(),
+		validator.ProseMirrorDocumentMaxTextLength(ContentMaxLength),
+	)
 	v.Check(utr.Priority, "priority", validator.OneOfSlice(coredata.TaskPriorities()))
 	v.Check(utr.TimeEstimate, "time_estimate", validator.RangeDuration(0, 1000*time.Hour))
 	v.Check(utr.State, "state", validator.OneOfSlice(coredata.TaskStates()))
 	v.Check(utr.AssignedToID, "assigned_to_id", validator.GID(coredata.MembershipProfileEntityType))
 	v.Check(utr.MeasureID, "measure_id", validator.GID(coredata.MeasureEntityType))
 	v.Check(utr.Rank, "rank", validator.Min(1))
+	v.Check(utr.IdentityID, "identity_id", validator.GID(coredata.IdentityEntityType))
+	v.Check(utr.RecurrenceInterval, "recurrence_interval", validator.RangeDuration(time.Nanosecond, maxRecurrenceInterval))
 
 	return v.Error()
 }
@@ -105,9 +169,19 @@ func (s TaskService) Create(
 	now := time.Now()
 	taskID := gid.New(scope.GetTenantID(), coredata.TaskEntityType)
 
+	content, err := prosemirror.DefaultDocumentJSON(req.Content)
+	if err != nil {
+		return nil, fmt.Errorf("cannot sanitize task content: %w", err)
+	}
+
 	referenceID, err := uuid.NewV4()
 	if err != nil {
 		return nil, fmt.Errorf("cannot generate reference id: %w", err)
+	}
+
+	state := coredata.TaskStateTodo
+	if req.State != nil {
+		state = *req.State
 	}
 
 	task := &coredata.Task{
@@ -115,12 +189,13 @@ func (s TaskService) Create(
 		OrganizationID: req.OrganizationID,
 		MeasureID:      req.MeasureID,
 		Name:           req.Name,
-		Description:    req.Description,
+		Content:        content,
 		Priority:       req.Priority,
 		TimeEstimate:   req.TimeEstimate,
 		AssignedToID:   req.AssignedToID,
 		Deadline:       req.Deadline,
-		State:          coredata.TaskStateTodo,
+		Recurrence:     req.RecurrenceInterval,
+		State:          state,
 		ReferenceID:    "custom-task-" + referenceID.String(),
 		CreatedAt:      now,
 		UpdatedAt:      now,
@@ -145,6 +220,21 @@ func (s TaskService) Create(
 
 			if err := task.Insert(ctx, conn, scope); err != nil {
 				return fmt.Errorf("cannot insert task: %w", err)
+			}
+
+			actorID, err := resolveTaskActivityActorID(
+				ctx,
+				conn,
+				scope,
+				req.IdentityID,
+				task.OrganizationID,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot resolve task activity actor: %w", err)
+			}
+
+			if err := insertTaskCreatedActivity(ctx, conn, scope, task, actorID, now); err != nil {
+				return fmt.Errorf("cannot record task created event: %w", err)
 			}
 
 			return nil
@@ -208,6 +298,7 @@ func (s TaskService) Assign(
 	ctx context.Context, scope coredata.Scoper,
 	taskID gid.GID,
 	assignedToID gid.GID,
+	identityID *gid.GID,
 ) (*coredata.Task, error) {
 	task := &coredata.Task{ID: taskID}
 
@@ -223,11 +314,47 @@ func (s TaskService) Assign(
 				return fmt.Errorf("cannot load assignee profile: %w", err)
 			}
 
+			oldAssignedToID := task.AssignedToID
+			if gidPtrEqual(oldAssignedToID, &assignedToID) {
+				return nil
+			}
+
+			oldName, err := taskActivityProfileName(ctx, conn, scope, oldAssignedToID)
+			if err != nil {
+				return fmt.Errorf("cannot load previous assignee name: %w", err)
+			}
+
 			task.AssignedToID = &assignedToID
-			task.UpdatedAt = time.Now()
+			now := time.Now()
+			task.UpdatedAt = now
 
 			if err := task.Update(ctx, conn, scope); err != nil {
 				return fmt.Errorf("cannot assign task %q to %q: %w", taskID, assignedToID, err)
+			}
+
+			actorID, err := resolveTaskActivityActorID(
+				ctx,
+				conn,
+				scope,
+				identityID,
+				task.OrganizationID,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot resolve task activity actor: %w", err)
+			}
+
+			if err := insertTaskFieldActivity(
+				ctx,
+				conn,
+				scope,
+				task,
+				actorID,
+				coredata.TaskActivityFieldAssignedTo,
+				oldName,
+				&assignee.FullName,
+				now,
+			); err != nil {
+				return fmt.Errorf("cannot record task assignee event: %w", err)
 			}
 
 			return nil
@@ -243,6 +370,7 @@ func (s TaskService) Assign(
 func (s TaskService) Unassign(
 	ctx context.Context, scope coredata.Scoper,
 	taskID gid.GID,
+	identityID *gid.GID,
 ) (*coredata.Task, error) {
 	task := &coredata.Task{}
 
@@ -253,11 +381,46 @@ func (s TaskService) Unassign(
 				return fmt.Errorf("cannot load task %q: %w", taskID, err)
 			}
 
+			if task.AssignedToID == nil {
+				return nil
+			}
+
+			oldName, err := taskActivityProfileName(ctx, conn, scope, task.AssignedToID)
+			if err != nil {
+				return fmt.Errorf("cannot load previous assignee name: %w", err)
+			}
+
 			task.AssignedToID = nil
-			task.UpdatedAt = time.Now()
+			now := time.Now()
+			task.UpdatedAt = now
 
 			if err := task.Update(ctx, conn, scope); err != nil {
 				return fmt.Errorf("cannot unassign task %q: %w", taskID, err)
+			}
+
+			actorID, err := resolveTaskActivityActorID(
+				ctx,
+				conn,
+				scope,
+				identityID,
+				task.OrganizationID,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot resolve task activity actor: %w", err)
+			}
+
+			if err := insertTaskFieldActivity(
+				ctx,
+				conn,
+				scope,
+				task,
+				actorID,
+				coredata.TaskActivityFieldAssignedTo,
+				oldName,
+				nil,
+				now,
+			); err != nil {
+				return fmt.Errorf("cannot record task unassign event: %w", err)
 			}
 
 			return nil
@@ -273,29 +436,35 @@ func (s TaskService) Unassign(
 func (s TaskService) Update(
 	ctx context.Context, scope coredata.Scoper,
 	req UpdateTaskRequest,
-) (*coredata.Task, error) {
+) (*UpdateTaskResult, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
 	task := &coredata.Task{}
 
+	var nextTask *coredata.Task
+
 	err := s.svc.pg.WithTx(
 		ctx,
 		func(ctx context.Context, conn pg.Tx) error {
-			if err := task.LoadByID(ctx, conn, scope, req.TaskID); err != nil {
+			if err := task.LoadByIDForUpdate(ctx, conn, scope, req.TaskID); err != nil {
 				return fmt.Errorf("cannot load task %q: %w", req.TaskID, err)
 			}
 
-			oldState := task.State
-			oldPriority := task.Priority
+			oldTask := *task
 
 			if req.Name != nil {
 				task.Name = *req.Name
 			}
 
-			if req.Description != nil {
-				task.Description = *req.Description
+			if req.Content != nil {
+				content, err := prosemirror.DefaultDocumentJSON(*req.Content)
+				if err != nil {
+					return fmt.Errorf("cannot sanitize task content: %w", err)
+				}
+
+				task.Content = content
 			}
 
 			if req.State != nil {
@@ -340,11 +509,50 @@ func (s TaskService) Update(
 				task.Priority = *req.Priority
 			}
 
-			task.UpdatedAt = time.Now()
+			if req.RecurrenceInterval != nil {
+				task.Recurrence = *req.RecurrenceInterval
+			}
+
+			settingRecurrence := req.RecurrenceInterval != nil && *req.RecurrenceInterval != nil
+			if settingRecurrence && task.Deadline == nil {
+				return validator.ValidationErrors{&validator.ValidationError{
+					Field:   "deadline",
+					Code:    validator.ErrorCodeCustom,
+					Message: "deadline is required when the task is recurring",
+				}}
+			}
+
+			if task.Deadline == nil {
+				task.Recurrence = nil
+			}
+
+			changingRecurrence := req.RecurrenceInterval != nil || req.Deadline != nil
+			if task.Recurrence != nil && task.Deadline != nil && changingRecurrence {
+				if !recurrenceAdvancesDeadline(*task.Deadline, *task.Recurrence) {
+					return validator.ValidationErrors{&validator.ValidationError{
+						Field:   "recurrence_interval",
+						Code:    validator.ErrorCodeCustom,
+						Message: "must advance the deadline",
+					}}
+				}
+			}
+
+			now := time.Now()
+			if shouldCloneRecurringTask(oldTask.State, task.State, task) {
+				next, err := insertNextRecurringTask(ctx, conn, scope, task, now)
+				if err != nil {
+					return err
+				}
+
+				task.Recurrence = nil
+				nextTask = next
+			}
+
+			task.UpdatedAt = now
 
 			targetRank := req.Rank
-			priorityChanged := task.Priority != oldPriority
-			stateChanged := task.State != oldState
+			priorityChanged := task.Priority != oldTask.Priority
+			stateChanged := task.State != oldTask.State
 
 			if priorityChanged || stateChanged {
 				if err := task.NextRankForStatePriority(ctx, conn, scope); err != nil {
@@ -363,6 +571,29 @@ func (s TaskService) Update(
 				}
 			}
 
+			actorID, err := resolveTaskActivityActorID(
+				ctx,
+				conn,
+				scope,
+				req.IdentityID,
+				task.OrganizationID,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot resolve task activity actor: %w", err)
+			}
+
+			if err := insertTaskUpdateActivities(
+				ctx,
+				conn,
+				scope,
+				&oldTask,
+				task,
+				actorID,
+				now,
+			); err != nil {
+				return fmt.Errorf("cannot record task update events: %w", err)
+			}
+
 			return nil
 		},
 	)
@@ -370,7 +601,10 @@ func (s TaskService) Update(
 		return nil, err
 	}
 
-	return task, nil
+	return &UpdateTaskResult{
+		Task:     task,
+		NextTask: nextTask,
+	}, nil
 }
 
 func (s TaskService) Delete(

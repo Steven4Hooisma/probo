@@ -16,6 +16,7 @@ import (
 	"go.probo.inc/probo/pkg/iam/scim/bridge/provider/microsoft365"
 	"go.probo.inc/probo/pkg/page"
 	"go.probo.inc/probo/pkg/server/api/authn"
+	"go.probo.inc/probo/pkg/server/api/authz"
 	"go.probo.inc/probo/pkg/server/api/connect/v1/schema"
 	"go.probo.inc/probo/pkg/server/api/connect/v1/types"
 	"go.probo.inc/probo/pkg/server/gqlutils"
@@ -30,6 +31,44 @@ func (r *mutationResolver) CreateOrganization(ctx context.Context, input types.C
 	// if ok := r.authorize(ctx, identity.ID, iam.ActionOrganizationCreate); !ok {
 	// 	return nil, nil
 	// }
+
+	// On an instance with signup disabled, an identity created through a
+	// self-service magic-link or OIDC sign-in must not be able to bootstrap
+	// itself into the console by creating an organization. Existing members
+	// may still create another organization, but only as owners.
+	if !r.iam.IsSignUpEnabled() {
+		hasMembership, err := r.iam.IdentityHasMembership(ctx, identity.ID, nil)
+		if err != nil {
+			r.logger.ErrorCtx(ctx, "cannot check identity membership", log.Error(err))
+
+			return nil, gqlutils.Internal(ctx)
+		}
+
+		if !hasMembership {
+			return nil, gqlutils.MembershipRequiredf(
+				ctx,
+				"an organization membership is required to create an organization",
+			)
+		}
+
+		hasOwnerMembership, err := r.iam.IdentityHasMembership(
+			ctx,
+			identity.ID,
+			new(coredata.MembershipRoleOwner),
+		)
+		if err != nil {
+			r.logger.ErrorCtx(ctx, "cannot check identity owner membership", log.Error(err))
+
+			return nil, gqlutils.Internal(ctx)
+		}
+
+		if !hasOwnerMembership {
+			return nil, gqlutils.Forbiddenf(
+				ctx,
+				"only organization owners can create an organization",
+			)
+		}
+	}
 
 	var (
 		logoFile           *iam.UploadedFile
@@ -380,8 +419,10 @@ func (r *organizationResolver) Viewer(ctx context.Context, obj *types.Organizati
 }
 
 // Permission is the resolver for the permission field.
+// SkipAssumptionCheck: /enroll lists organizations before the viewer assumes
+// one. enrollDevice uses the same skip so the picker matches the mutation.
 func (r *organizationResolver) Permission(ctx context.Context, obj *types.Organization, action string, attributes map[string]any) (bool, error) {
-	return r.permission(ctx, obj, action, attributes)
+	return r.permission(ctx, obj, action, attributes, authz.WithSkipAssumptionCheck())
 }
 
 // Organization returns schema.OrganizationResolver implementation.

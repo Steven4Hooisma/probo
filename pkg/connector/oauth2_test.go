@@ -37,6 +37,7 @@ import (
 	"go.gearno.de/kit/httpclient"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/statelesstoken"
+	"golang.org/x/oauth2"
 )
 
 func TestBuildTokenRequest_PostForm(t *testing.T) {
@@ -260,6 +261,118 @@ func TestClientCredentialsClient(t *testing.T) {
 	assert.WithinDuration(t, expectedExpiry, conn.ExpiresAt, 5*time.Second)
 }
 
+// TestClientWithOptions_ClientCredentialsMintsToken pins the entry point the
+// access-review engine actually reaches. oauthClient only calls
+// RefreshableClient when the deployment holds operator OAuth2 config for the
+// provider, and a provider whose credential is customer-supplied
+// (1Password, MongoDB Atlas) never has any — so it lands on the plain
+// Client(). That used to hand back a transport carrying the connection's
+// stored access token, which for client credentials is the empty string, and
+// every request 401'd. The older tests here missed it by calling
+// clientCredentialsClient directly.
+func TestClientWithOptions_ClientCredentialsMintsToken(t *testing.T) {
+	t.Parallel()
+
+	var gotAuthorization string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"minted-token","expires_in":3600,"token_type":"Bearer"}`))
+
+			return
+		}
+
+		gotAuthorization = r.Header.Get("Authorization")
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	conn := &OAuth2Connection{
+		GrantType:    OAuth2GrantTypeClientCredentials,
+		ClientID:     "cc-client-id",
+		ClientSecret: "cc-client-secret",
+		TokenURL:     server.URL + "/token",
+	}
+
+	// httptest binds to loopback, which the SSRF-protected default transport
+	// refuses; relax just for this test.
+	client, err := conn.ClientWithOptions(context.Background(), httpclient.WithSSRFAllowLoopback())
+	require.NoError(t, err)
+
+	resp, err := client.Get(server.URL + "/api")
+	require.NoError(t, err)
+
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, "Bearer minted-token", gotAuthorization)
+	assert.Equal(t, "minted-token", conn.AccessToken)
+}
+
+// TestClientWithOptions_AuthorizationCodeKeepsStoredToken is the other half of
+// the branch above: a grant type that stores its token must keep using it
+// rather than being sent through a token exchange it has no credentials for.
+func TestClientWithOptions_AuthorizationCodeKeepsStoredToken(t *testing.T) {
+	t.Parallel()
+
+	var gotAuthorization string
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuthorization = r.Header.Get("Authorization")
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	conn := &OAuth2Connection{
+		GrantType:   OAuth2GrantTypeAuthorizationCode,
+		AccessToken: "stored-token",
+		TokenType:   "Bearer",
+	}
+
+	client, err := conn.ClientWithOptions(context.Background(), httpclient.WithSSRFAllowLoopback())
+	require.NoError(t, err)
+
+	resp, err := client.Get(server.URL)
+	require.NoError(t, err)
+
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, "Bearer stored-token", gotAuthorization)
+}
+
+// TestClientWithOptions_ClientCredentialsRejectionIsProviderVerdict pins the
+// error TYPE, not just the failure. accessreview.IsProviderVerdict recognises
+// *oauth2.RetrieveError as the provider's answer; an untyped error here is
+// charged to Probo's error budget and logged at ERROR with full detail
+// instead. An expired client secret is the first thing every
+// client-credentials customer hits, and Atlas forces one within 365 days.
+func TestClientWithOptions_ClientCredentialsRejectionIsProviderVerdict(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"invalid_client","error_description":"The provided credentials are not valid"}`))
+	}))
+	defer server.Close()
+
+	conn := &OAuth2Connection{
+		GrantType:    OAuth2GrantTypeClientCredentials,
+		ClientID:     "cc-client-id",
+		ClientSecret: "expired-secret",
+		TokenURL:     server.URL,
+	}
+
+	_, err := conn.ClientWithOptions(context.Background(), httpclient.WithSSRFAllowLoopback())
+	require.Error(t, err)
+
+	var retrieveErr *oauth2.RetrieveError
+	require.ErrorAs(t, err, &retrieveErr)
+	assert.Equal(t, http.StatusUnauthorized, retrieveErr.Response.StatusCode)
+}
+
 func TestClientCredentialsClient_ReusesValidToken(t *testing.T) {
 	t.Parallel()
 
@@ -328,6 +441,102 @@ func TestInitiateWithState_Scopes(t *testing.T) {
 		parsed, err := url.Parse(u)
 		require.NoError(t, err)
 		assert.False(t, parsed.Query().Has("scope"), "scope param should be absent when no scopes provided")
+	})
+
+	t.Run("reconnect unions the earlier grant into the request", func(t *testing.T) {
+		t.Parallel()
+
+		c := &OAuth2Connector{
+			ClientID:     "id",
+			ClientSecret: "secret",
+			RedirectURI:  "https://example.com/cb",
+			AuthURL:      "https://provider.example.com/authorize",
+		}
+
+		orgID := gid.New(gid.NewTenantID(), 0)
+
+		u, err := c.InitiateWithState(
+			context.Background(),
+			OAuth2State{OrganizationID: orgID.String(), Provider: "TEST"},
+			InitiateOptions{
+				Scopes:        []string{"read:user"},
+				GrantedScopes: []string{"write:user"},
+			},
+		)
+		require.NoError(t, err)
+
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		assert.Equal(t, "read:user write:user", parsed.Query().Get("scope"))
+	})
+
+	t.Run("state records the scopes actually requested", func(t *testing.T) {
+		t.Parallel()
+
+		c := &OAuth2Connector{
+			ClientID:     "id",
+			ClientSecret: "secret",
+			RedirectURI:  "https://example.com/cb",
+			AuthURL:      "https://provider.example.com/authorize",
+		}
+
+		orgID := gid.New(gid.NewTenantID(), 0)
+
+		// A stale RequestedScopes in the caller's state must not survive:
+		// the callback falls back to it when the token response omits
+		// `scope`, so it has to match what the authorize request carried.
+		u, err := c.InitiateWithState(
+			context.Background(),
+			OAuth2State{
+				OrganizationID:  orgID.String(),
+				Provider:        "TEST",
+				RequestedScopes: []string{"stale:scope"},
+			},
+			InitiateOptions{
+				Scopes:        []string{"read:user"},
+				GrantedScopes: []string{"write:user"},
+			},
+		)
+		require.NoError(t, err)
+
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		assert.Equal(t, "read:user write:user", parsed.Query().Get("scope"))
+
+		payload, err := DecodeOAuth2StatePayload(parsed.Query().Get("state"))
+		require.NoError(t, err)
+		assert.Equal(t, []string{"read:user", "write:user"}, payload.Data.RequestedScopes)
+	})
+
+	t.Run("exclusive scopes drop the earlier grant from the request", func(t *testing.T) {
+		t.Parallel()
+
+		// Asana rejects the whole authorize request when it carries a scope
+		// its app registration no longer offers, so a reconnect must ask for
+		// exactly the registered set.
+		c := &OAuth2Connector{
+			ClientID:        "id",
+			ClientSecret:    "secret",
+			RedirectURI:     "https://example.com/cb",
+			AuthURL:         "https://provider.example.com/authorize",
+			ExclusiveScopes: true,
+		}
+
+		orgID := gid.New(gid.NewTenantID(), 0)
+
+		u, err := c.InitiateWithState(
+			context.Background(),
+			OAuth2State{OrganizationID: orgID.String(), Provider: "TEST"},
+			InitiateOptions{
+				Scopes:        []string{"default"},
+				GrantedScopes: []string{"users:read", "workspaces:read"},
+			},
+		)
+		require.NoError(t, err)
+
+		parsed, err := url.Parse(u)
+		require.NoError(t, err)
+		assert.Equal(t, "default", parsed.Query().Get("scope"))
 	})
 
 	t.Run("include_granted_scopes set when provider supports and caller requests", func(t *testing.T) {
@@ -569,6 +778,106 @@ func TestCompleteWithState_ScopeFallback(t *testing.T) {
 	// a space-separated RFC 6749 §3.3 scope string (sorted).
 	assert.Equal(t, "read:user write:user", oauth2Conn.Scope)
 	assert.Equal(t, []string{"read:user", "write:user"}, returnedState.RequestedScopes)
+}
+
+// TestCompleteWithState_OfflineAccessFromRefreshToken verifies that when a
+// provider that requested offline_access (Microsoft identity platform v2)
+// returns a refresh_token but omits offline_access from the scope field, we
+// persist offline_access. Providers that use access_type=offline (Google)
+// must not get offline_access written into Scope — reconnect unions
+// Scopes() into the next authorize request, and Google rejects that scope.
+func TestCompleteWithState_OfflineAccessFromRefreshToken(t *testing.T) {
+	t.Parallel()
+
+	newConnector := func(tokenURL string) *OAuth2Connector {
+		return &OAuth2Connector{
+			ClientID:     "id",
+			ClientSecret: "secret",
+			RedirectURI:  "https://example.com/cb",
+			AuthURL:      "https://provider.example.com/authorize",
+			TokenURL:     tokenURL,
+			HTTPClient:   httpclient.DefaultClient(httpclient.WithSSRFProtection(), httpclient.WithSSRFAllowLoopback()),
+		}
+	}
+
+	t.Run("backfills when offline_access was requested", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(
+				`{"access_token":"at","refresh_token":"rt","expires_in":3600,"token_type":"Bearer","scope":"openid profile User.Read.All"}`,
+			))
+		}))
+		defer server.Close()
+
+		c := newConnector(server.URL)
+		orgID := gid.New(gid.NewTenantID(), 0)
+		stateToken, err := statelesstoken.NewToken(
+			c.ClientSecret,
+			OAuth2TokenType,
+			OAuth2TokenTTL,
+			OAuth2State{
+				OrganizationID:  orgID.String(),
+				Provider:        "MICROSOFT365",
+				RequestedScopes: []string{"openid", "profile", "offline_access", "https://graph.microsoft.com/User.Read.All"},
+			},
+		)
+		require.NoError(t, err)
+
+		conn, _, err := c.CompleteWithState(
+			context.Background(),
+			httptest.NewRequest(http.MethodGet, "https://example.com/cb?code=the-code&state="+stateToken, nil),
+		)
+		require.NoError(t, err)
+
+		oauth2Conn, ok := conn.(*OAuth2Connection)
+		require.True(t, ok, "expected *OAuth2Connection, got %T", conn)
+
+		assert.Equal(t, "rt", oauth2Conn.RefreshToken)
+		assert.Equal(t, "User.Read.All offline_access openid profile", oauth2Conn.Scope)
+		assert.Equal(t, []string{"User.Read.All", "offline_access", "openid", "profile"}, oauth2Conn.Scopes())
+	})
+
+	t.Run("does not invent offline_access for access_type=offline providers", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(
+				`{"access_token":"at","refresh_token":"rt","expires_in":3600,"token_type":"Bearer","scope":"https://www.googleapis.com/auth/analytics.readonly"}`,
+			))
+		}))
+		defer server.Close()
+
+		c := newConnector(server.URL)
+		orgID := gid.New(gid.NewTenantID(), 0)
+		stateToken, err := statelesstoken.NewToken(
+			c.ClientSecret,
+			OAuth2TokenType,
+			OAuth2TokenTTL,
+			OAuth2State{
+				OrganizationID:  orgID.String(),
+				Provider:        "GOOGLE_ANALYTICS",
+				RequestedScopes: []string{"https://www.googleapis.com/auth/analytics.readonly"},
+			},
+		)
+		require.NoError(t, err)
+
+		conn, _, err := c.CompleteWithState(
+			context.Background(),
+			httptest.NewRequest(http.MethodGet, "https://example.com/cb?code=the-code&state="+stateToken, nil),
+		)
+		require.NoError(t, err)
+
+		oauth2Conn, ok := conn.(*OAuth2Connection)
+		require.True(t, ok, "expected *OAuth2Connection, got %T", conn)
+
+		assert.Equal(t, "rt", oauth2Conn.RefreshToken)
+		assert.Equal(t, "https://www.googleapis.com/auth/analytics.readonly", oauth2Conn.Scope)
+		assert.Equal(t, []string{"https://www.googleapis.com/auth/analytics.readonly"}, oauth2Conn.Scopes())
+		assert.NotContains(t, oauth2Conn.Scopes(), "offline_access")
+	})
 }
 
 // TestInitiateWithState_PKCE verifies that connectors with RequiresPKCE=true

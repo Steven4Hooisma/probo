@@ -22,6 +22,10 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
+  /** Space-separated CSP peer origins (VITE_API_URL and localhost:8080). */
+  readonly VITE_APP_ORIGIN?: string;
+  /** Object-storage origin after private-file 307s — from vite.config.ts. */
+  readonly VITE_FILE_STORAGE_ORIGIN?: string;
 }
 
 interface ImportMeta {

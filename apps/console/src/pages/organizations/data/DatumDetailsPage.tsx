@@ -21,7 +21,6 @@
 import {
   ActionDropdown,
   Badge,
-  Breadcrumb,
   Button,
   DropdownItem,
   Field,
@@ -34,7 +33,6 @@ import {
   type PreloadedQuery,
   usePreloadedQuery,
 } from "react-relay";
-import { z } from "zod";
 
 import type { DatumGraphNodeQuery } from "#/__generated__/core/DatumGraphNodeQuery.graphql";
 import { ControlledField } from "#/components/form/ControlledField";
@@ -47,6 +45,7 @@ import {
 } from "#/hooks/graph/DatumGraph";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 type Props = {
   queryRef: PreloadedQuery<DatumGraphNodeQuery>;
@@ -105,20 +104,8 @@ export default function DatumDetailsPage(props: Props) {
     }
   });
 
-  const breadcrumbItems = [
-    {
-      label: t("datumDetails.breadcrumbs.data"),
-      to: `/organizations/${organizationId}/data`,
-    },
-    {
-      label: datumEntry?.name || "",
-    },
-  ];
-
   return (
     <div className="space-y-6">
-      <Breadcrumb items={breadcrumbItems} />
-
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-4">
           <div className="text-2xl">{datumEntry?.name}</div>

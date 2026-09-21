@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 export { objectKeys, objectEntries, cleanFormData } from "./object";
+export { avatarColor, avatarInitial } from "./avatar";
 export { sprintf, faviconUrl, slugify } from "./string";
 export {
   getCertificateProvisioningErrorMessage,
@@ -29,7 +30,9 @@ export {
   getTreatment,
   getRiskImpacts,
   getRiskLikelihoods,
+  getRiskScoreLevel,
   getSeverity,
+  type RiskMatrixSize,
 } from "./risk";
 export {
   withViewTransition,
@@ -106,10 +109,16 @@ export {
 } from "./fileAccept";
 export {
   formatDatetime,
+  toPeriod,
   toDateInput,
   todayAsDateInput,
   parseDate,
+  type Period,
 } from "./date";
+export {
+  getMembershipSessionStatus,
+  type MembershipSessionStatus,
+} from "./membershipSession";
 export {
   DURATION_UNITS,
   toMaxAgeSeconds,
@@ -126,7 +135,6 @@ export {
   getMembershipRoles,
 } from "./roles";
 export {
-  getCompliancePortalDocumentAccessStatusBadgeVariant,
   getCompliancePortalDocumentAccessStatusLabel,
   type CompliancePortalDocumentAccessInfo,
 } from "./compliancePortalDocumentAccess";

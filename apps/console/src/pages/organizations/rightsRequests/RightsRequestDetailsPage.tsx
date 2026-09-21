@@ -28,7 +28,6 @@ import {
 import {
   ActionDropdown,
   Badge,
-  Breadcrumb,
   Button,
   Card,
   DropdownItem,
@@ -47,11 +46,11 @@ import {
   type PreloadedQuery,
   usePreloadedQuery,
 } from "react-relay";
-import { z } from "zod";
 
 import type { RightsRequestGraphNodeQuery } from "#/__generated__/core/RightsRequestGraphNodeQuery.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 import {
   rightsRequestNodeQuery,
@@ -144,28 +143,17 @@ export default function RightsRequestDetailsPage(props: Props) {
   const typeOptions = ["ACCESS", "DELETION", "RECTIFICATION", "PORTABILITY", "OBJECTION", "COMPLAINT"] as const;
   const stateOptions = ["TODO", "IN_PROGRESS", "DONE", "REJECTED"] as const;
 
-  const breadcrumbRequestsUrl = `/organizations/${organizationId}/rights-requests`;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb
-          items={[
-            {
-              label: t("rightsRequestDetailsPage.breadcrumb.requests"),
-              to: breadcrumbRequestsUrl,
-            },
-            { label: request.dataSubject || request.id! },
-          ]}
-        />
-        {request.canDelete && (
+      {request.canDelete && (
+        <div className="flex items-center justify-end">
           <ActionDropdown>
             <DropdownItem onClick={deleteRequest} variant="danger">
               {t("rightsRequestDetailsPage.actions.delete")}
             </DropdownItem>
           </ActionDropdown>
-        )}
-      </div>
+        </div>
+      )}
 
       <Card>
         <div className="p-6">

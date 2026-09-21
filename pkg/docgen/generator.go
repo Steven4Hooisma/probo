@@ -281,24 +281,18 @@ type (
 	}
 
 	RiskListRow struct {
-		Name                    string
-		Description             string
-		Category                string
-		Treatment               string
-		Owner                   string
-		InherentLikelihood      int
-		InherentLikelihoodLabel string
-		InherentImpact          int
-		InherentImpactLabel     string
-		InherentRiskScore       int
-		InherentSeverity        string
-		ResidualLikelihood      int
-		ResidualLikelihoodLabel string
-		ResidualImpact          int
-		ResidualImpactLabel     string
-		ResidualRiskScore       int
-		ResidualSeverity        string
-		Note                    string
+		Name               string
+		Description        string
+		Category           string
+		Treatment          string
+		Owner              string
+		InherentLikelihood string
+		InherentImpact     string
+		InherentRiskScore  string
+		ResidualLikelihood string
+		ResidualImpact     string
+		ResidualRiskScore  string
+		Note               string
 	}
 
 	FindingListData struct {
@@ -342,6 +336,56 @@ type (
 		Regulator              string
 		Owner                  string
 		DueDate                string
+	}
+
+	BusinessFunctionListData struct {
+		Title                  string
+		OrganizationName       string
+		CreatedAt              time.Time
+		TotalBusinessFunctions int
+		Rows                   []BusinessFunctionListRow
+	}
+
+	BusinessFunctionListRow struct {
+		ReferenceID     string
+		Name            string
+		Classification  string
+		MTD             string
+		RTO             string
+		RPO             string
+		ImpactTolerance string
+		Notes           string
+		Owner           string
+		Assets          string
+		ThirdParties    string
+	}
+
+	AiSystemListData struct {
+		Title            string
+		OrganizationName string
+		CreatedAt        time.Time
+		TotalAiSystems   int
+		Rows             []AiSystemListRow
+	}
+
+	AiSystemListRow struct {
+		Name                    string
+		Version                 string
+		CompanyRoles            string
+		Status                  string
+		Owner                   string
+		Source                  string
+		Purpose                 string
+		IntendedUseCases        string
+		AutonomyLevel           string
+		HumanOversightMechanism string
+		RiskClassification      string
+		KeyStakeholders         string
+		DataSourcesAndType      string
+		DeploymentDate          string
+		LastReviewDate          string
+		NextReviewDate          string
+		Notes                   string
 	}
 
 	ProcessingActivityListData struct {
@@ -438,7 +482,7 @@ type (
 		Administrators                string
 		Services                      []ThirdPartyListService
 		Contacts                      []ThirdPartyListContact
-		RiskAssessments               []ThirdPartyListRiskAssessment
+		RiskAnalyses                  []ThirdPartyListRiskAssessment
 		ComplianceReports             []ThirdPartyListComplianceReport
 		BusinessAssociateAgreement    *ThirdPartyListAgreement
 		DataPrivacyAgreement          *ThirdPartyListAgreement
@@ -462,6 +506,11 @@ type (
 		DataSensitivity string
 		BusinessImpact  string
 		Notes           string
+		// NotesBlocks is a comma-separated sequence of ProseMirror block
+		// nodes (no surrounding array brackets), ready to splice into the
+		// third-party register JSON template after the "Notes:" label.
+		// Populated by BuildThirdPartyListDocument from Notes markdown.
+		NotesBlocks string
 	}
 
 	ThirdPartyListComplianceReport struct {

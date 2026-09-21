@@ -25,28 +25,45 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"go.probo.inc/probo/e2e/internal/journey"
 	"go.probo.inc/probo/e2e/internal/testutil"
 )
 
-func TestEmailVerification_PasswordSignInRequiresVerifiedEmail(t *testing.T) {
-	t.Parallel()
-
-	client := testutil.NewUnauthenticatedClient(t)
-
-	uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
-	email := fmt.Sprintf("unverified-%s@e2e.probo.test", uniqueID)
-	password := "TestPassword123!"
-	fullName := fmt.Sprintf("Unverified User %s", uniqueID)
-
-	const signUpMutation = `
+const (
+	signUpMutation = `
 		mutation($input: SignUpInput!) {
 			signUp(input: $input) {
 				identity { id }
 			}
 		}
 	`
+
+	verifyEmailMutation = `
+		mutation($input: VerifyEmailInput!) {
+			verifyEmail(input: $input) {
+				success
+			}
+		}
+	`
+
+	viewerQuery = `
+		query {
+			viewer { id }
+		}
+	`
+)
+
+func TestEmailVerification_PasswordSignInRequiresVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
+	world := journey.New(t)
+	newUser := world.NewUnauthenticatedActor("new user")
+	client := newUser.Client()
+
+	uniqueID := fmt.Sprintf("%d", time.Now().UnixNano())
+	email := fmt.Sprintf("unverified-%s@e2e.probo.test", uniqueID)
+	password := "TestPassword123!"
+	fullName := fmt.Sprintf("Unverified User %s", uniqueID)
 
 	var signUpResult struct {
 		SignUp struct {
@@ -56,33 +73,70 @@ func TestEmailVerification_PasswordSignInRequiresVerifiedEmail(t *testing.T) {
 		} `json:"signUp"`
 	}
 
-	err := client.ExecuteConnect(signUpMutation, map[string]any{
-		"input": map[string]any{
-			"email":    email,
-			"password": password,
-			"fullName": fullName,
-		},
-	}, &signUpResult)
-	require.NoError(t, err, "signUp should succeed for unverified identity")
-	require.NotEmpty(t, signUpResult.SignUp.Identity.ID)
-
-	client.SignOut()
-
-	err = client.SignIn(email, password)
-	testutil.RequireErrorCode(t, err, "EMAIL_NOT_VERIFIED")
-
-	client.ResendVerificationEmail(email)
-
-	token := client.GetEmailConfirmationToken(email)
-	require.NotEmpty(t, token)
-
-	const verifyMutation = `
-		mutation($input: VerifyEmailInput!) {
-			verifyEmail(input: $input) {
-				success
+	newUser.Step(
+		"signs up without verifying their email",
+		func() error {
+			err := client.ExecuteConnect(
+				signUpMutation,
+				map[string]any{
+					"input": map[string]any{
+						"email":    email,
+						"password": password,
+						"fullName": fullName,
+					},
+				},
+				&signUpResult,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot sign up: %w", err)
 			}
-		}
-	`
+
+			if signUpResult.SignUp.Identity.ID == "" {
+				return fmt.Errorf("sign up returned an empty identity ID")
+			}
+
+			return nil
+		},
+	)
+
+	newUser.Step(
+		"is not signed in after signup",
+		func() error {
+			err := client.ExecuteConnectShouldFail(viewerQuery, nil)
+			testutil.RequireErrorCode(t, err, "UNAUTHENTICATED")
+
+			return nil
+		},
+	)
+
+	newUser.Step(
+		"cannot sign in before verifying their email",
+		func() error {
+			err := client.SignIn(email, password)
+			testutil.RequireErrorCode(t, err, "EMAIL_NOT_VERIFIED")
+
+			return nil
+		},
+	)
+
+	newUser.Step(
+		"requests another verification email",
+		func() error {
+			client.ResendVerificationEmail(email)
+			return nil
+		},
+	)
+
+	var token string
+
+	newUser.Step(
+		"receives the verification email",
+		func() error {
+			token = client.GetEmailConfirmationToken(email)
+
+			return nil
+		},
+	)
 
 	var verifyResult struct {
 		VerifyEmail struct {
@@ -90,16 +144,116 @@ func TestEmailVerification_PasswordSignInRequiresVerifiedEmail(t *testing.T) {
 		} `json:"verifyEmail"`
 	}
 
-	err = client.ExecuteConnect(verifyMutation, map[string]any{
-		"input": map[string]any{
-			"token": token,
-		},
-	}, &verifyResult)
-	require.NoError(t, err, "verifyEmail should succeed")
-	assert.True(t, verifyResult.VerifyEmail.Success)
+	newUser.Step(
+		"verifies their email address and is signed in",
+		func() error {
+			err := client.ExecuteConnect(
+				verifyEmailMutation,
+				map[string]any{
+					"input": map[string]any{
+						"token": token,
+					},
+				},
+				&verifyResult,
+			)
+			if err != nil {
+				return fmt.Errorf("cannot verify email: %w", err)
+			}
 
-	err = client.SignIn(email, password)
-	require.NoError(t, err, "signIn should succeed after email verification")
+			if !verifyResult.VerifyEmail.Success {
+				return fmt.Errorf("verify email returned success=false")
+			}
+
+			var viewer struct {
+				Viewer struct {
+					ID string `json:"id"`
+				} `json:"viewer"`
+			}
+
+			if err := client.ExecuteConnect(viewerQuery, nil, &viewer); err != nil {
+				return fmt.Errorf("expected a session after first verify: %w", err)
+			}
+
+			if viewer.Viewer.ID != signUpResult.SignUp.Identity.ID {
+				return fmt.Errorf(
+					"viewer %q does not match signed-up identity %q",
+					viewer.Viewer.ID,
+					signUpResult.SignUp.Identity.ID,
+				)
+			}
+
+			return nil
+		},
+	)
+
+	newUser.Step(
+		"can verify the same token again without error",
+		func() error {
+			verifyResult.VerifyEmail.Success = false
+
+			err := client.ExecuteConnect(
+				verifyEmailMutation,
+				map[string]any{
+					"input": map[string]any{
+						"token": token,
+					},
+				},
+				&verifyResult,
+			)
+			if err != nil {
+				return fmt.Errorf("replay verify email failed: %w", err)
+			}
+
+			if !verifyResult.VerifyEmail.Success {
+				return fmt.Errorf("replay verify email returned success=false")
+			}
+
+			return nil
+		},
+	)
+
+	replay := world.NewUnauthenticatedActor("replay client")
+	replayClient := replay.Client()
+
+	replay.Step(
+		"cannot open a session by replaying the confirmation token",
+		func() error {
+			verifyResult.VerifyEmail.Success = false
+
+			err := replayClient.ExecuteConnect(
+				verifyEmailMutation,
+				map[string]any{
+					"input": map[string]any{
+						"token": token,
+					},
+				},
+				&verifyResult,
+			)
+			if err != nil {
+				return fmt.Errorf("replay verify from a new client failed: %w", err)
+			}
+
+			if !verifyResult.VerifyEmail.Success {
+				return fmt.Errorf("replay verify from a new client returned success=false")
+			}
+
+			err = replayClient.ExecuteConnectShouldFail(viewerQuery, nil)
+			testutil.RequireErrorCode(t, err, "UNAUTHENTICATED")
+
+			return nil
+		},
+	)
+
+	newUser.Step(
+		"can still sign in with their verified email",
+		func() error {
+			if err := client.SignIn(email, password); err != nil {
+				return fmt.Errorf("cannot sign in after email verification: %w", err)
+			}
+
+			return nil
+		},
+	)
 }
 
 func TestEmailVerification_ResendIsEnumerationSafe(t *testing.T) {

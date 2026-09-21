@@ -39,7 +39,6 @@ import (
 	"go.probo.inc/probo/pkg/iam"
 	"go.probo.inc/probo/pkg/llm"
 	"go.probo.inc/probo/pkg/mail"
-	"go.probo.inc/probo/pkg/slack"
 )
 
 const (
@@ -84,13 +83,14 @@ type (
 		html2pdfConverter                     *html2pdf.Converter
 		fileManager                           *filemanager.Service
 		logger                                *log.Logger
-		slack                                 *slack.Service
 		esign                                 *esign.Service
-		connectorRegistry                     *connector.ConnectorRegistry
+		connectorRegistry                     *connector.Registry
 		invitationTokenValidity               time.Duration
 		Frameworks                            *FrameworkService
 		Measures                              *MeasureService
 		Tasks                                 *TaskService
+		TaskComments                          *TaskCommentService
+		TaskActivities                        *TaskActivityService
 		Evidences                             *EvidenceService
 		Organizations                         *OrganizationService
 		ThirdParties                          *ThirdPartyService
@@ -110,6 +110,8 @@ type (
 		WebhookSubscriptions                  *WebhookSubscriptionService
 		Findings                              *FindingService
 		Obligations                           *ObligationService
+		BusinessFunctions                     *BusinessFunctionService
+		AiSystems                             *AiSystemService
 		RightsRequests                        *RightsRequestService
 		ProcessingActivities                  *ProcessingActivityService
 		DataProtectionImpactAssessments       *DataProtectionImpactAssessmentService
@@ -117,7 +119,6 @@ type (
 		StatementsOfApplicability             *StatementOfApplicabilityService
 		GeneratedDocuments                    *GeneratedDocumentService
 		Files                                 *FileService
-		SlackMessages                         *slack.Service
 		LogExports                            ExportService
 	}
 )
@@ -135,10 +136,9 @@ func NewService(
 	html2pdfConverter *html2pdf.Converter,
 	fileManagerService *filemanager.Service,
 	logger *log.Logger,
-	slackService *slack.Service,
 	iamService *iam.Service,
 	esignService *esign.Service,
-	connectorRegistry *connector.ConnectorRegistry,
+	connectorRegistry *connector.Registry,
 	invitationTokenValidity time.Duration,
 ) (*Service, error) {
 	if bucket == "" {
@@ -159,7 +159,6 @@ func NewService(
 		html2pdfConverter:       html2pdfConverter,
 		fileManager:             fileManagerService,
 		logger:                  logger,
-		slack:                   slackService,
 		esign:                   esignService,
 		connectorRegistry:       connectorRegistry,
 		invitationTokenValidity: invitationTokenValidity,
@@ -171,6 +170,8 @@ func NewService(
 	}
 	svc.Measures = &MeasureService{svc: svc}
 	svc.Tasks = &TaskService{svc: svc}
+	svc.TaskComments = &TaskCommentService{svc: svc}
+	svc.TaskActivities = &TaskActivityService{svc: svc}
 	svc.Evidences = &EvidenceService{
 		svc: svc,
 		fileValidator: filevalidation.NewValidator(
@@ -224,6 +225,8 @@ func NewService(
 	svc.WebhookSubscriptions = &WebhookSubscriptionService{svc: svc}
 	svc.Findings = &FindingService{svc: svc}
 	svc.Obligations = &ObligationService{svc: svc}
+	svc.BusinessFunctions = &BusinessFunctionService{svc: svc}
+	svc.AiSystems = &AiSystemService{svc: svc}
 	svc.RightsRequests = &RightsRequestService{svc: svc}
 	svc.ProcessingActivities = &ProcessingActivityService{svc: svc}
 	svc.DataProtectionImpactAssessments = &DataProtectionImpactAssessmentService{svc: svc}
@@ -231,7 +234,6 @@ func NewService(
 	svc.StatementsOfApplicability = &StatementOfApplicabilityService{svc: svc}
 	svc.GeneratedDocuments = &GeneratedDocumentService{svc: svc}
 	svc.Files = &FileService{svc: svc}
-	svc.SlackMessages = slackService
 	svc.LogExports = iamService.LogExports
 
 	return svc, nil

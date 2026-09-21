@@ -33,15 +33,16 @@ import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { CreateContactDialogMutation } from "#/__generated__/core/CreateContactDialogMutation.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
+import { z } from "#/lib/zod";
 
 type Props = {
   children: ReactNode;
   connectionId: string;
   thirdPartyId: string;
+  onCreated?: () => void;
 };
 
 const createContactMutation = graphql`
@@ -67,6 +68,7 @@ export function CreateContactDialog({
   children,
   connectionId,
   thirdPartyId,
+  onCreated,
 }: Props) {
   const { t } = useTranslation();
 
@@ -131,6 +133,7 @@ export function CreateContactDialog({
         });
         dialogRef.current?.close();
         reset();
+        onCreated?.();
       },
       onError(error) {
         toast({

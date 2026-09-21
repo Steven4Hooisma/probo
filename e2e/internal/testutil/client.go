@@ -47,11 +47,13 @@ func generateUniqueID() string {
 type TestRole string
 
 const (
-	RoleOwner    TestRole = "OWNER"
-	RoleAdmin    TestRole = "ADMIN"
-	RoleViewer   TestRole = "VIEWER"
-	RoleEmployee TestRole = "EMPLOYEE"
-	RoleAuditor  TestRole = "AUDITOR"
+	RoleOwner                         TestRole = "OWNER"
+	RoleAdmin                         TestRole = "ADMIN"
+	RoleViewer                        TestRole = "VIEWER"
+	RoleEmployee                      TestRole = "EMPLOYEE"
+	RoleAuditor                       TestRole = "AUDITOR"
+	RoleCompliancePortalManager       TestRole = "COMPLIANCE_PORTAL_MANAGER"
+	RoleCompliancePortalAccessManager TestRole = "COMPLIANCE_PORTAL_ACCESS_MANAGER"
 )
 
 type Client struct {
@@ -508,18 +510,46 @@ func (c *Client) SignIn(email string, password string) error {
 func NewUnauthenticatedClient(t testing.TB) *Client {
 	t.Helper()
 
+	return NewUnauthenticatedClientFor(t, GetBaseURL())
+}
+
+// NewUnauthenticatedClientFor returns a client pointed at baseURL with no
+// session cookie. Used with IsolatedEnv to exercise process-config gates.
+func NewUnauthenticatedClientFor(t testing.TB, baseURL string) *Client {
+	t.Helper()
+
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err, "cannot create cookie jar")
 
 	return &Client{
 		T:              t,
-		baseURL:        GetBaseURL(),
+		baseURL:        baseURL,
 		mailpitBaseURL: GetMailpitBaseURL(),
 		httpClient: &http.Client{
 			Jar:     jar,
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// SignInWithMagicLink opens a session for email via the magic-link HTTP flow.
+// When the email is unknown, AuthService creates the identity (even when
+// password signup is disabled), which is how compliance-portal visitors and
+// invitees reach a session on private instances.
+func (c *Client) SignInWithMagicLink(email string) {
+	c.T.Helper()
+
+	continueURL := c.baseURL + "/"
+	c.postConnectMagicLink(email, continueURL)
+
+	token := c.pollForLinkToken(fmt.Sprintf("to:%s subject:\"Connect to\"", email))
+	resp := c.postConnectMagicLinkVerify(c.httpClient, token)
+	require.Equal(
+		c.T,
+		http.StatusFound,
+		resp.StatusCode,
+		"magic-link verify must redirect after opening a session",
+	)
 }
 
 // pollForLinkToken polls mailpit for a message matching searchQuery and
@@ -532,7 +562,7 @@ func (c *Client) pollForLinkToken(searchQuery string) string {
 		require.NoError(c.T, err, "mailpit messages search failed")
 
 		for _, msg := range searchMails.Messages {
-			linksCheck, err := c.CheckMessageLinks(msg.ID)
+			linksCheck, err := c.CheckMessageLinks(msg.ResolvedID())
 			require.NoError(c.T, err, "mailpit link check failed")
 
 			for _, link := range linksCheck.Links {
@@ -548,7 +578,7 @@ func (c *Client) pollForLinkToken(searchQuery string) string {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	c.T.Logf("link token not found for query %q", searchQuery)
+	c.T.Logf("link token not found in mailpit")
 	c.T.FailNow()
 
 	return ""
@@ -708,9 +738,17 @@ func (c *Client) connectViaCIMD(email string) {
 	c.postConnectMagicLink(email, continueURL)
 
 	token := c.pollForLinkToken(fmt.Sprintf("to:%s", email))
-	verifyURL := c.baseURL + "/api/connect/v1/magic-link/verify?token=" + url.QueryEscape(token)
-
-	resumeAuthorizeURL := c.redirectLocation(c.proboHTTPClient, verifyURL)
+	verifyResp := c.postConnectMagicLinkVerify(c.proboHTTPClient, token)
+	require.Equal(
+		c.T,
+		http.StatusFound,
+		verifyResp.StatusCode,
+		"magic-link verify must redirect after opening a session",
+	)
+	resumeAuthorizeURL := resolveRedirectURL(
+		c.baseURL+"/api/connect/v1/magic-link/verify",
+		verifyResp.Header.Get("Location"),
+	)
 	require.Contains(c.T, resumeAuthorizeURL, "/api/connect/v1/oauth2/authorize")
 
 	authorizeResp := c.redirectHTTPResponse(c.proboHTTPClient, resumeAuthorizeURL)
@@ -752,12 +790,53 @@ func (c *Client) postConnectMagicLink(email, continueURL string) {
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := c.proboHTTPClient.Do(req)
+	httpClient := c.proboHTTPClient
+	if httpClient == nil {
+		httpClient = c.httpClient
+	}
+
+	resp, err := httpClient.Do(req)
 	require.NoError(c.T, err, "magic-link send request failed")
 
 	defer func() { _ = resp.Body.Close() }()
 
 	require.Equal(c.T, http.StatusNoContent, resp.StatusCode, "magic-link send must return 204")
+}
+
+func (c *Client) postConnectMagicLinkVerify(httpClient *http.Client, token string) *OAuth2HTTPResponse {
+	c.T.Helper()
+
+	body := url.Values{}
+	body.Set("token", token)
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		c.baseURL+"/api/connect/v1/magic-link/verify",
+		strings.NewReader(body.Encode()),
+	)
+	require.NoError(c.T, err)
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := noRedirectHTTPClient(httpClient).Do(req)
+	require.NoError(c.T, err, "magic-link verify request failed")
+
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(c.T, err)
+
+	return &OAuth2HTTPResponse{
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+		Body:       respBody,
+	}
+}
+
+func (c *Client) GetNoRedirect(rawURL string) *OAuth2HTTPResponse {
+	c.T.Helper()
+
+	return c.redirectHTTPResponse(c.httpClient, rawURL)
 }
 
 func (c *Client) redirectLocation(client *http.Client, rawURL string) string {
@@ -778,22 +857,24 @@ func (c *Client) redirectLocation(client *http.Client, rawURL string) string {
 	return resolveRedirectURL(rawURL, location)
 }
 
-func (c *Client) redirectHTTPResponse(client *http.Client, rawURL string) *OAuth2HTTPResponse {
-	c.T.Helper()
-
-	noRedirectClient := &http.Client{
-		Jar:       client.Jar,
-		Timeout:   client.Timeout,
-		Transport: client.Transport,
+func noRedirectHTTPClient(httpClient *http.Client) *http.Client {
+	return &http.Client{
+		Jar:       httpClient.Jar,
+		Timeout:   httpClient.Timeout,
+		Transport: httpClient.Transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
+}
+
+func (c *Client) redirectHTTPResponse(client *http.Client, rawURL string) *OAuth2HTTPResponse {
+	c.T.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	require.NoError(c.T, err)
 
-	resp, err := noRedirectClient.Do(req)
+	resp, err := noRedirectHTTPClient(client).Do(req)
 	require.NoError(c.T, err, "request to %s failed", rawURL)
 
 	defer func() { _ = resp.Body.Close() }()
@@ -833,6 +914,24 @@ func extractContinueQueryParam(loginURL string) string {
 	}
 
 	return parsed.Query().Get("continue")
+}
+
+// ForTest returns a shallow copy of c bound to t for correct failure
+// attribution in parallel subtests while sharing the HTTP session and
+// identity metadata.
+func (c *Client) ForTest(t testing.TB) *Client {
+	t.Helper()
+
+	if c == nil {
+		t.Fatal("client is nil")
+
+		return nil
+	}
+
+	bound := *c
+	bound.T = t
+
+	return &bound
 }
 
 func (c *Client) GetEmail() string {

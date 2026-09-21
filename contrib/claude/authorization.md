@@ -251,7 +251,7 @@ and `r.AuthorizeBatch` (MCP) — keep the returned scope and pass it down.
 | Product action constants (`core:*`) | `pkg/probo/actions.go` |
 | IAM action constants (`iam:*`) | `pkg/iam/iam_actions.go` |
 | Product role policies (`ProboPolicySet`) | `pkg/probo/policies.go` |
-| Per-service policy sets (e.g. `accessreview.PolicySet`, `agentrun.PolicySet`) | `pkg/<service>/actions.go`, `pkg/<service>/policies.go` |
+| Per-service policy sets (e.g. `accessreview.PolicySet`, `agentexecution.PolicySet`) | `pkg/<service>/actions.go`, `pkg/<service>/policies.go` |
 | IAM role policies (`IAMPolicySet`) | `pkg/iam/iam_policies.go` |
 | Authorizer + `AuthorizationAttributer` | `pkg/iam/authorizer.go` |
 | PolicySet registration | `pkg/iam/policy_set.go` |
@@ -295,6 +295,8 @@ Scopes are namespace- or product-level only — no resource segments (e.g. `v1:p
 
 **When adding or extending IAM actions:** every new action used by GraphQL, MCP, CLI, or n8n must be listed in the owning package's OAuth2 scope mapping (`OAuth2ScopeMappings`, or `IAMOAuth2ScopeMappings` in `pkg/iam`). Prefer an existing `v1:<namespace>` / `v1:<namespace>:read` pair (e.g. commitment CRUD under `v1:compliance-page`). Only introduce a new namespace-level scope when no existing scope fits — then add constants in `oauth2_scopes.go`, map actions in the package's OAuth2 scope mapping, and register the mapping in `probod` wiring. Write scopes are registered only when their mutating IAM actions are mapped.
 
+When you add a new `v1:<namespace>` pair, add labels in the console locale files. Put the keys `v1:<namespace>` and `v1:<namespace>:read` under `oauthScopes.api` in `apps/console/src/_locales/{en-US,fr-FR,nl-NL}.json`.
+
 E2E MCP tests often authenticate with personal API keys, which skip the OAuth2 scope gate. A green e2e suite does **not** prove OAuth2 clients can call the tool — always update the package's OAuth2 scope mapping when wiring new actions.
 
 **Well-known Probo CLI client:** `iam_oauth2_clients` scopes for `AAAAAAAAAAAASwAAAAAAAAAAcHJiY2xp` must match `CLIClientScopes` in `pkg/cli/config/config.go` (requested by `prb auth login`). When adding API scopes, update the client migration, `CLIClientScopes`, and scope registration together.
@@ -321,16 +323,8 @@ Manual bearer tokens created from the console are stored in `iam_oauth2_access_t
 | `VIEWER` | Read-only access to most entities |
 | `AUDITOR` | Read-only, excludes internal/employee content |
 | `EMPLOYEE` | Can sign documents and view internal content |
-
-## Built-in role policies
-
-| Role | Access level |
-|------|-------------|
-| `OWNER` | Full access to all features including org management |
-| `ADMIN` | Full access to core features, restricted org management |
-| `VIEWER` | Read-only access to most entities |
-| `AUDITOR` | Read-only, excludes internal/employee content |
-| `EMPLOYEE` | Can sign documents and view internal content |
+| `COMPLIANCE_PORTAL_MANAGER` | Full compliance portal management, plus related document/audit/third-party visibility |
+| `COMPLIANCE_PORTAL_ACCESS_MANAGER` | Manage compliance portal visitor access and document access requests only |
 
 ## New entity IAM wiring
 

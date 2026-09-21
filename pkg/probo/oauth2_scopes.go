@@ -25,11 +25,17 @@ import (
 )
 
 const (
+	ScopeV1AiSystemRead coredata.OAuth2Scope = "v1:ai-system:read"
+	ScopeV1AiSystem     coredata.OAuth2Scope = "v1:ai-system"
+
 	ScopeV1AssetRead coredata.OAuth2Scope = "v1:asset:read"
 	ScopeV1Asset     coredata.OAuth2Scope = "v1:asset"
 
 	ScopeV1AuditRead coredata.OAuth2Scope = "v1:audit:read"
 	ScopeV1Audit     coredata.OAuth2Scope = "v1:audit"
+
+	ScopeV1BusinessFunctionRead coredata.OAuth2Scope = "v1:business-function:read"
+	ScopeV1BusinessFunction     coredata.OAuth2Scope = "v1:business-function"
 
 	ScopeV1CommonThirdPartyRead coredata.OAuth2Scope = "v1:common-third-party:read"
 	ScopeV1CommonThirdParty     coredata.OAuth2Scope = "v1:common-third-party"
@@ -71,6 +77,18 @@ const (
 // OAuth2ScopeMappings maps OAuth2 scopes to core probo actions.
 var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 
+	ScopeV1AiSystemRead: {
+		ActionAiSystemGet,
+		ActionAiSystemList,
+	},
+	ScopeV1AiSystem: {
+		ActionAiSystemGet,
+		ActionAiSystemList,
+		ActionAiSystemCreate,
+		ActionAiSystemUpdate,
+		ActionAiSystemDelete,
+		ActionAiSystemPublish,
+	},
 	ScopeV1AssetRead: {
 		ActionAssetGet,
 		ActionAssetList,
@@ -112,9 +130,22 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 		ActionFindingAuditMappingDelete,
 		ActionFindingPublish,
 	},
+	ScopeV1BusinessFunctionRead: {
+		ActionBusinessFunctionGet,
+		ActionBusinessFunctionList,
+	},
+	ScopeV1BusinessFunction: {
+		ActionBusinessFunctionGet,
+		ActionBusinessFunctionList,
+		ActionBusinessFunctionCreate,
+		ActionBusinessFunctionUpdate,
+		ActionBusinessFunctionDelete,
+		ActionBusinessFunctionPublish,
+	},
 	ScopeV1CommonThirdPartyRead: {
 		ActionCommonThirdPartyGet,
 		ActionCommonThirdPartyList,
+		ActionCommonGVLVendorList,
 	},
 	ScopeV1ConnectorRead: {
 		ActionConnectorList,
@@ -238,7 +269,6 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 		ActionDocumentCreate,
 		ActionDocumentUpdate,
 		ActionDocumentDelete,
-		ActionDocumentChangelogGenerate,
 		ActionDocumentArchive,
 		ActionDocumentUnarchive,
 		ActionDocumentDeleteDraft,
@@ -286,6 +316,7 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 		ActionTrackerPatternList,
 		ActionTrackerResourceGet,
 		ActionTrackerResourceList,
+		ActionCommonGVLVendorList,
 	},
 	ScopeV1Privacy: {
 		ActionProcessingActivityList,
@@ -309,6 +340,7 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 		ActionTrackerPatternList,
 		ActionTrackerResourceGet,
 		ActionTrackerResourceList,
+		ActionCommonGVLVendorList,
 		ActionProcessingActivityCreate,
 		ActionProcessingActivityUpdate,
 		ActionProcessingActivityDelete,
@@ -347,38 +379,10 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 	ScopeV1RiskRead: {
 		ActionRiskGet,
 		ActionRiskList,
-		ActionRiskAssessmentGet,
-		ActionRiskAssessmentList,
-		ActionRiskAssessmentScopeGet,
-		ActionRiskAssessmentScopeList,
-		ActionRiskAssessmentNodeGet,
-		ActionRiskAssessmentNodeList,
-		ActionRiskAssessmentBoundaryGet,
-		ActionRiskAssessmentBoundaryList,
-		ActionRiskAssessmentProcessGet,
-		ActionRiskAssessmentProcessList,
-		ActionRiskAssessmentThreatGet,
-		ActionRiskAssessmentThreatList,
-		ActionRiskAssessmentScenarioGet,
-		ActionRiskAssessmentScenarioList,
 	},
 	ScopeV1Risk: {
 		ActionRiskGet,
 		ActionRiskList,
-		ActionRiskAssessmentGet,
-		ActionRiskAssessmentList,
-		ActionRiskAssessmentScopeGet,
-		ActionRiskAssessmentScopeList,
-		ActionRiskAssessmentNodeGet,
-		ActionRiskAssessmentNodeList,
-		ActionRiskAssessmentBoundaryGet,
-		ActionRiskAssessmentBoundaryList,
-		ActionRiskAssessmentProcessGet,
-		ActionRiskAssessmentProcessList,
-		ActionRiskAssessmentThreatGet,
-		ActionRiskAssessmentThreatList,
-		ActionRiskAssessmentScenarioGet,
-		ActionRiskAssessmentScenarioList,
 		ActionRiskCreate,
 		ActionRiskUpdate,
 		ActionRiskDelete,
@@ -389,31 +393,6 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 		ActionRiskObligationMappingCreate,
 		ActionRiskObligationMappingDelete,
 		ActionRiskPublish,
-		ActionRiskAssessmentCreate,
-		ActionRiskAssessmentUpdate,
-		ActionRiskAssessmentDelete,
-		ActionRiskAssessmentScopeCreate,
-		ActionRiskAssessmentScopeUpdate,
-		ActionRiskAssessmentScopeDelete,
-		ActionRiskAssessmentNodeCreate,
-		ActionRiskAssessmentNodeUpdate,
-		ActionRiskAssessmentNodeDelete,
-		ActionRiskAssessmentBoundaryCreate,
-		ActionRiskAssessmentBoundaryUpdate,
-		ActionRiskAssessmentBoundaryDelete,
-		ActionRiskAssessmentProcessCreate,
-		ActionRiskAssessmentProcessUpdate,
-		ActionRiskAssessmentProcessDelete,
-		ActionRiskAssessmentThreatCreate,
-		ActionRiskAssessmentThreatUpdate,
-		ActionRiskAssessmentThreatDelete,
-		ActionRiskAssessmentScenarioCreate,
-		ActionRiskAssessmentScenarioUpdate,
-		ActionRiskAssessmentScenarioDelete,
-		ActionRiskAssessmentScenarioThreatLink,
-		ActionRiskAssessmentScenarioThreatUnlink,
-		ActionRiskAssessmentScenarioRiskLink,
-		ActionRiskAssessmentScenarioRiskUnlink,
 	},
 	ScopeV1SlackConnectionRead: {
 		ActionSlackConnectionList,
@@ -421,17 +400,28 @@ var OAuth2ScopeMappings = map[coredata.OAuth2Scope][]string{
 	ScopeV1TaskRead: {
 		ActionTaskGet,
 		ActionTaskList,
+		ActionTaskCommentGet,
+		ActionTaskCommentList,
+		ActionTaskActivityGet,
+		ActionTaskActivityList,
 		ActionEvidenceList,
 	},
 	ScopeV1Task: {
 		ActionTaskGet,
 		ActionTaskList,
+		ActionTaskCommentGet,
+		ActionTaskCommentList,
+		ActionTaskActivityGet,
+		ActionTaskActivityList,
 		ActionEvidenceList,
 		ActionTaskCreate,
 		ActionTaskUpdate,
 		ActionTaskDelete,
 		ActionTaskAssign,
 		ActionTaskUnassign,
+		ActionTaskCommentCreate,
+		ActionTaskCommentUpdate,
+		ActionTaskCommentDelete,
 		ActionEvidenceDelete,
 	},
 	ScopeV1ThirdPartyRead: {

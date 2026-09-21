@@ -18,6 +18,47 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { parseDate } from "@probo/helpers";
+import {
+  IconCircleCheck,
+  IconCircleQuestionmark,
+  IconCircleX,
+} from "@probo/ui";
+
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = MS_PER_SECOND * 60;
+const MS_PER_HOUR = MS_PER_MINUTE * 60;
+const MS_PER_DAY = MS_PER_HOUR * 24;
+
+// Compact elapsed age for dense list cells (e.g. "now", "5s", "20m", "4h", "1d", "1mo", "2y").
+function shortAgeFormat(date: string, now: Date = new Date()): string {
+  const elapsedMs = Math.max(0, now.getTime() - parseDate(date).getTime());
+  const seconds = Math.floor(elapsedMs / MS_PER_SECOND);
+
+  if (seconds < 60) {
+    return seconds === 0 ? "now" : `${seconds}s`;
+  }
+
+  const minutes = Math.floor(elapsedMs / MS_PER_MINUTE);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+
+  const hours = Math.floor(elapsedMs / MS_PER_HOUR);
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+
+  const days = Math.floor(elapsedMs / MS_PER_DAY);
+  if (days < 30) {
+    return `${days}d`;
+  }
+  if (days < 365) {
+    return `${Math.floor(days / 30)}mo`;
+  }
+  return `${Math.floor(days / 365)}y`;
+}
+
 type BadgeVariant = "neutral" | "info" | "warning" | "success" | "danger";
 
 export function statusBadgeVariant(status: string): BadgeVariant {
@@ -37,19 +78,8 @@ export function statusBadgeVariant(status: string): BadgeVariant {
   }
 }
 
-export function fetchStatusBadgeVariant(status: string): BadgeVariant {
-  switch (status) {
-    case "SUCCESS":
-      return "success";
-    case "FAILED":
-      return "danger";
-    case "FETCHING":
-      return "info";
-    case "QUEUED":
-      return "neutral";
-    default:
-      return "info";
-  }
+export function isCampaignDeletableStatus(status: string): boolean {
+  return status !== "IN_PROGRESS";
 }
 
 export function statusLabel(
@@ -58,15 +88,15 @@ export function statusLabel(
 ): string {
   switch (status) {
     case "DRAFT":
-      return t("accessReviewCampaignsTab.status.draft");
+      return t("accessReviewCampaignsPage.status.draft");
     case "IN_PROGRESS":
-      return t("accessReviewCampaignsTab.status.in_progress");
+      return t("accessReviewCampaignsPage.status.in_progress");
     case "PENDING_ACTIONS":
-      return t("accessReviewCampaignsTab.status.pending_actions");
+      return t("accessReviewCampaignsPage.status.pending_actions");
     case "COMPLETED":
-      return t("accessReviewCampaignsTab.status.completed");
+      return t("accessReviewCampaignsPage.status.completed");
     case "CANCELLED":
-      return t("accessReviewCampaignsTab.status.cancelled");
+      return t("accessReviewCampaignsPage.status.cancelled");
     default:
       return status;
   }
@@ -84,26 +114,6 @@ export function decisionBadgeVariant(decision: string): BadgeVariant {
       return "info";
     default:
       return "neutral";
-  }
-}
-
-export function decisionLabel(
-  t: (key: string) => string,
-  decision: string,
-): string {
-  switch (decision) {
-    case "PENDING":
-      return t("campaignDetailPage.decisions.pending");
-    case "APPROVED":
-      return t("campaignDetailPage.decisions.approved");
-    case "REVOKE":
-      return t("campaignDetailPage.decisions.revoke");
-    case "DEFER":
-      return t("campaignDetailPage.decisions.defer");
-    case "ESCALATE":
-      return t("campaignDetailPage.decisions.escalate");
-    default:
-      return decision;
   }
 }
 
@@ -160,26 +170,146 @@ export const flagGroups = [
   },
 ];
 
-export function flagLabel(flag: string): string {
-  for (const group of flagGroups) {
-    for (const f of group.flags) {
-      if (f.value === flag) return f.label;
-    }
-  }
-  if (flag === "NONE") return "None";
-  // Legacy flag values not shown in the grouped dropdown
-  if (flag === "INACTIVE") return "Inactive";
-  if (flag === "ROLE_MISMATCH") return "Role mismatch";
-  if (flag === "NEW") return "New";
-  return flag;
-}
-
-export function formatStatus(status: string): string {
-  return status.replace(/_/g, " ");
-}
-
 export function NotAvailable() {
   return (
     <span className="text-xs text-txt-tertiary">N/A</span>
+  );
+}
+
+export function MfaStatusIcon({
+  status,
+  label,
+}: {
+  status: string;
+  label: string;
+}) {
+  if (status === "ENABLED") {
+    return (
+      <span role="img" aria-label={label} title={label} className="inline-flex text-txt-success">
+        <IconCircleCheck size={16} />
+      </span>
+    );
+  }
+
+  if (status === "DISABLED") {
+    return (
+      <span role="img" aria-label={label} title={label} className="inline-flex text-txt-danger">
+        <IconCircleX size={16} />
+      </span>
+    );
+  }
+
+  return (
+    <span role="img" aria-label={label} title={label} className="inline-flex text-txt-tertiary">
+      <IconCircleQuestionmark size={16} />
+    </span>
+  );
+}
+
+export function AuthMethodStatus({
+  method,
+  label,
+  unknownLabel,
+}: {
+  method: string;
+  label: string;
+  unknownLabel: string;
+}) {
+  if (method === "UNKNOWN") {
+    return (
+      <span
+        role="img"
+        aria-label={unknownLabel}
+        title={unknownLabel}
+        className="inline-flex text-txt-tertiary"
+      >
+        <IconCircleQuestionmark size={16} />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      aria-label={label}
+      title={label}
+      className="max-w-full truncate text-center text-xs text-txt-primary"
+    >
+      {label}
+    </span>
+  );
+}
+
+// Spelled out rather than a check/cross icon: next to MFA a green check reads as
+// "compliant", but holding admin rights is the risk signal a reviewer looks for.
+export function AdminStatus({
+  isAdmin,
+  trueLabel,
+  falseLabel,
+  unknownLabel,
+}: {
+  isAdmin: boolean | null | undefined;
+  trueLabel: string;
+  falseLabel: string;
+  unknownLabel: string;
+}) {
+  if (isAdmin == null) {
+    return (
+      <span role="img" aria-label={unknownLabel} title={unknownLabel} className="inline-flex text-txt-tertiary">
+        <IconCircleQuestionmark size={16} />
+      </span>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <span aria-label={trueLabel} title={trueLabel} className="text-xs font-medium text-txt-warning">
+        {trueLabel}
+      </span>
+    );
+  }
+
+  return (
+    <span aria-label={falseLabel} title={falseLabel} className="text-xs text-txt-tertiary">
+      {falseLabel}
+    </span>
+  );
+}
+
+export function LastLoginStatus({
+  lastLogin,
+  formatted,
+  unknownLabel,
+  compact = false,
+}: {
+  lastLogin: string | null | undefined;
+  formatted: string;
+  unknownLabel: string;
+  compact?: boolean;
+}) {
+  if (lastLogin) {
+    if (compact) {
+      return (
+        <span
+          aria-label={formatted}
+          title={formatted}
+          className="text-xs tabular-nums text-txt-primary"
+        >
+          {shortAgeFormat(lastLogin)}
+        </span>
+      );
+    }
+
+    return (
+      <span role="img" aria-label={formatted} className="inline-flex min-w-0 items-center gap-1.5" title={formatted}>
+        <IconCircleCheck size={16} className="shrink-0 text-txt-tertiary" />
+        <span className="truncate" aria-hidden="true">{formatted}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span role="img" aria-label={unknownLabel} title={unknownLabel} className="inline-flex text-txt-tertiary">
+      <IconCircleQuestionmark size={16} />
+    </span>
   );
 }

@@ -23,6 +23,8 @@ package task
 import (
 	"github.com/spf13/cobra"
 	"go.probo.inc/probo/pkg/cmd/cmdutil"
+	"go.probo.inc/probo/pkg/cmd/task/activity"
+	"go.probo.inc/probo/pkg/cmd/task/comment"
 	"go.probo.inc/probo/pkg/cmd/task/create"
 	"go.probo.inc/probo/pkg/cmd/task/delete"
 	"go.probo.inc/probo/pkg/cmd/task/list"
@@ -41,6 +43,8 @@ func NewCmdTask(f *cmdutil.Factory) *cobra.Command {
 	cmd.AddCommand(view.NewCmdView(f))
 	cmd.AddCommand(update.NewCmdUpdate(f))
 	cmd.AddCommand(delete.NewCmdDelete(f))
+	cmd.AddCommand(comment.NewCmdComment(f))
+	cmd.AddCommand(activity.NewCmdActivity(f))
 
 	return cmd
 }

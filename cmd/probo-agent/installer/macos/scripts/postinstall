@@ -17,7 +17,9 @@
 set -u
 
 LOG_FILE="/var/log/probo-agent-install.log"
-BINARY="/usr/local/bin/probo-agent"
+PROBO_DIR="/Library/Probo"
+BINARY="${PROBO_DIR}/probo-agent"
+LEGACY_BINARY="/usr/local/bin/probo-agent"
 STATE_DIR="/var/lib/probo-agent"
 RUN_DIR="/var/run/probo-agent"
 CONF_FILE="/tmp/probo-agent.conf"
@@ -26,10 +28,6 @@ HELPER_LABEL="com.probo.agent.helper"
 HELPER_PLIST="/Library/LaunchDaemons/${HELPER_LABEL}.plist"
 HELPER_BINARY="/Library/PrivilegedHelperTools/${HELPER_LABEL}"
 APP_PATH="/Applications/Probo Agent.app"
-TRAY_LABEL="com.probo.agent.tray"
-TRAY_PLIST_NAME="${TRAY_LABEL}.plist"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TRAY_PLIST_TMPL="${SCRIPT_DIR}/launchagent.plist.tmpl"
 
 # Mirror everything to the install log. We keep stdout/stderr open
 # too so failures still surface in macOS Installer.app's log pane.
@@ -45,6 +43,12 @@ if [ ! -x "${BINARY}" ]; then
     exit 1
 fi
 
+mkdir -p "${PROBO_DIR}"
+chown root:wheel "${PROBO_DIR}"
+chmod 0755 "${PROBO_DIR}"
+chown root:wheel "${BINARY}"
+chmod 0755 "${BINARY}"
+
 mkdir -p "${STATE_DIR}"
 chown root:wheel "${STATE_DIR}"
 chmod 0700 "${STATE_DIR}"
@@ -52,89 +56,6 @@ chmod 0700 "${STATE_DIR}"
 mkdir -p "${RUN_DIR}"
 chown root:wheel "${RUN_DIR}"
 chmod 0755 "${RUN_DIR}"
-
-# Render the shared Go LaunchAgent template (pkg/deviceagent/tray/
-# launchagent.plist.tmpl) with fixed install paths. Values are
-# installer constants, so XML metacharacters are not expected.
-render_tray_plist() {
-    local tmpl="$1"
-    local out="$2"
-
-    sed \
-        -e "s|{{xml \.Label}}|${TRAY_LABEL}|g" \
-        -e "s|{{xml \.ExePath}}|${BINARY}|g" \
-        -e "s|{{xml \.RunDir}}|${RUN_DIR}|g" \
-        "${tmpl}" > "${out}"
-}
-
-register_tray_launchagent() {
-    local current_user user_uid agents_dir plist_path
-
-    agents_dir="/Library/LaunchAgents"
-    plist_path="${agents_dir}/${TRAY_PLIST_NAME}"
-
-    if [ ! -f "${TRAY_PLIST_TMPL}" ]; then
-        echo "error: tray LaunchAgent template missing at ${TRAY_PLIST_TMPL}"
-        return 1
-    fi
-
-    mkdir -p "${agents_dir}"
-    render_tray_plist "${TRAY_PLIST_TMPL}" "${plist_path}"
-
-    chmod 0644 "${plist_path}"
-    echo "Installed tray LaunchAgent at ${plist_path}."
-
-    bootstrap_tray_for_user() {
-        local username="$1"
-        local user_uid
-
-        if [ -z "${username}" ] || \
-           [ "${username}" = "root" ] || \
-           [ "${username}" = "loginwindow" ]; then
-            return 1
-        fi
-
-        user_uid="$(id -u "${username}" 2>/dev/null || true)"
-        if [ -z "${user_uid}" ]; then
-            echo "warning: cannot resolve uid for ${username}; skipping tray bootstrap."
-            return 1
-        fi
-
-        launchctl bootout "gui/${user_uid}/${TRAY_LABEL}" 2>/dev/null || true
-        if ! launchctl bootstrap "gui/${user_uid}" "${plist_path}"; then
-            echo "warning: could not start tray helper for ${username}; it will start at next GUI login."
-            return 1
-        fi
-
-        echo "Started tray LaunchAgent for ${username}."
-        return 0
-    }
-
-    started_any=false
-    seen_users=" "
-
-    for username in $(users 2>/dev/null || true); do
-        case "${seen_users}" in
-            *" ${username} "*) continue ;;
-        esac
-        seen_users="${seen_users}${username} "
-
-        if bootstrap_tray_for_user "${username}"; then
-            started_any=true
-        fi
-    done
-
-    if [ "${started_any}" = false ]; then
-        current_user=$(stat -f "%Su" /dev/console 2>/dev/null || true)
-        if bootstrap_tray_for_user "${current_user}"; then
-            started_any=true
-        fi
-    fi
-
-    if [ "${started_any}" = false ]; then
-        echo "No active GUI session found; tray helper will start at next GUI login."
-    fi
-}
 
 register_enrollment_url_scheme() {
     local lsregister
@@ -217,6 +138,20 @@ EOF
 # Restart a previously enrolled LaunchDaemon after upgrades. Preinstall
 # boots it out so the binary can be replaced; without /tmp/probo-agent.conf
 # enrollment is skipped and nothing else would load it again.
+retarget_existing_daemon() {
+    if [ ! -f "${DAEMON_PLIST}" ]; then
+        return 0
+    fi
+
+    if ! /usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 ${BINARY}" "${DAEMON_PLIST}"; then
+        echo "error: cannot retarget LaunchDaemon to ${BINARY}"
+        return 1
+    fi
+
+    echo "Retargeted LaunchDaemon to ${BINARY}."
+    return 0
+}
+
 restart_existing_daemon() {
     if [ ! -f "${DAEMON_PLIST}" ]; then
         return 0
@@ -238,6 +173,7 @@ restart_existing_daemon() {
 #   PROBO_SERVER_URL=https://your-probo-host.example.com
 #   PROBO_ENROLLMENT_TOKEN=<enrollment-token>
 #   PROBO_NO_AUTO_UPDATE=true
+#   PROBO_ALLOW_PRERELEASES=true
 #
 # Parse KEY=VALUE lines without sourcing or eval so a crafted conf
 # file cannot execute arbitrary shell as root.
@@ -256,6 +192,7 @@ if [ -f "${CONF_FILE}" ]; then
     CONF_SERVER=""
     CONF_ENROLLMENT_TOKEN=""
     CONF_NOUPDATE=""
+    CONF_ALLOW_PRERELEASES=""
     while IFS= read -r line || [ -n "$line" ]; do
         line="${line%%#*}"
         line="${line#"${line%%[![:space:]]*}"}"
@@ -271,6 +208,9 @@ if [ -f "${CONF_FILE}" ]; then
                 ;;
             PROBO_NO_AUTO_UPDATE=*)
                 CONF_NOUPDATE="$(strip_conf_value "${line#PROBO_NO_AUTO_UPDATE=}")"
+                ;;
+            PROBO_ALLOW_PRERELEASES=*)
+                CONF_ALLOW_PRERELEASES="$(strip_conf_value "${line#PROBO_ALLOW_PRERELEASES=}")"
                 ;;
         esac
     done < "${CONF_FILE}"
@@ -288,6 +228,9 @@ if [ -f "${CONF_FILE}" ]; then
         )
         case "${CONF_NOUPDATE}" in
             1|true|TRUE|yes|YES) INSTALL_ARGS+=(--no-auto-update) ;;
+        esac
+        case "${CONF_ALLOW_PRERELEASES}" in
+            1|true|TRUE|yes|YES) INSTALL_ARGS+=(--allow-prereleases) ;;
         esac
 
         if "${BINARY}" "${INSTALL_ARGS[@]}"; then
@@ -310,8 +253,19 @@ if ! install_privileged_helper; then
     exit 1
 fi
 
+if ! retarget_existing_daemon; then
+    echo "error: cannot migrate LaunchDaemon off ${LEGACY_BINARY}."
+    exit 1
+fi
+
+rm -f "${LEGACY_BINARY}"
+
 restart_existing_daemon
-register_tray_launchagent
+
+if ! "${BINARY}" setup-tray; then
+    echo "warning: could not register tray auto-start; it will start at next GUI login."
+fi
+
 register_enrollment_url_scheme
 
 echo "=== postinstall done ==="

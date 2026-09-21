@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import posthog from "posthog-js";
 import { registerCookieBanner, type BannerConfig } from "@probo/cookie-banner";
 import { useConfig } from "../hooks/useConfig";
+import { enableNamedLoggers, themedLogger } from "../lib/logger";
 import {
   configurePosthogFromBanner,
   getPosthogStatus,
@@ -27,6 +28,7 @@ export function ThemedBannerTab({ events, pushEvent }: ThemedBannerTabProps) {
 
   useEffect(() => {
     if (!registered) {
+      themedLogger.debug("[themed] registerCookieBanner");
       registerCookieBanner();
       registered = true;
     }
@@ -45,11 +47,14 @@ export function ThemedBannerTab({ events, pushEvent }: ThemedBannerTabProps) {
         if (detail?.config) {
           configurePosthogFromBanner(detail.config);
         }
+        enableNamedLoggers();
+        themedLogger.debug("[themed] probo-ready", (e as CustomEvent).detail);
         pushEvent("probo-ready", (e as CustomEvent).detail);
       });
-      el.addEventListener("probo-consent", (e: Event) =>
-        pushEvent("probo-consent", (e as CustomEvent).detail),
-      );
+      el.addEventListener("probo-consent", (e: Event) => {
+        themedLogger.debug("[themed] probo-consent", (e as CustomEvent).detail);
+        pushEvent("probo-consent", (e as CustomEvent).detail);
+      });
     },
     [pushEvent],
   );
@@ -64,6 +69,7 @@ export function ThemedBannerTab({ events, pushEvent }: ThemedBannerTabProps) {
     // make the example fail closed if the panel is reused without its
     // disabled-state wiring.
     if (posthog.has_opted_out_capturing()) return;
+    themedLogger.debug("[themed] posthog ping");
     posthog.capture("themed_tab_manual_ping", { source: "example" });
     setManualPing(new Date().toISOString());
   }, []);
@@ -84,8 +90,9 @@ export function ThemedBannerTab({ events, pushEvent }: ThemedBannerTabProps) {
       <h2>Themed Banner</h2>
       <p style={{ color: "#666", marginBottom: 16 }}>
         Uses <code>registerCookieBanner()</code> and renders{" "}
-        <code>&lt;probo-cookie-banner&gt;</code>. The banner appears in the
-        bottom-right corner.
+        <code>&lt;probo-cookie-banner&gt;</code> with{" "}
+        <code>gcm-enabled=&quot;{config.gcmEnabled ? "true" : "false"}&quot;</code>{" "}
+        from the Config tab. The banner appears in the bottom-right corner.
       </p>
 
       <PosthogPanel
@@ -94,14 +101,37 @@ export function ThemedBannerTab({ events, pushEvent }: ThemedBannerTabProps) {
         onSendPing={sendPing}
       />
 
+      {posthogStatus.featureFlagEnabled && (
+        <div
+          style={{
+            border: "2px solid #2563eb",
+            padding: 12,
+            marginBottom: 16,
+            background: "#eff6ff",
+          }}
+        >
+          <h3 style={{ marginTop: 0, marginBottom: 4 }}>Beta panel</h3>
+          <p style={{ margin: 0, color: "#334155", fontSize: 14 }}>
+            Visible only when PostHog consent is granted, the demo user is
+            identified, and feature flag{" "}
+            <code>{posthogStatus.featureFlagKey}</code> is on.
+          </p>
+        </div>
+      )}
+
       <probo-cookie-banner
+        key={String(config.gcmEnabled)}
         ref={attachListeners}
         banner-id={config.bannerId}
         base-url={config.baseUrl}
         position="bottom-right"
+        gcm-enabled={config.gcmEnabled ? "true" : "false"}
       />
 
-      <p style={{ marginTop: 16 }}>
+      <p
+        style={{ marginTop: 16 }}
+        onClick={() => themedLogger.debug("[themed] cookie settings")}
+      >
         <probo-settings-link>Cookie settings</probo-settings-link>
       </p>
 

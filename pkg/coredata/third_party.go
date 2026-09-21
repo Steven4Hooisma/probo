@@ -744,6 +744,122 @@ func (v *ThirdParties) CountByCompliancePortalID(
 	return v.CountByOrganizationID(ctx, conn, scope, organizationID, filter)
 }
 
+// ThirdPartyOrganizationLink identifies one organization's third party that
+// links a catalog entry. It carries the organization so a caller can scope
+// per-tenant work, and the third party so it can be linked to.
+type ThirdPartyOrganizationLink struct {
+	OrganizationID gid.GID `db:"organization_id"`
+	ThirdPartyID   gid.GID `db:"id"`
+}
+
+// LoadOrganizationLinksByCommonThirdPartyID returns, for every tenant, the
+// organization third parties that link the given catalog entry.
+//
+// A catalog merge uses this to re-point each affected organization's tracker
+// patterns at the third party that organization already manages. It spans
+// tenants deliberately, because a global catalog entry is referenced from
+// every organization that imported it.
+//
+// One organization can hold several matching rows (nothing enforces
+// uniqueness on the pair), so the lowest id per organization wins, matching
+// what LoadByOrganizationIDAndCommonThirdPartyID resolves to.
+func (v *ThirdParties) LoadOrganizationLinksByCommonThirdPartyID(
+	ctx context.Context,
+	conn pg.Querier,
+	scope Scoper,
+	commonThirdPartyID gid.GID,
+) ([]ThirdPartyOrganizationLink, error) {
+	q := `
+SELECT DISTINCT ON (organization_id)
+    organization_id,
+    id
+FROM
+    third_parties
+WHERE
+    %s
+    AND common_third_party_id = @common_third_party_id
+ORDER BY
+    organization_id,
+    id ASC
+`
+
+	q = fmt.Sprintf(q, scope.SQLFragment())
+
+	args := pgx.StrictNamedArgs{"common_third_party_id": commonThirdPartyID}
+	maps.Copy(args, scope.SQLArguments())
+
+	rows, err := conn.Query(ctx, q, args)
+	if err != nil {
+		return nil, fmt.Errorf("cannot query third party organization links: %w", err)
+	}
+
+	links, err := pgx.CollectRows(rows, pgx.RowToStructByName[ThirdPartyOrganizationLink])
+	if err != nil {
+		return nil, fmt.Errorf("cannot collect third party organization links: %w", err)
+	}
+
+	return links, nil
+}
+
+// CountByCommonThirdPartyID returns how many organization third parties
+// link to each catalog entry, keyed by catalog id.
+//
+// Catalog cleanup needs the whole histogram to rank merge winners, so this
+// aggregates in one round trip rather than counting per candidate row.
+// Callers pass NewNoScope to span tenants: the catalog is global, so a
+// single entry's references are spread across every tenant that imported
+// it, and a tenant-scoped count would understate its true usage.
+func (v *ThirdParties) CountByCommonThirdPartyID(
+	ctx context.Context,
+	conn pg.Querier,
+	scope Scoper,
+) (map[gid.GID]int, error) {
+	q := `
+SELECT
+    common_third_party_id,
+    COUNT(id)
+FROM
+    third_parties
+WHERE
+    %s
+    AND common_third_party_id IS NOT NULL
+GROUP BY
+    common_third_party_id
+`
+
+	q = fmt.Sprintf(q, scope.SQLFragment())
+
+	args := pgx.StrictNamedArgs{}
+	maps.Copy(args, scope.SQLArguments())
+
+	rows, err := conn.Query(ctx, q, args)
+	if err != nil {
+		return nil, fmt.Errorf("cannot count third parties by common third party: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[gid.GID]int)
+
+	for rows.Next() {
+		var (
+			id    gid.GID
+			count int
+		)
+
+		if err := rows.Scan(&id, &count); err != nil {
+			return nil, fmt.Errorf("cannot scan third party count: %w", err)
+		}
+
+		counts[id] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("cannot iterate third party counts: %w", err)
+	}
+
+	return counts, nil
+}
+
 func (v *ThirdParties) CountByOrganizationID(
 	ctx context.Context,
 	conn pg.Querier,
@@ -1355,6 +1471,113 @@ WHERE %s
 	}
 
 	*vs = thirdParties
+
+	return nil
+}
+
+func (v *ThirdParties) CountByIDs(
+	ctx context.Context,
+	conn pg.Querier,
+	scope Scoper,
+	thirdPartyIDs []gid.GID,
+) (int, error) {
+	if len(thirdPartyIDs) == 0 {
+		return 0, nil
+	}
+
+	q := `
+SELECT
+	COUNT(id)
+FROM
+	third_parties
+WHERE
+	%s
+	AND id = ANY(@third_party_ids)
+`
+
+	q = fmt.Sprintf(q, scope.SQLFragment())
+
+	args := pgx.StrictNamedArgs{"third_party_ids": thirdPartyIDs}
+	maps.Copy(args, scope.SQLArguments())
+
+	row := conn.QueryRow(ctx, q, args)
+
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return 0, fmt.Errorf("cannot count thirdParties: %w", err)
+	}
+
+	return count, nil
+}
+
+func (v *ThirdParties) LoadByIDsWithCursor(
+	ctx context.Context,
+	conn pg.Querier,
+	scope Scoper,
+	thirdPartyIDs []gid.GID,
+	cursor *page.Cursor[ThirdPartyOrderField],
+) error {
+	if len(thirdPartyIDs) == 0 {
+		*v = nil
+		return nil
+	}
+
+	q := `
+SELECT
+	id,
+	organization_id,
+	parent_third_party_id,
+	common_third_party_id,
+	name,
+	description,
+	category,
+	headquarter_address,
+	legal_name,
+	website_url,
+	privacy_policy_url,
+	service_level_agreement_url,
+	data_processing_agreement_url,
+	business_associate_agreement_url,
+	subprocessors_list_url,
+	certifications,
+	countries,
+	status_page_url,
+	terms_of_service_url,
+	security_page_url,
+	trust_page_url,
+	level,
+	vetting_status,
+	vetting_website_url,
+	vetting_procedure,
+	vetting_processing_started_at,
+	vetting_error_message,
+	created_at,
+	updated_at
+FROM
+	third_parties
+WHERE
+	%s
+	AND id = ANY(@third_party_ids)
+	AND %s
+`
+
+	q = fmt.Sprintf(q, scope.SQLFragment(), cursor.SQLFragment())
+
+	args := pgx.StrictNamedArgs{"third_party_ids": thirdPartyIDs}
+	maps.Copy(args, scope.SQLArguments())
+	maps.Copy(args, cursor.SQLArguments())
+
+	rows, err := conn.Query(ctx, q, args)
+	if err != nil {
+		return fmt.Errorf("cannot query thirdParties: %w", err)
+	}
+
+	thirdParties, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[ThirdParty])
+	if err != nil {
+		return fmt.Errorf("cannot collect thirdParties: %w", err)
+	}
+
+	*v = thirdParties
 
 	return nil
 }

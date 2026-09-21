@@ -483,7 +483,7 @@ func (r *accessReviewSourceResolver) ProviderOrganizations(ctx context.Context, 
 	// a problem: its organization is captured during the OAuth callback, not
 	// chosen by the user. Reporting that as EMPTY would warn a perfectly
 	// healthy source that its organization may not have approved Probo.
-	if !accessreview.ProviderSupportsOrganizationPicker(cnnctr.Provider) {
+	if !accessreview.ProviderSupportsOrganizationPicker(cnnctr.Provider, cnnctr.Protocol) {
 		return &types.ProviderOrganizations{
 			Status: types.ProviderOrganizationsStatusNotApplicable,
 			Nodes:  []*types.ProviderOrganization{},
@@ -494,6 +494,8 @@ func (r *accessReviewSourceResolver) ProviderOrganizations(ctx context.Context, 
 	if err != nil {
 		r.logger.ErrorCtx(ctx, "cannot list provider organizations",
 			log.String("provider", cnnctr.Provider.String()),
+			log.String("source_id", obj.ID.String()),
+			log.String("connector_id", obj.ConnectorID.String()),
 			log.Error(err),
 		)
 
@@ -554,10 +556,9 @@ func (r *accessReviewSourceResolver) NeedsConfiguration(ctx context.Context, obj
 
 // ConnectionStatus is the resolver for the connectionStatus field.
 //
-// Returns RECONNECT_REQUIRED when the connector's stored OAuth grant is
-// missing scopes required by the current provider registration (e.g. a newly
-// added Graph permission), DISCONNECTED when the credential probe fails, and
-// CONNECTED when the grant is usable as-is.
+// The state belongs to the connector, so this is Connector.connectionStatus
+// plus the one case a connector cannot express: a manual CSV source, which has
+// no connector to be connected to.
 func (r *accessReviewSourceResolver) ConnectionStatus(ctx context.Context, obj *types.AccessReviewSource) (types.AccessReviewSourceConnectionStatus, error) {
 	if obj.ConnectorID == nil {
 		return types.AccessReviewSourceConnectionStatusNotApplicable, nil
@@ -568,39 +569,25 @@ func (r *accessReviewSourceResolver) ConnectionStatus(ctx context.Context, obj *
 		return types.AccessReviewSourceConnectionStatusNotApplicable, err
 	}
 
-	httpClient, dbConnector, err := r.accessReview.ConnectorHTTPClient(ctx, scope, *obj.ConnectorID)
+	status, err := r.connectorConnectionStatus(ctx, scope, *obj.ConnectorID)
 	if err != nil {
 		if errors.Is(err, coredata.ErrResourceNotFound) {
 			return types.AccessReviewSourceConnectionStatusNotApplicable, nil
 		}
 
-		return types.AccessReviewSourceConnectionStatusDisconnected, nil
+		return types.AccessReviewSourceConnectionStatusNotApplicable, err
 	}
 
-	// Creating an HTTP client may succeed even with an expired or invalid
-	// credential (e.g. no refresh token available, or a dead API key).
-	// When the provider registers a probe, make a lightweight request to
-	// verify the credential is actually accepted.
-	if err := r.providerRegistry.ProbeConnection(ctx, httpClient, dbConnector); err != nil {
-		return types.AccessReviewSourceConnectionStatusDisconnected, nil
-	}
-
-	needsReconnect, err := r.accessReview.SourceNeedsReconnect(ctx, scope, *obj.ConnectorID)
-	if err != nil {
-		if errors.Is(err, coredata.ErrResourceNotFound) {
-			return types.AccessReviewSourceConnectionStatusNotApplicable, nil
-		}
-
-		r.logger.ErrorCtx(ctx, "cannot determine access source reconnect requirement", log.Error(err))
-
-		return types.AccessReviewSourceConnectionStatusNotApplicable, gqlutils.Internal(ctx)
-	}
-
-	if needsReconnect {
+	switch status {
+	case types.ConnectorConnectionStatusConnected:
+		return types.AccessReviewSourceConnectionStatusConnected, nil
+	case types.ConnectorConnectionStatusReconnectRequired:
 		return types.AccessReviewSourceConnectionStatusReconnectRequired, nil
+	case types.ConnectorConnectionStatusNotAuthorized:
+		return types.AccessReviewSourceConnectionStatusNotAuthorized, nil
+	default:
+		return types.AccessReviewSourceConnectionStatusDisconnected, nil
 	}
-
-	return types.AccessReviewSourceConnectionStatusConnected, nil
 }
 
 // SelectedOrganization is the resolver for the selectedOrganization field.
@@ -668,7 +655,7 @@ func (r *mutationResolver) CreateAccessReviewSource(ctx context.Context, input t
 		return nil, err
 	}
 
-	source, err := r.accessReview.CreateSource(
+	source, created, err := r.accessReview.EnsureSource(
 		ctx,
 		scope,
 		accessreview.CreateAccessReviewSourceRequest{
@@ -679,6 +666,10 @@ func (r *mutationResolver) CreateAccessReviewSource(ctx context.Context, input t
 		},
 	)
 	if err != nil {
+		if errors.Is(err, coredata.ErrResourceInUse) {
+			return nil, gqlutils.Conflict(ctx, err)
+		}
+
 		r.logger.ErrorCtx(ctx, "cannot create access source", log.Error(err))
 
 		return nil, gqlutils.Internal(ctx)
@@ -688,6 +679,7 @@ func (r *mutationResolver) CreateAccessReviewSource(ctx context.Context, input t
 
 	return &types.CreateAccessReviewSourcePayload{
 		AccessReviewSourceEdge: types.NewAccessReviewSourceEdge(source, coredata.AccessReviewSourceOrderFieldCreatedAt),
+		Created:                created,
 	}, nil
 }
 
@@ -711,6 +703,10 @@ func (r *mutationResolver) UpdateAccessReviewSource(ctx context.Context, input t
 	if err != nil {
 		if errors.Is(err, coredata.ErrResourceNotFound) {
 			return nil, gqlutils.NotFound(ctx, err)
+		}
+
+		if errors.Is(err, coredata.ErrResourceInUse) {
+			return nil, gqlutils.Conflict(ctx, err)
 		}
 
 		r.logger.ErrorCtx(ctx, "cannot update access source", log.Error(err))

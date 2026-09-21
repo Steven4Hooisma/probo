@@ -24,6 +24,14 @@ enum MembershipRole
   VIEWER @goEnum(value: "go.probo.inc/probo/pkg/coredata.MembershipRoleViewer")
   AUDITOR
     @goEnum(value: "go.probo.inc/probo/pkg/coredata.MembershipRoleAuditor")
+  COMPLIANCE_PORTAL_MANAGER
+    @goEnum(
+      value: "go.probo.inc/probo/pkg/coredata.MembershipRoleCompliancePortalManager"
+    )
+  COMPLIANCE_PORTAL_ACCESS_MANAGER
+    @goEnum(
+      value: "go.probo.inc/probo/pkg/coredata.MembershipRoleCompliancePortalAccessManager"
+    )
 }
 
 type Profile implements Node {
@@ -34,8 +42,8 @@ type Profile implements Node {
     additionalEmailAddresses: [EmailAddr!]!
     kind: String
     position: String
-    contractStartDate: Datetime
-    contractEndDate: Datetime
+    contract: Period
+    avatar: File @goField(forceResolver: true)
     createdAt: Datetime!
     updatedAt: Datetime!
 
@@ -191,8 +199,11 @@ type Organization implements Node {
         last: Int
         before: CursorKey
     ): SlackConnectionConnection! @goField(forceResolver: true)
-    slackOAuth2Scopes: [String!]! @goField(forceResolver: true)
     connectors(filter: ConnectorFilter): [Connector!]! @goField(forceResolver: true)
+    slackbotAvailable: Boolean! @goField(forceResolver: true)
+    slackbotInstallation: SlackbotInstallation @goField(forceResolver: true)
+    slackbotChannels(cursor: String): SlackbotChannelPage!
+        @goField(forceResolver: true)
 
     controls(
         first: Int
@@ -268,6 +279,28 @@ type Organization implements Node {
         orderBy: ObligationOrder
     ): ObligationConnection! @goField(forceResolver: true)
 
+    businessFunctionsDocument: Document @goField(forceResolver: true)
+
+    businessFunctions(
+        first: Int
+        after: CursorKey
+        last: Int
+        before: CursorKey
+        orderBy: BusinessFunctionOrder
+        filter: BusinessFunctionFilter
+    ): BusinessFunctionConnection! @goField(forceResolver: true)
+
+    aiSystemsDocument: Document @goField(forceResolver: true)
+
+    aiSystems(
+        first: Int
+        after: CursorKey
+        last: Int
+        before: CursorKey
+        orderBy: AiSystemOrder
+        filter: AiSystemFilter
+    ): AiSystemConnection! @goField(forceResolver: true)
+
     processingActivities(
         first: Int
         after: CursorKey
@@ -297,21 +330,30 @@ type Organization implements Node {
 
     risksDocument: Document @goField(forceResolver: true)
 
-    riskAssessments(
+    riskAnalyses(
         first: Int
         after: CursorKey
         last: Int
         before: CursorKey
-        orderBy: RiskAssessmentOrder
-    ): RiskAssessmentConnection! @goField(forceResolver: true)
+        orderBy: RiskAnalysisOrder
+    ): RiskAnalysisConnection! @goField(forceResolver: true)
 
-    riskAssessmentScenarios(
+    treatmentPlans(
         first: Int
         after: CursorKey
         last: Int
         before: CursorKey
-        orderBy: RiskAssessmentScenarioOrder
-    ): RiskAssessmentScenarioConnection @goField(forceResolver: true)
+        orderBy: TreatmentPlanOrder
+        filter: TreatmentPlanFilter
+    ): TreatmentPlanConnection! @goField(forceResolver: true)
+
+    riskAnalysisScenarios(
+        first: Int
+        after: CursorKey
+        last: Int
+        before: CursorKey
+        orderBy: RiskAnalysisScenarioOrder
+    ): RiskAnalysisScenarioConnection @goField(forceResolver: true)
 
     tasks(
         first: Int
@@ -321,13 +363,13 @@ type Organization implements Node {
         orderBy: TaskOrder
     ): TaskConnection! @goField(forceResolver: true)
 
-    agentRuns(
+    agentExecutions(
         first: Int
         after: CursorKey
         last: Int
         before: CursorKey
-        orderBy: AgentRunOrder
-    ): AgentRunConnection! @goField(forceResolver: true)
+        orderBy: AgentExecutionOrder
+    ): AgentExecutionConnection! @goField(forceResolver: true)
 
     compliancePortals(
         first: Int

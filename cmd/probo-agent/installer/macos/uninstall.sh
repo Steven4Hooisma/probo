@@ -13,15 +13,15 @@
 
 set -u
 
-BINARY="/usr/local/bin/probo-agent"
+PROBO_DIR="/Library/Probo"
+BINARY="${PROBO_DIR}/probo-agent"
+LEGACY_BINARY="/usr/local/bin/probo-agent"
 STATE_DIR="/var/lib/probo-agent"
 RUN_DIR="/var/run/probo-agent"
 DAEMON_PLIST="/Library/LaunchDaemons/com.probo.agent.plist"
 HELPER_LABEL="com.probo.agent.helper"
 HELPER_PLIST="/Library/LaunchDaemons/${HELPER_LABEL}.plist"
 HELPER_BINARY="/Library/PrivilegedHelperTools/${HELPER_LABEL}"
-TRAY_LABEL="com.probo.agent.tray"
-TRAY_PLIST="/Library/LaunchAgents/${TRAY_LABEL}.plist"
 PKG_ID="com.probo.agent"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
@@ -48,24 +48,6 @@ bootout_system_plist() {
   fi
 }
 
-bootout_tray_for_user() {
-  local username="$1"
-  local user_uid
-
-  if [ -z "${username}" ] \
-    || [ "${username}" = "root" ] \
-    || [ "${username}" = "loginwindow" ]; then
-    return 0
-  fi
-
-  user_uid="$(id -u "${username}" 2>/dev/null || true)"
-  if [ -z "${user_uid}" ]; then
-    return 0
-  fi
-
-  launchctl bootout "gui/${user_uid}/${TRAY_LABEL}" 2>/dev/null || true
-}
-
 unregister_apps() {
   local path
   for path in \
@@ -81,6 +63,7 @@ unregister_apps() {
 kill_leftovers() {
   # Best-effort; deleted-but-running binaries otherwise keep claiming probo://.
   pkill -x probo-agent-url-handler 2>/dev/null || true
+  pkill -f '/Library/Probo/probo-agent tray' 2>/dev/null || true
   pkill -f '/usr/local/bin/probo-agent tray' 2>/dev/null || true
   pkill -f '/Library/PrivilegedHelperTools/com.probo.agent.helper' 2>/dev/null || true
   # Agent daemon may still be running after plist bootout races.
@@ -96,33 +79,30 @@ fi
 log "=== probo-agent macOS uninstall $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 # Prefer the agent's own uninstall for service/tray/state when present.
+UNINSTALL_BIN=""
 if [ -x "${BINARY}" ]; then
-  if "${BINARY}" uninstall; then
-    log "Ran: ${BINARY} uninstall"
-  else
-    log "warning: ${BINARY} uninstall failed; continuing with manual cleanup"
-  fi
-else
-  log "Binary not found at ${BINARY}; skipping probo-agent uninstall"
+  UNINSTALL_BIN="${BINARY}"
+elif [ -x "${LEGACY_BINARY}" ]; then
+  UNINSTALL_BIN="${LEGACY_BINARY}"
 fi
 
-seen_users=" "
-for username in $(users 2>/dev/null || true); do
-  case "${seen_users}" in
-    *" ${username} "*) continue ;;
-  esac
-  seen_users="${seen_users}${username} "
-  bootout_tray_for_user "${username}"
-done
-bootout_tray_for_user "$(stat -f "%Su" /dev/console 2>/dev/null || true)"
+if [ -n "${UNINSTALL_BIN}" ]; then
+  if "${UNINSTALL_BIN}" uninstall; then
+    log "Ran: ${UNINSTALL_BIN} uninstall"
+  else
+    log "warning: ${UNINSTALL_BIN} uninstall failed; continuing with manual cleanup"
+  fi
+else
+  log "Binary not found at ${BINARY} or ${LEGACY_BINARY}; skipping probo-agent uninstall"
+fi
 
 bootout_system_plist "${DAEMON_PLIST}"
 bootout_system_plist "${HELPER_PLIST}"
 
 kill_leftovers
 
-rm -f "${DAEMON_PLIST}" "${HELPER_PLIST}" "${HELPER_BINARY}" "${TRAY_PLIST}"
-log "Removed LaunchDaemon / LaunchAgent / helper files (if present)"
+rm -f "${DAEMON_PLIST}" "${HELPER_PLIST}" "${HELPER_BINARY}"
+log "Removed LaunchDaemon / helper files (if present)"
 
 unregister_apps
 rm -rf \
@@ -130,7 +110,8 @@ rm -rf \
   "/Applications/Probo Agent.localized"
 log "Removed Probo Agent.app (if present)"
 
-rm -f "${BINARY}"
+rm -f "${BINARY}" "${LEGACY_BINARY}"
+rmdir "${PROBO_DIR}" 2>/dev/null || true
 rm -rf "${STATE_DIR}" "${RUN_DIR}"
 rm -f \
   /var/log/probo-agent.log \

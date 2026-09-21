@@ -34,10 +34,10 @@ import {
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { graphql, useMutation } from "react-relay";
-import { z } from "zod";
 
 import type { UploadBusinessAssociateAgreementDialogMutation } from "#/__generated__/core/UploadBusinessAssociateAgreementDialogMutation.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
+import { z } from "#/lib/zod";
 
 const uploadBusinessAssociateAgreementMutation = graphql`
   mutation UploadBusinessAssociateAgreementDialogMutation(
@@ -50,8 +50,10 @@ const uploadBusinessAssociateAgreementMutation = graphql`
           fileName
           downloadUrl
         }
-        validFrom
-        validUntil
+        validity {
+          start
+          end
+        }
         createdAt
       }
     }
@@ -121,8 +123,10 @@ export function UploadBusinessAssociateAgreementDialog({
         input: {
           thirdPartyId,
           fileName: data.fileName,
-          validFrom: formatDatetime(data.validFrom),
-          validUntil: formatDatetime(data.validUntil),
+          validity: {
+            start: formatDatetime(data.validFrom),
+            end: formatDatetime(data.validUntil),
+          },
           file: null,
         },
       },

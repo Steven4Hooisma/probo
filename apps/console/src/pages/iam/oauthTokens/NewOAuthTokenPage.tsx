@@ -38,15 +38,15 @@ import { useTranslation } from "react-i18next";
 import { ConnectionHandler, useLazyLoadQuery } from "react-relay";
 import { Link, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { NewOAuthTokenPageCreateMutation } from "#/__generated__/iam/NewOAuthTokenPageCreateMutation.graphql";
 import type { NewOAuthTokenPageQuery } from "#/__generated__/iam/NewOAuthTokenPageQuery.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useMutationWithToasts } from "#/hooks/useMutationWithToasts";
+import { z } from "#/lib/zod";
 
 import { OAuthTokenCredentialsDialog } from "./_components/OAuthTokenCredentialsDialog";
-import { formatApiScopeLabel } from "./_components/scopeLabels";
+import { formatAPIScopeLabel } from "./_components/scopeLabels";
 
 const pageQuery = graphql`
   query NewOAuthTokenPageQuery {
@@ -259,7 +259,7 @@ export function NewOAuthTokenPage() {
                   />
                   <span className="min-w-0">
                     <span className="block font-medium">
-                      {formatApiScopeLabel(scope)}
+                      {formatAPIScopeLabel(scope, t)}
                     </span>
                     <span className="block text-sm text-txt-secondary break-all">
                       {scope}

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { usePageTitle } from "@probo/hooks";
 import {
   Button,
   Card,
@@ -25,6 +26,7 @@ import {
   IconCrossLargeX,
   IconPencil,
   Markdown,
+  PageHeader,
   Textarea,
 } from "@probo/ui";
 import { useRef, useState } from "react";
@@ -35,6 +37,7 @@ import { graphql } from "relay-runtime";
 import type { ContextPage_UpdateMutation } from "#/__generated__/core/ContextPage_UpdateMutation.graphql";
 import type { ContextPageFragment$key } from "#/__generated__/core/ContextPageFragment.graphql";
 import { useMutationWithToasts } from "#/hooks/useMutationWithToasts";
+import { consoleMarkdownImageOrigins } from "#/lib/markdownImageOrigins";
 
 const fragment = graphql`
   fragment ContextPageFragment on Organization {
@@ -80,10 +83,12 @@ type Props = {
   organization: ContextPageFragment$key;
 };
 
-export default function ContextPage(props: Props) {
+export function ContextPage(props: Props) {
   const { t } = useTranslation();
   const organization = useFragment(fragment, props.organization);
   const context = organization.context;
+
+  usePageTitle(t("context.title"));
 
   const sections: SectionConfig[] = [
     {
@@ -128,6 +133,10 @@ export default function ContextPage(props: Props) {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title={t("context.title")}
+        description={t("context.description")}
+      />
       {sections.map(section => (
         <ContextSection
           key={section.key}
@@ -265,7 +274,10 @@ function ContextSection({
                 {displayedValue
                   ? (
                       <div className="prose prose-sm max-w-none w-full [&_.prose]:max-w-none">
-                        <Markdown content={displayedValue} />
+                        <Markdown
+                          content={displayedValue}
+                          allowedImageOrigins={consoleMarkdownImageOrigins()}
+                        />
                       </div>
                     )
                   : (

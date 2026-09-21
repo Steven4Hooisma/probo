@@ -106,6 +106,16 @@ probo:
   metrics:
     port: 8081
 
+  trustCenter:
+    # Set to "external" when an external L7 proxy terminates TLS and forwards
+    # requests privately to service.httpPort. Probo's HTTPS port and all
+    # bundled HAProxy TCP passthrough are disabled in this mode.
+    # External mode also disables Probo ACME issuance and renewal. Preserve the
+    # requested Host and overwrite X-Forwarded-Proto at the proxy. Route
+    # {slug}.<baseDomain> or a domain already stored in Probo.
+    # Creating custom domains is unsupported and leaves them pending.
+    tlsMode: "direct"
+
   # CORS configuration - add all domains that will access the API
   cors:
     allowedOrigins:
@@ -126,7 +136,10 @@ probo:
 
   # Authentication
   auth:
-    # Set to true to disable public signup
+    # When true, only identities that belong to an organization can use the
+    # console: password signup is rejected, and a magic-link or OIDC identity
+    # with no membership is refused by the console API (compliance-portal
+    # access is unaffected). Invited people keep normal access.
     disableSignup: false
     # Cookie domain should be your root domain
     cookieDomain: "example.com"
@@ -140,6 +153,45 @@ probo:
     # Example: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 > oauth2_signing_key.pem
     # Then set with --set-file probo.oauth2.signingKey=oauth2_signing_key.pem
     signingKey: "CHANGE_ME_OAUTH2_SIGNING_KEY_PEM"
+
+  # Identity federation issuer (outbound OIDC), used to federate into a customer's
+  # cloud accounts without a shared secret. Disabled by default: it is only
+  # needed once you connect a cloud provider, and it requires an issuer URL that
+  # is publicly reachable over HTTPS, because the cloud provider fetches it to
+  # validate the OIDC provider being registered.
+  identityFederation:
+    enabled: false
+    # Leave empty to serve the issuer at {baseUrl}/federation, which is what a
+    # self-hosted deployment should do. Set it only to an HTTPS apex you
+    # control — never to Probo's own issuer, which you cannot serve documents
+    # for.
+    # WARNING: immutable once a customer registers it with their cloud provider.
+    # Changing it forces every one of your customers to redeploy the
+    # infrastructure they own.
+    issuerBaseUrl: ""
+    # REQUIRED when enabled: a key of its own, never the OAuth2 signing key.
+    # Example: openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 > identity_federation_signing_key.pem
+    # Then set with --set-file probo.identityFederation.signingKey=identity_federation_signing_key.pem
+    signingKey: ""
+    # Key id published for signingKey. Give it a real name before the first
+    # rotation: a retired key is only distinguishable by its kid.
+    signingKeyKid: "default"
+    # Retired key, kept published so a cloud provider that cached the key set
+    # can still verify a token minted before a rotation. Leave empty until you
+    # rotate; then set it with
+    # --set-file probo.identityFederation.previousSigningKey=identity_federation_previous_signing_key.pem
+    previousSigningKey: ""
+    # REQUIRED when previousSigningKey is set, and it must differ from
+    # signingKeyKid.
+    previousSigningKeyKid: ""
+    # Public S3 HTTPS URL used to build the AWS console quick-create link.
+    # Leave the default unless you host your own template.
+    cloudformationTemplateUrl: "https://probo-cloudformation-template.s3.us-east-2.amazonaws.com/aws-audit-role.yaml"
+    # Terraform module addresses copied into the connector install snippets.
+    # Leave the defaults unless you pin a private or forked module.
+    terraformModuleSource: "getprobo/audit-role/aws"
+    gcpTerraformModuleSource: "getprobo/audit-role/gcp"
+    azureTerraformModuleSource: "getprobo/audit-role/azurerm"
 
   # Trust center authentication
   trustAuth:
@@ -177,6 +229,10 @@ probo:
     modelName: "gpt-4o"
     maxTokens: 4096
 
+  # Anthropic integration (required when slackbot.provider is anthropic)
+  # anthropic:
+  #   apiKey: "CHANGE_ME_ANTHROPIC_API_KEY"
+
   # Agent tools (optional, shared across agents)
   # agentTools:
   #   firecrawlApiKey: "CHANGE_ME_FIRECRAWL_API_KEY"
@@ -194,15 +250,6 @@ probo:
   #   maxConcurrency: 1
   #   staleAfter: 1500
 
-  # Third-party disambiguation agent (optional; runs inside the tracker
-  # mapping worker to pick the best matching org third party). Falls back
-  # to trackerMapping when its provider is unset.
-  # thirdPartyDisambiguation:
-  #   provider: "openai"
-  #   modelName: "gpt-4o"
-  #   temperature: "0.4"
-  #   maxTokens: "4096"
-
   # Tracker mapping agent (optional, auto-links tracker patterns to vendors)
   # trackerMapping:
   #   provider: "openai"
@@ -219,7 +266,7 @@ probo:
   #   maxTokens: "4096"
 
   # Tracker mapping worker tuning (optional; seconds for
-  # interval/staleAfter/agentTimeout/disambiguationAgentTimeout).
+  # interval/staleAfter/agentTimeout).
   # Keep concurrency modest to stay under OpenAI/Firecrawl limits and the DB pool.
   # trackerMappingWorker:
   #   interval: 10
@@ -227,7 +274,6 @@ probo:
   #   staleAfter: 600
   #   agentTimeout: 45
   #   agentMaxTurns: 10
-  #   disambiguationAgentTimeout: 45
 
   # Common-pattern enrichment worker tuning (optional; seconds for
   # interval/staleAfter/agentTimeout).
@@ -258,6 +304,26 @@ probo:
   #   confidenceThreshold: 0.7
   #   maxAttempts: 3
 
+  # Slackbot assistant used by Probo's production deployment. Set enabled to
+  # false to deploy without Slack features. Events API URL:
+  # https://<baseUrl>/slack/v1/events
+  # Interactive URL: https://<baseUrl>/slack/v1/interactive
+  # Slash command Request URL: https://<baseUrl>/slack/v1/commands
+  # Create a /probot slash command on the Slackbot app pointing at that URL.
+  # OAuth requests the commands bot scope; reinstall after adding it.
+  # signingSecret is required and must belong to the Slackbot app. Do not copy
+  # the Slack connector signing secret when running two Slack apps in parallel.
+  slackbot:
+    enabled: true
+    signingSecret: ""
+    clientId: ""
+    clientSecret: ""
+    redirectUri: "https://probo.example.com/api/console/v1/slackbot/install/complete"
+    provider: "openai"
+    modelName: "gpt-4o"
+    temperature: "0.1"
+    maxTokens: "4096"
+
   # OpenTelemetry tracing (optional)
   tracing:
     enabled: true
@@ -267,7 +333,7 @@ probo:
     exportTimeout: 30
     maxQueueSize: 10000
 
-  # Custom domains with Let's Encrypt (optional)
+  # Custom domains with Let's Encrypt (optional, direct TLS mode only)
   customDomains:
     enabled: true
     renewalInterval: 86400  # 24 hours
@@ -291,6 +357,23 @@ probo:
         redirect-uri: "https://probo.example.com/api/console/v1/connectors/complete"
         auth-url: "https://github.com/login/oauth/authorize"
         token-url: "https://github.com/login/oauth/access_token"
+    - name: "github"
+      type: "github-app"
+      config:
+        # Enable "Request user authorization (OAuth) during installation" and
+        # set its callback URL to /api/console/v1/connectors/github-app/complete.
+        appId: "CHANGE_ME_GITHUB_APP_ID"
+        clientId: "CHANGE_ME_GITHUB_APP_CLIENT_ID"
+        clientSecret: "CHANGE_ME_GITHUB_APP_CLIENT_SECRET"
+        slug: "CHANGE_ME_GITHUB_APP_SLUG"
+        privateKey: |
+          -----BEGIN RSA PRIVATE KEY-----
+          CHANGE_ME_GITHUB_APP_PRIVATE_KEY
+          -----END RSA PRIVATE KEY-----
+
+  # Slack connector endpointToken (Enterprise Grid / private API gateway) is
+  # secret material. Set it in values; the chart mounts it via secretKeyRef.
+  # Do not put it in a ConfigMap or a plain Deployment env value.
 
 # PostgreSQL configuration (REQUIRED)
 # For production: Use external managed PostgreSQL (AWS RDS, GCP Cloud SQL, etc.)

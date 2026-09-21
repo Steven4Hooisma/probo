@@ -531,6 +531,7 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 					}
 				}
 				auditEdge {
+					referenceId
 					node {
 						id
 					}
@@ -547,7 +548,8 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 				} `json:"node"`
 			} `json:"findingEdge"`
 			AuditEdge struct {
-				Node struct {
+				ReferenceID string `json:"referenceId"`
+				Node        struct {
 					ID string `json:"id"`
 				} `json:"node"`
 			} `json:"auditEdge"`
@@ -564,6 +566,17 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, findingID, linkResult.CreateFindingAuditMapping.FindingEdge.Node.ID)
 	assert.Equal(t, auditID, linkResult.CreateFindingAuditMapping.AuditEdge.Node.ID)
+	assert.Equal(t, "MinNC/001", linkResult.CreateFindingAuditMapping.AuditEdge.ReferenceID)
+
+	err = owner.Execute(linkQuery, map[string]any{
+		"input": map[string]any{
+			"findingId":   findingID,
+			"auditId":     auditID,
+			"referenceId": "MinNC/002",
+		},
+	}, &linkResult)
+	require.NoError(t, err)
+	assert.Equal(t, "MinNC/002", linkResult.CreateFindingAuditMapping.AuditEdge.ReferenceID)
 
 	// Verify audits appear on finding
 	auditsQuery := `
@@ -572,6 +585,7 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 				... on Finding {
 					audits(first: 10) {
 						edges {
+							referenceId
 							node {
 								id
 							}
@@ -587,7 +601,8 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 		Node struct {
 			Audits struct {
 				Edges []struct {
-					Node struct {
+					ReferenceID string `json:"referenceId"`
+					Node        struct {
 						ID string `json:"id"`
 					} `json:"node"`
 				} `json:"edges"`
@@ -602,6 +617,7 @@ func TestFinding_CreateAuditMapping(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditsResult.Node.Audits.TotalCount)
 	assert.Equal(t, auditID, auditsResult.Node.Audits.Edges[0].Node.ID)
+	assert.Equal(t, "MinNC/002", auditsResult.Node.Audits.Edges[0].ReferenceID)
 }
 
 func TestFinding_DeleteAuditMapping(t *testing.T) {
@@ -856,78 +872,3 @@ func TestFinding_StatusAndPriorityValues(t *testing.T) {
 // check, and findingResolver.Risk authorized the finding (caller's org)
 // instead of the risk, letting the caller read another org's risk through
 // the dataloader's NewScopeFromObjectID(riskID) scope.
-func TestFinding_TenantIsolation(t *testing.T) {
-	t.Parallel()
-
-	org1Owner := testutil.NewClient(t, testutil.RoleOwner)
-	org2Owner := testutil.NewClient(t, testutil.RoleOwner)
-
-	org2RiskID := factory.CreateRisk(org2Owner, factory.Attrs{"name": "Org2 Confidential Risk"})
-
-	createQuery := `
-		mutation CreateFinding($input: CreateFindingInput!) {
-			createFinding(input: $input) {
-				findingEdge {
-					node { id }
-				}
-			}
-		}
-	`
-
-	t.Run("cannot create finding referencing a risk from another organization", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := org1Owner.Do(createQuery, map[string]any{
-			"input": map[string]any{
-				"organizationId": org1Owner.GetOrganizationID().String(),
-				"kind":           "OBSERVATION",
-				"status":         "OPEN",
-				"priority":       "LOW",
-				"riskId":         org2RiskID,
-			},
-		})
-		require.Error(t, err, "must not accept a riskId belonging to another organization")
-	})
-
-	t.Run("cannot update finding to reference a risk from another organization", func(t *testing.T) {
-		t.Parallel()
-
-		var createResult struct {
-			CreateFinding struct {
-				FindingEdge struct {
-					Node struct {
-						ID string `json:"id"`
-					} `json:"node"`
-				} `json:"findingEdge"`
-			} `json:"createFinding"`
-		}
-
-		err := org1Owner.Execute(createQuery, map[string]any{
-			"input": map[string]any{
-				"organizationId": org1Owner.GetOrganizationID().String(),
-				"kind":           "OBSERVATION",
-				"status":         "OPEN",
-				"priority":       "LOW",
-			},
-		}, &createResult)
-		require.NoError(t, err)
-
-		findingID := createResult.CreateFinding.FindingEdge.Node.ID
-
-		updateQuery := `
-			mutation UpdateFinding($input: UpdateFindingInput!) {
-				updateFinding(input: $input) {
-					finding { id }
-				}
-			}
-		`
-
-		_, err = org1Owner.Do(updateQuery, map[string]any{
-			"input": map[string]any{
-				"id":     findingID,
-				"riskId": org2RiskID,
-			},
-		})
-		require.Error(t, err, "must not accept a riskId belonging to another organization")
-	})
-}

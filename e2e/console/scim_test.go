@@ -38,6 +38,7 @@ type scimClient struct {
 	client   *http.Client
 	token    string
 	endpoint string
+	configID string
 }
 
 func newSCIMClient(t testing.TB, owner *testutil.Client) *scimClient {
@@ -69,19 +70,19 @@ func newSCIMClient(t testing.TB, owner *testutil.Client) *scimClient {
 	require.NoError(t, err, "GraphQL request failed")
 
 	require.NotEmpty(t, result.CreateSCIMConfiguration.Token)
+	require.NotEmpty(t, result.CreateSCIMConfiguration.ScimConfiguration.ID)
 
 	return &scimClient{
 		t:        t,
 		client:   &http.Client{},
 		token:    result.CreateSCIMConfiguration.Token,
 		endpoint: testutil.GetBaseURL() + "/api/connect/v1/scim/2.0",
+		configID: result.CreateSCIMConfiguration.ScimConfiguration.ID,
 	}
 }
 
-func (sc *scimClient) createUser(userName, fullName, externalID string, active bool) (string, int) {
-	sc.t.Helper()
-
-	payload := map[string]any{
+func buildUserPayload(userName, fullName, externalID string, active bool) map[string]any {
+	return map[string]any{
 		"schemas":    []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName":   userName,
 		"active":     active,
@@ -95,8 +96,12 @@ func (sc *scimClient) createUser(userName, fullName, externalID string, active b
 			{"value": userName, "primary": true},
 		},
 	}
+}
 
-	return sc.doRequest("POST", "/Users", payload)
+func (sc *scimClient) createUser(userName, fullName, externalID string, active bool) (string, int) {
+	sc.t.Helper()
+
+	return sc.doRequest("POST", "/Users", buildUserPayload(userName, fullName, externalID, active))
 }
 
 func (sc *scimClient) listUsers() (string, int) {
@@ -112,6 +117,23 @@ func (sc *scimClient) getUser(id string) (string, int) {
 func (sc *scimClient) deleteUser(id string) (string, int) {
 	sc.t.Helper()
 	return sc.doRequest("DELETE", "/Users/"+id, nil)
+}
+
+func (sc *scimClient) replaceUser(id, userName, fullName, externalID string, active bool) (string, int) {
+	sc.t.Helper()
+
+	return sc.doRequest("PUT", "/Users/"+id, buildUserPayload(userName, fullName, externalID, active))
+}
+
+func (sc *scimClient) patchUser(id string, operations []map[string]any) (string, int) {
+	sc.t.Helper()
+
+	payload := map[string]any{
+		"schemas":    []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": operations,
+	}
+
+	return sc.doRequest("PATCH", "/Users/"+id, payload)
 }
 
 func (sc *scimClient) doRequest(method, path string, payload any) (string, int) {
@@ -330,4 +352,98 @@ func TestSCIM_Unauthorized(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+// A SCIM configuration refuses a connector already held by an access
+// review source, and the refusal must not commit a bridgeless
+// configuration: configurations are unique per organization, so a
+// leftover one would block every retry.
+func TestSCIMConfiguration_RefusesSourceHeldConnector(t *testing.T) {
+	t.Parallel()
+
+	owner := testutil.NewClient(t, testutil.RoleOwner)
+	orgID := owner.GetOrganizationID().String()
+
+	var connectorResult struct {
+		CreateAPIKeyConnector struct {
+			Connector struct {
+				ID string `json:"id"`
+			} `json:"connector"`
+		} `json:"createAPIKeyConnector"`
+	}
+
+	err := owner.Execute(`
+		mutation($input: CreateAPIKeyConnectorInput!) {
+			createAPIKeyConnector(input: $input) {
+				connector { id }
+			}
+		}
+	`, map[string]any{
+		"input": map[string]any{
+			"organizationId": orgID,
+			"provider":       "BREX",
+			"apiKey":         "bxt_test-key-brex-scim-refusal",
+		},
+	}, &connectorResult)
+	require.NoError(t, err)
+
+	connectorID := connectorResult.CreateAPIKeyConnector.Connector.ID
+
+	var sourceResult struct {
+		CreateAccessReviewSource struct {
+			Created bool `json:"created"`
+		} `json:"createAccessReviewSource"`
+	}
+
+	err = owner.Execute(`
+		mutation($input: CreateAccessReviewSourceInput!) {
+			createAccessReviewSource(input: $input) {
+				created
+			}
+		}
+	`, map[string]any{
+		"input": map[string]any{
+			"organizationId": orgID,
+			"connectorId":    connectorID,
+			"name":           "Brex held by a source",
+		},
+	}, &sourceResult)
+	require.NoError(t, err)
+	require.True(t, sourceResult.CreateAccessReviewSource.Created)
+
+	const createConfigQuery = `
+		mutation($input: CreateSCIMConfigurationInput!) {
+			createSCIMConfiguration(input: $input) {
+				scimConfiguration { id }
+				token
+			}
+		}
+	`
+
+	var configResult struct {
+		CreateSCIMConfiguration struct {
+			ScimConfiguration struct {
+				ID string `json:"id"`
+			} `json:"scimConfiguration"`
+			Token string `json:"token"`
+		} `json:"createSCIMConfiguration"`
+	}
+
+	err = owner.ExecuteConnect(createConfigQuery, map[string]any{
+		"input": map[string]any{
+			"organizationId": orgID,
+			"connectorId":    connectorID,
+		},
+	}, &configResult)
+	require.ErrorContains(t, err, "used by an access review source")
+
+	// The refused bind rolled the configuration back with it: the same
+	// mutation without a connector must succeed.
+	err = owner.ExecuteConnect(createConfigQuery, map[string]any{
+		"input": map[string]any{
+			"organizationId": orgID,
+		},
+	}, &configResult)
+	require.NoError(t, err)
+	require.NotEmpty(t, configResult.CreateSCIMConfiguration.Token)
 }

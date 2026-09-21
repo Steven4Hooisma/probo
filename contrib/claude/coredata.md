@@ -298,12 +298,12 @@ The same applies to foreign key violations (`"23503"`) mapped to `ErrResourceInU
 
 ```go
 // Good — composite PK on junction table (real business constraint)
-if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" && pgErr.ConstraintName == "risk_assessment_scenario_threats_pkey" {
+if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" && pgErr.ConstraintName == "risk_analysis_scenario_threats_pkey" {
     return ErrResourceAlreadyExists
 }
 
 // Bad — single GID PK (cannot collide, dead code)
-if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" && pgErr.ConstraintName == "risk_assessments_pkey" {
+if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" && pgErr.ConstraintName == "risk_analyses_pkey" {
     return ErrResourceAlreadyExists
 }
 ```
@@ -405,7 +405,7 @@ Collection enum wrappers (`OAuth2Scopes`, `CountryCodes`, etc.) may keep custom 
 
 ## Order fields
 
-Order-field enums follow the same enum rules and additionally implement `Column()` and `page.OrderField`:
+Order-field enums follow the same enum rules and additionally implement `Column()` and `page.OrderField`. Shared `IsValid` / `UnmarshalText` logic lives in `order_field.go` — do not copy a validation switch into each file:
 
 ```go
 type XXXOrderField string
@@ -421,6 +421,29 @@ var (
     _ encoding.TextMarshaler   = XXXOrderField("")
     _ encoding.TextUnmarshaler = (*XXXOrderField)(nil)
 )
+
+func XXXOrderFields() []XXXOrderField {
+    return []XXXOrderField{
+        XXXOrderFieldCreatedAt,
+        XXXOrderFieldName,
+    }
+}
+
+func (v XXXOrderField) IsValid() bool {
+    return isValidOrderField(v, XXXOrderFields())
+}
+
+func (v XXXOrderField) String() string {
+    return string(v)
+}
+
+func (v XXXOrderField) MarshalText() ([]byte, error) {
+    return []byte(v.String()), nil
+}
+
+func (v *XXXOrderField) UnmarshalText(text []byte) error {
+    return unmarshalOrderField(v, text, XXXOrderFields())
+}
 
 func (f XXXOrderField) Column() string {
     return string(f)

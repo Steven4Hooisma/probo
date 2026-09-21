@@ -31,10 +31,14 @@ import (
 	"go.probo.inc/probo/pkg/accessreview"
 	"go.probo.inc/probo/pkg/baseurl"
 	"go.probo.inc/probo/pkg/certmanager"
+	cloudaws "go.probo.inc/probo/pkg/cloud/aws"
+	cloudazure "go.probo.inc/probo/pkg/cloud/azure"
+	cloudgcp "go.probo.inc/probo/pkg/cloud/gcp"
 	"go.probo.inc/probo/pkg/complianceportal/management"
 	"go.probo.inc/probo/pkg/cookiebanner"
 	"go.probo.inc/probo/pkg/filemanager"
 	"go.probo.inc/probo/pkg/iam"
+	"go.probo.inc/probo/pkg/identityfederation"
 	"go.probo.inc/probo/pkg/itam"
 	"go.probo.inc/probo/pkg/mailman"
 	"go.probo.inc/probo/pkg/probo"
@@ -62,26 +66,34 @@ func NewMux(
 	tokenSecret string,
 	fileManagerSvc *filemanager.Service,
 	baseURL *baseurl.BaseURL,
+	identityFederation *identityfederation.Issuer,
+	awsConnectorInstall cloudaws.ConnectorInstallConfig,
+	gcpConnectorInstall cloudgcp.ConnectorInstallConfig,
+	azureConnectorInstall cloudazure.ConnectorInstallConfig,
 ) *chi.Mux {
 	logger = logger.Named("mcp.v1")
 
 	logger.Info("initializing MCP server")
 
 	resolver := &Resolver{
-		proboSvc:       proboSvc,
-		management:     managementSvc,
-		certManager:    certManagerSvc,
-		resourceAlias:  resourceAliasSvc,
-		thirdPartySvc:  thirdPartySvc,
-		iamSvc:         iamSvc,
-		accessReview:   accessReviewSvc,
-		cookieBanner:   cookieBannerSvc,
-		riskManagement: riskManagementSvc,
-		itamSvc:        itamSvc,
-		mailman:        mailmanSvc,
-		logger:         logger,
-		fileManager:    fileManagerSvc,
-		baseURL:        baseURL,
+		proboSvc:              proboSvc,
+		management:            managementSvc,
+		certManager:           certManagerSvc,
+		resourceAlias:         resourceAliasSvc,
+		thirdPartySvc:         thirdPartySvc,
+		iamSvc:                iamSvc,
+		accessReview:          accessReviewSvc,
+		cookieBanner:          cookieBannerSvc,
+		riskManagement:        riskManagementSvc,
+		itamSvc:               itamSvc,
+		mailman:               mailmanSvc,
+		logger:                logger,
+		fileManager:           fileManagerSvc,
+		baseURL:               baseURL,
+		identityFederation:    identityFederation,
+		awsConnectorInstall:   awsConnectorInstall,
+		gcpConnectorInstall:   gcpConnectorInstall,
+		azureConnectorInstall: azureConnectorInstall,
 	}
 
 	mcpServer := server.New(resolver, mcpgenmcp.WithRecoverFunc(mcputils.NewRecoverFunc(logger)))
@@ -101,13 +113,12 @@ func NewMux(
 			Logger:     nil, // TODO put logger here
 		},
 	)
-	protectedHandler := http.NewCrossOriginProtection().Handler(handler)
 
 	r := chi.NewMux()
 	r.Use(authn.NewAPIKeyMiddleware(iamSvc, tokenSecret))
 	r.Use(authn.NewOAuth2AccessTokenMiddleware(iamSvc))
 	r.Use(authn.NewIdentityPresenceMiddleware(baseURL))
-	r.Handle("/", protectedHandler)
+	r.Handle("/", handler)
 
 	logger.Info("MCP server initialized successfully")
 
@@ -120,6 +131,14 @@ func UnwrapOmittable[T any](field mcpgenmcp.Omittable[T]) *T {
 	}
 
 	value, _ := field.Value()
+
+	return &value
+}
+
+func optionalPtr[T any](value *T) **T {
+	if value == nil {
+		return nil
+	}
 
 	return &value
 }

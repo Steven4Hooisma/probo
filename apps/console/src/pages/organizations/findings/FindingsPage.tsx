@@ -26,7 +26,6 @@ import { usePageTitle } from "@probo/hooks";
 import { dateFormat } from "@probo/i18n";
 import {
   ActionDropdown,
-  Avatar,
   Badge,
   Button,
   Card,
@@ -47,6 +46,7 @@ import {
   useConfirm,
   useToast,
 } from "@probo/ui";
+import { Avatar } from "@probo/ui/src/v2/Avatar/Avatar";
 import { Suspense, useState, useTransition } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -275,7 +275,7 @@ export default function FindingsPage({ queryRef }: FindingsPageProps) {
           {organization.node.findingsDocument?.id && (
             <Button variant="secondary" asChild>
               <Link
-                to={`/organizations/${organizationId}/documents/${organization.node.findingsDocument.id}`}
+                to={`/organizations/${organizationId}/governance/documents/${organization.node.findingsDocument.id}`}
               >
                 <IconPageTextLine size={16} />
                 {t("findingsPage.actions.document")}
@@ -288,7 +288,7 @@ export default function FindingsPage({ queryRef }: FindingsPageProps) {
               defaultApproverIds={defaultApproverIds}
               onPublished={(documentId) => {
                 void navigate(
-                  `/organizations/${organizationId}/documents/${documentId}`,
+                  `/organizations/${organizationId}/governance/documents/${documentId}`,
                 );
               }}
             >
@@ -472,7 +472,7 @@ function FindingRow(props: FindingRowProps) {
     );
   };
 
-  const detailsUrl = `/organizations/${organizationId}/findings/${finding.id}`;
+  const detailsUrl = `/organizations/${organizationId}/governance/findings/${finding.id}`;
 
   return (
     <Tr to={detailsUrl}>
@@ -563,7 +563,13 @@ function OwnerFilterSelect({
       <Option value="ALL">{t("findingsPage.filters.allOwners")}</Option>
       {people.map(p => (
         <Option key={p.id} value={p.id}>
-          <Avatar name={p.fullName} />
+          <Avatar
+            name={p.fullName}
+            email={p.emailAddress}
+            src={p.avatar?.downloadUrl}
+            size={1}
+            radius="full"
+          />
           {p.fullName}
         </Option>
       ))}

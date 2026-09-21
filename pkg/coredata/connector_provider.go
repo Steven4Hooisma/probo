@@ -60,6 +60,7 @@ const (
 	ConnectorProviderClickUp      ConnectorProvider = "CLICKUP"
 	// ConnectorProviderClerk is disabled (unregistered) but kept in IsValid
 	// and the GraphQL enum so existing stored CLERK rows still validate.
+<<<<<<< HEAD
 	ConnectorProviderClerk                ConnectorProvider = "CLERK"
 	ConnectorProviderVercel               ConnectorProvider = "VERCEL"
 	ConnectorProviderMonday               ConnectorProvider = "MONDAY"
@@ -92,6 +93,52 @@ const (
 	ConnectorProviderGoogleAnalytics      ConnectorProvider = "GOOGLE_ANALYTICS"
 	ConnectorProviderUpCloud              ConnectorProvider = "UPCLOUD"
 	ConnectorProviderAppleBusinessManager ConnectorProvider = "APPLE_BUSINESS_MANAGER"
+=======
+	ConnectorProviderClerk           ConnectorProvider = "CLERK"
+	ConnectorProviderVercel          ConnectorProvider = "VERCEL"
+	ConnectorProviderMonday          ConnectorProvider = "MONDAY"
+	ConnectorProviderMetabase        ConnectorProvider = "METABASE"
+	ConnectorProviderMongoDBAtlas    ConnectorProvider = "MONGODB_ATLAS"
+	ConnectorProviderTailscale       ConnectorProvider = "TAILSCALE"
+	ConnectorProviderAnthropic       ConnectorProvider = "ANTHROPIC"
+	ConnectorProviderCursor          ConnectorProvider = "CURSOR"
+	ConnectorProviderDatadog         ConnectorProvider = "DATADOG"
+	ConnectorProviderOkta            ConnectorProvider = "OKTA"
+	ConnectorProviderZendesk         ConnectorProvider = "ZENDESK"
+	ConnectorProviderQovery          ConnectorProvider = "QOVERY"
+	ConnectorProviderRender          ConnectorProvider = "RENDER"
+	ConnectorProviderNeon            ConnectorProvider = "NEON"
+	ConnectorProviderMercury         ConnectorProvider = "MERCURY"
+	ConnectorProviderApollo          ConnectorProvider = "APOLLO"
+	ConnectorProviderDeepgram        ConnectorProvider = "DEEPGRAM"
+	ConnectorProviderClickHouse      ConnectorProvider = "CLICKHOUSE"
+	ConnectorProviderLangfuse        ConnectorProvider = "LANGFUSE"
+	ConnectorProviderPylon           ConnectorProvider = "PYLON"
+	ConnectorProviderOpenRouter      ConnectorProvider = "OPENROUTER"
+	ConnectorProviderIncidentIO      ConnectorProvider = "INCIDENT_IO"
+	ConnectorProviderBrevo           ConnectorProvider = "BREVO"
+	ConnectorProviderScaleway        ConnectorProvider = "SCALEWAY"
+	ConnectorProviderYousign         ConnectorProvider = "YOUSIGN"
+	ConnectorProviderRailway         ConnectorProvider = "RAILWAY"
+	ConnectorProviderCrisp           ConnectorProvider = "CRISP"
+	ConnectorProviderDotfile         ConnectorProvider = "DOTFILE"
+	ConnectorProviderSegment         ConnectorProvider = "SEGMENT"
+	ConnectorProviderSquare          ConnectorProvider = "SQUARE"
+	ConnectorProviderGoogleAnalytics ConnectorProvider = "GOOGLE_ANALYTICS"
+	ConnectorProviderUpCloud         ConnectorProvider = "UPCLOUD"
+	ConnectorProviderNuki            ConnectorProvider = "NUKI"
+	ConnectorProviderAuthentik       ConnectorProvider = "AUTHENTIK"
+	ConnectorProviderCalCom          ConnectorProvider = "CAL_COM"
+	ConnectorProviderCalendly        ConnectorProvider = "CALENDLY"
+	ConnectorProviderAWS             ConnectorProvider = "AWS"
+	ConnectorProviderGCP             ConnectorProvider = "GCP"
+	ConnectorProviderElevenLabs      ConnectorProvider = "ELEVENLABS"
+	ConnectorProviderNewRelic        ConnectorProvider = "NEW_RELIC"
+	ConnectorProviderRetool          ConnectorProvider = "RETOOL"
+	ConnectorProviderTwingate        ConnectorProvider = "TWINGATE"
+	ConnectorProviderAttio           ConnectorProvider = "ATTIO"
+	ConnectorProviderAzure           ConnectorProvider = "AZURE"
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 )
 
 var (
@@ -134,6 +181,7 @@ func ConnectorProviders() []ConnectorProvider {
 		ConnectorProviderVercel,
 		ConnectorProviderMonday,
 		ConnectorProviderMetabase,
+		ConnectorProviderMongoDBAtlas,
 		ConnectorProviderTailscale,
 		ConnectorProviderAnthropic,
 		ConnectorProviderCursor,
@@ -161,7 +209,22 @@ func ConnectorProviders() []ConnectorProvider {
 		ConnectorProviderSquare,
 		ConnectorProviderGoogleAnalytics,
 		ConnectorProviderUpCloud,
+<<<<<<< HEAD
 		ConnectorProviderAppleBusinessManager,
+=======
+		ConnectorProviderNuki,
+		ConnectorProviderAuthentik,
+		ConnectorProviderCalCom,
+		ConnectorProviderCalendly,
+		ConnectorProviderAWS,
+		ConnectorProviderGCP,
+		ConnectorProviderElevenLabs,
+		ConnectorProviderNewRelic,
+		ConnectorProviderRetool,
+		ConnectorProviderTwingate,
+		ConnectorProviderAttio,
+		ConnectorProviderAzure,
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 	}
 }
 
@@ -201,6 +264,7 @@ func (v ConnectorProvider) IsValid() bool {
 		ConnectorProviderVercel,
 		ConnectorProviderMonday,
 		ConnectorProviderMetabase,
+		ConnectorProviderMongoDBAtlas,
 		ConnectorProviderTailscale,
 		ConnectorProviderAnthropic,
 		ConnectorProviderCursor,
@@ -228,7 +292,22 @@ func (v ConnectorProvider) IsValid() bool {
 		ConnectorProviderSquare,
 		ConnectorProviderGoogleAnalytics,
 		ConnectorProviderUpCloud,
+<<<<<<< HEAD
 		ConnectorProviderAppleBusinessManager:
+=======
+		ConnectorProviderNuki,
+		ConnectorProviderAuthentik,
+		ConnectorProviderCalCom,
+		ConnectorProviderCalendly,
+		ConnectorProviderAWS,
+		ConnectorProviderGCP,
+		ConnectorProviderElevenLabs,
+		ConnectorProviderNewRelic,
+		ConnectorProviderRetool,
+		ConnectorProviderTwingate,
+		ConnectorProviderAttio,
+		ConnectorProviderAzure:
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 		return true
 	}
 

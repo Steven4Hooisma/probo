@@ -32,8 +32,9 @@ import (
 
 func githubRegistration() *Registration {
 	return &Registration{
-		Provider:    coredata.ConnectorProviderGitHub,
-		DisplayName: "GitHub",
+		Provider:         coredata.ConnectorProviderGitHub,
+		DisplayName:      "GitHub",
+		DocumentationURL: accessReviewDocsURL("github"),
 		Endpoints: Endpoints{
 			Auth:  "https://github.com/login/oauth/authorize",
 			Token: "https://github.com/login/oauth/access_token",
@@ -42,11 +43,19 @@ func githubRegistration() *Registration {
 			// negotiated through the Accept header instead.
 			APIBase: "https://api.github.com",
 		},
-		OAuth2Scopes:   []string{"read:org"},
-		SupportsAPIKey: true,
-		APIKeyExtraSettings: []ExtraSetting{
-			{Key: "organization", Label: "Organization", Required: true},
+		// read:audit_log is Enterprise Cloud only, so it cannot be a
+		// universal requirement for GitHub.com organizations. The driver
+		// treats audit-log access as optional and leaves LastLogin nil when
+		// GitHub rejects that request.
+		OAuth2: &OAuth2Config{
+			Scopes: []string{"read:org"},
 		},
+		APIKey: &APIKeyConfig{
+			ExtraSettings: []ExtraSetting{
+				{Key: "organization", Label: "Organization", Required: true},
+			},
+		},
+		Probe: probeGitHub,
 		NewDriver: func(_ context.Context, c *http.Client, conn *coredata.Connector, logger *log.Logger, ep Endpoints) (drivers.Driver, error) {
 			s, err := coredata.ConnectorSettings[coredata.GitHubConnectorSettings](conn)
 			if err != nil {

@@ -33,6 +33,7 @@ import {
   Tr,
   useConfirm,
 } from "@probo/ui";
+import { Avatar } from "@probo/ui/src/v2/Avatar/Avatar";
 import { clsx } from "clsx";
 import { use } from "react";
 import { useTranslation } from "react-i18next";
@@ -52,6 +53,9 @@ const fragment = graphql`
     state
     fullName
     emailAddress
+    avatar {
+      downloadUrl
+    }
     membership @required(action: THROW) {
       id
       role
@@ -69,6 +73,9 @@ const fragment = graphql`
       }
     }
     createdAt
+    contract {
+      end
+    }
     canUpdate: permission(action: "iam:membership-profile:update")
     canInvite: permission(action: "iam:invitation:create")
     canDeactivate: permission(action: "iam:membership-profile:deactivate")
@@ -259,13 +266,22 @@ export function PeopleListItem(props: {
   };
 
   return (
-    <Tr to={`/organizations/${organizationId}/people/${profile.id}`}>
+    <Tr to={`/organizations/${organizationId}/settings/people/${profile.id}`}>
       <Td className={clsx(
         isMutating && "opacity-60 pointer-events-none",
         isInactive && "opacity-50",
       )}
       >
-        <span className="font-semibold">{profile.fullName}</span>
+        <span className="flex items-center gap-2 font-semibold">
+          <Avatar
+            name={profile.fullName}
+            email={profile.emailAddress}
+            src={profile.avatar?.downloadUrl}
+            size={1}
+            radius="full"
+          />
+          {profile.fullName}
+        </span>
       </Td>
       <Td>
         <Badge variant={isActive ? "success" : "neutral"}>{profile.state}</Badge>
@@ -311,7 +327,22 @@ export function PeopleListItem(props: {
       >
         {dateFormat(i18n.language, profile.createdAt)}
       </Td>
-      <Td noLink width={160} className="text-end">
+      <Td className={clsx(
+        isMutating && "opacity-60 pointer-events-none",
+        isInactive && "opacity-50",
+      )}
+      >
+        {profile.contract?.end
+          ? (
+              <time dateTime={profile.contract.end}>
+                {dateFormat(i18n.language, profile.contract.end)}
+              </time>
+            )
+          : (
+              <span className="text-txt-tertiary">—</span>
+            )}
+      </Td>
+      <Td noLink width={50} className="text-end">
         {(canSendActivationMail || canDeactivate || canRemove) && (
           <ActionDropdown>
             {canSendActivationMail && (

@@ -5,8 +5,10 @@
 #
 # Required arguments:
 #   --binary  PATH    Path to a compiled probo-agent fat binary.
-#   --version VER     Agent version, e.g. 0.1.0. Defaults to the
-#                     content of cmd/probo-agent/VERSION.
+#   --version VER     Agent version, e.g. 0.1.0 or 0.1.0-rc.1.
+#                     Defaults to cmd/probo-agent/VERSION. The .pkg
+#                     filename keeps the full string; pkgbuild and
+#                     CFBundleVersion strip -rc.N (Apple wants X.Y.Z).
 #   --output  PATH    Output .pkg path. Defaults to
 #                     dist/probo-agent_${VER}_darwin.pkg.
 #
@@ -116,8 +118,14 @@ if [ "${has_arm64}" != true ] || [ "${has_x86_64}" != true ]; then
 fi
 
 if [ -z "${VERSION}" ]; then
-  VERSION="$(cat "${REPO_ROOT}/cmd/probo-agent/VERSION")"
+  VERSION="$(tr -d '[:space:]' <"${REPO_ROOT}/cmd/probo-agent/VERSION")"
 fi
+if ! [[ "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+  echo "error: version must look like X.Y.Z or X.Y.Z-rc.N (got '${VERSION}')" >&2
+  exit 2
+fi
+# pkgbuild / CFBundleVersion require period-separated integers.
+INSTALLER_VERSION="${VERSION%%-*}"
 if [ -z "${OUTPUT}" ]; then
   mkdir -p "${REPO_ROOT}/dist"
   OUTPUT="${REPO_ROOT}/dist/probo-agent_${VERSION}_darwin.pkg"
@@ -173,8 +181,8 @@ team_id_option() {
   printf '"%s"' "${APPLE_TEAM_ID}"
 }
 
-# Build AppIcon.icns from the single committed master PNG
-# (enroll-ui/Resources/icon-original.png), matching auditor-mode's
+# Build AppIcon.icns from the single committed color mark
+# (pkg/deviceagent/tray/icon_color.png), matching auditor-mode's
 # pad-then-resize pipeline. Writes under STAGE; does not touch the
 # source tree.
 generate_app_icon_icns() {
@@ -259,6 +267,7 @@ build_probo_agent_app() {
 
   sed \
     -e "s|@@VERSION@@|${VERSION}|g" \
+    -e "s|@@INSTALLER_VERSION@@|${INSTALLER_VERSION}|g" \
     -e "s|@@CLIENT_DESIGNATED_REQUIREMENT@@|$(client_requirement)|g" \
     "${ENROLL_UI_DIR}/HelperTool/Info.plist.tmpl" >"${helper_info_plist}"
 
@@ -301,7 +310,7 @@ build_probo_agent_app() {
   plist="${contents}/Info.plist"
   embedded_helper="${launch_services}/${HELPER_LABEL}"
   embedded_launchd="${launch_daemons}/${HELPER_LABEL}.plist"
-  app_icon_original="${ENROLL_UI_DIR}/Resources/icon-original.png"
+  app_icon_original="${REPO_ROOT}/pkg/deviceagent/tray/icon_color.png"
   app_icon_icns="${STAGE}/AppIcon.icns"
 
   rm -rf "${app_root}"
@@ -332,6 +341,7 @@ build_probo_agent_app() {
 
   sed \
     -e "s|@@VERSION@@|${VERSION}|g" \
+    -e "s|@@INSTALLER_VERSION@@|${INSTALLER_VERSION}|g" \
     -e "s|@@HELPER_DESIGNATED_REQUIREMENT@@|${helper_requirement}|g" \
     "${ENROLL_UI_DIR}/Info.plist.tmpl" >"${plist}"
 
@@ -393,10 +403,10 @@ trap 'rm -rf "${STAGE}"' EXIT
 PAYLOAD="${STAGE}/payload"
 SCRIPTS="${STAGE}/scripts"
 RESOURCES="${STAGE}/Resources"
-mkdir -p "${PAYLOAD}/usr/local/bin" "${SCRIPTS}" "${RESOURCES}"
+mkdir -p "${PAYLOAD}/Library/Probo" "${SCRIPTS}" "${RESOURCES}"
 
-install -m 0755 "${BINARY}" "${PAYLOAD}/usr/local/bin/probo-agent"
-codesign_runtime "${PAYLOAD}/usr/local/bin/probo-agent" "com.probo.agent"
+install -m 0755 "${BINARY}" "${PAYLOAD}/Library/Probo/probo-agent"
+codesign_runtime "${PAYLOAD}/Library/Probo/probo-agent" "com.probo.agent"
 
 mkdir -p "${PAYLOAD}/Applications"
 build_probo_agent_app "${PAYLOAD}/Applications"
@@ -424,11 +434,7 @@ export COPYFILE_DISABLE=1
 
 ditto --norsrc --noextattr "${SCRIPT_DIR}/scripts/preinstall" "${SCRIPTS}/preinstall"
 ditto --norsrc --noextattr "${SCRIPT_DIR}/scripts/postinstall" "${SCRIPTS}/postinstall"
-ditto --norsrc --noextattr \
-  "${REPO_ROOT}/pkg/deviceagent/tray/launchagent.plist.tmpl" \
-  "${SCRIPTS}/launchagent.plist.tmpl"
 chmod 0755 "${SCRIPTS}/preinstall" "${SCRIPTS}/postinstall"
-chmod 0644 "${SCRIPTS}/launchagent.plist.tmpl"
 
 ditto --norsrc --noextattr "${SCRIPT_DIR}/Resources/welcome.html" "${RESOURCES}/welcome.html"
 ditto --norsrc --noextattr "${SCRIPT_DIR}/Resources/conclusion.html" "${RESOURCES}/conclusion.html"
@@ -442,7 +448,7 @@ pkgbuild \
   --root "${PAYLOAD}" \
   --scripts "${SCRIPTS}" \
   --identifier "${IDENTIFIER}" \
-  --version "${VERSION}" \
+  --version "${INSTALLER_VERSION}" \
   --install-location "/" \
   "${COMPONENT_PKG}"
 
@@ -451,6 +457,7 @@ rewrite_component_bom "${COMPONENT_PKG}"
 DISTRIBUTION="${STAGE}/Distribution.xml"
 sed \
   -e "s|@@VERSION@@|${VERSION}|g" \
+  -e "s|@@INSTALLER_VERSION@@|${INSTALLER_VERSION}|g" \
   -e "s|@@IDENTIFIER@@|${IDENTIFIER}|g" \
   "${SCRIPT_DIR}/Distribution.xml.tmpl" >"${DISTRIBUTION}"
 

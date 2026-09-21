@@ -47,13 +47,16 @@ import (
 // source, false = deactivated / suspended / deleted). Drivers whose API does
 // not distinguish active from deactivated accounts must leave Active nil
 // rather than fabricate a value.
+// IsAdmin follows the same three-valued contract: nil means the source does
+// not expose admin privileges, while non-nil means the driver observed or
+// derived an explicit value.
 type AccountRecord struct {
 	Email       string
 	FullName    string
 	Roles       []string // system roles/permissions (e.g. "Admin", "Viewer")
 	JobTitle    string   // HR job title / department (e.g. "Software Engineer")
 	Active      *bool
-	IsAdmin     bool
+	IsAdmin     *bool
 	MFAStatus   coredata.MFAStatus
 	AuthMethod  coredata.AccessReviewEntryAuthMethod
 	AccountType coredata.AccessReviewEntryAccountType
@@ -269,7 +272,27 @@ func (rt *retryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	var lastResp *http.Response
 
 	for attempt := range rt.maxRetries {
-		resp, err := transport.RoundTrip(req)
+		// The previous attempt read the body to the end, so a POST resent as
+		// it stands carries nothing: the provider answers 400 and the retry
+		// turns a recoverable 5xx into a failed sync. Rewind onto a clone,
+		// which also keeps this transport from mutating its caller's request.
+		attemptReq := req
+
+		if attempt > 0 && req.Body != nil {
+			if req.GetBody == nil {
+				break
+			}
+
+			body, err := req.GetBody()
+			if err != nil {
+				return nil, fmt.Errorf("cannot rewind request body for retry: %w", err)
+			}
+
+			attemptReq = req.Clone(req.Context())
+			attemptReq.Body = body
+		}
+
+		resp, err := transport.RoundTrip(attemptReq)
 		if err != nil {
 			return nil, err
 		}

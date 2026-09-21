@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 // Layouts
-export { Drawer, Layout } from "./Layouts/Layout";
+export { Drawer, Layout, LayoutContext } from "./Layouts/Layout";
 export {
   ErrorDetailMessage,
   ErrorDetails,
@@ -57,13 +57,17 @@ export { Label } from "./Atoms/Label/Label";
 export { PropertyRow } from "./Atoms/PropertyRow/PropertyRow";
 export { Table, Tbody, Td, Th, Thead, Tr, TrButton } from "./Atoms/Table/Table";
 export { TabBadge, TabItem, TabLink, Tabs } from "./Atoms/Tabs/Tabs";
-export { Markdown } from "./Atoms/Markdown/Markdown";
+export {
+  isAllowedMarkdownImageSrc,
+  Markdown,
+} from "./Atoms/Markdown/Markdown";
 export { MermaidDiagram } from "./Atoms/Markdown/MermaidDiagram";
 export { Dropzone } from "./Atoms/Dropzone/Dropzone";
 export { ControlItem } from "./Atoms/ControlItem/ControlItem";
 export { InfiniteScrollTrigger } from "./Atoms/InfiniteScrollTrigger/InfiniteScrollTrigger";
 export { PriorityLevel } from "./Atoms/PriorityLevel/PriorityLevel";
 export { TaskStateIcon } from "./Atoms/Icons/TaskStateIcon";
+export type { TaskState } from "./Atoms/Icons/TaskStateIcon";
 export { Checkbox } from "./Atoms/Checkbox/Checkbox";
 export { Toggle } from "./Atoms/Toggle/Toggle";
 export {

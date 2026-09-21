@@ -62,7 +62,6 @@ query(
             accountType
             lastLogin
             externalId
-            incrementalTag
             flags
             flagReasons
             decision
@@ -115,7 +114,6 @@ query(
             accountType
             lastLogin
             externalId
-            incrementalTag
             flags
             flagReasons
             decision
@@ -142,14 +140,13 @@ type entryNode struct {
 	FullName       string   `json:"fullName"`
 	Role           string   `json:"role"`
 	JobTitle       string   `json:"jobTitle"`
-	IsAdmin        bool     `json:"isAdmin"`
+	IsAdmin        *bool    `json:"isAdmin"`
 	Active         *bool    `json:"active"`
 	MfaStatus      string   `json:"mfaStatus"`
 	AuthMethod     string   `json:"authMethod"`
 	AccountType    string   `json:"accountType"`
 	LastLogin      *string  `json:"lastLogin"`
 	ExternalID     string   `json:"externalId"`
-	IncrementalTag string   `json:"incrementalTag"`
 	Flags          []string `json:"flags"`
 	FlagReasons    []string `json:"flagReasons"`
 	Decision       string   `json:"decision"`
@@ -168,7 +165,6 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 		flagCampaignSourceID string
 		flagDecision         string
 		flagFlag             string
-		flagIncTag           string
 		flagIsAdmin          *bool
 		flagActive           *bool
 		flagAuthMethod       string
@@ -274,18 +270,6 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 				filter["flag"] = flagFlag
 			}
 
-			if flagIncTag != "" {
-				if err := cmdutil.ValidateEnum(
-					"incremental-tag",
-					flagIncTag,
-					[]string{"NEW", "REMOVED", "UNCHANGED"},
-				); err != nil {
-					return err
-				}
-
-				filter["incrementalTag"] = flagIncTag
-			}
-
 			if cmd.Flags().Changed("is-admin") {
 				filter["isAdmin"] = *flagIsAdmin
 			}
@@ -298,7 +282,7 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 				if err := cmdutil.ValidateEnum(
 					"auth-method",
 					flagAuthMethod,
-					[]string{"SSO", "PASSWORD", "API_KEY", "SERVICE_ACCOUNT", "UNKNOWN"},
+					[]string{"SSO", "PASSWORD", "API_KEY", "OAUTH2", "SSH", "SERVICE_ACCOUNT", "UNKNOWN"},
 				); err != nil {
 					return err
 				}
@@ -378,9 +362,14 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 
 			rows := make([][]string, 0, len(entries))
 			for _, e := range entries {
-				admin := ""
-				if e.IsAdmin {
-					admin = "yes"
+				admin := "unknown"
+
+				if e.IsAdmin != nil {
+					if *e.IsAdmin {
+						admin = "yes"
+					} else {
+						admin = "no"
+					}
 				}
 
 				active := "unknown"
@@ -428,10 +417,9 @@ func NewCmdList(f *cmdutil.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&flagCampaignSourceID, "source-id", "", "Campaign source ID to list entries for")
 	cmd.Flags().StringVar(&flagDecision, "decision", "", "Filter by decision (PENDING, APPROVED, REVOKE, DEFER, ESCALATE)")
 	cmd.Flags().StringVar(&flagFlag, "flag", "", "Filter by flag (NONE, ORPHANED, INACTIVE, EXCESSIVE, ROLE_MISMATCH, NEW)")
-	cmd.Flags().StringVar(&flagIncTag, "incremental-tag", "", "Filter by incremental tag (NEW, REMOVED, UNCHANGED)")
 	flagIsAdmin = cmd.Flags().Bool("is-admin", false, "Filter by admin status")
 	flagActive = cmd.Flags().Bool("active", false, "Filter by active status at the source")
-	cmd.Flags().StringVar(&flagAuthMethod, "auth-method", "", "Filter by auth method (SSO, PASSWORD, API_KEY, SERVICE_ACCOUNT, UNKNOWN)")
+	cmd.Flags().StringVar(&flagAuthMethod, "auth-method", "", "Filter by auth method (SSO, PASSWORD, API_KEY, OAUTH2, SSH, SERVICE_ACCOUNT, UNKNOWN)")
 	cmd.Flags().StringVar(&flagAccountType, "account-type", "", "Filter by account type (USER, SERVICE_ACCOUNT)")
 	flagOutput = cmdutil.AddOutputFlag(cmd)
 

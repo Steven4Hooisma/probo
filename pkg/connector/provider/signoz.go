@@ -24,8 +24,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"go.gearno.de/kit/log"
 	"go.probo.inc/probo/pkg/accessreview/drivers"
@@ -37,19 +35,20 @@ func signozRegistration() *Registration {
 		Provider:         coredata.ConnectorProviderSigNoz,
 		DisplayName:      "SigNoz",
 		DocumentationURL: accessReviewDocsURL("signoz"),
-		SupportsAPIKey:   true,
-		APIKeyHeader:     "SIGNOZ-API-KEY",
-		BuildProbeURL:    buildSigNozProbeURL,
-		APIKeyExtraSettings: []ExtraSetting{
-			{Key: "baseUrl", Label: "Base URL", Required: true},
+		APIKey: &APIKeyConfig{
+			Auth: APIKeyAuth{Mode: APIKeyAuthHeader, Name: "SIGNOZ-API-KEY"},
+			ExtraSettings: []ExtraSetting{
+				{Key: "baseUrl", Label: "Base URL", Required: true},
+			},
 		},
+		BuildProbeURL: buildSigNozProbeURL,
 		NewDriver: func(_ context.Context, c *http.Client, conn *coredata.Connector, _ *log.Logger, _ Endpoints) (drivers.Driver, error) {
 			settings, err := coredata.ConnectorSettings[coredata.SigNozConnectorSettings](conn)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read signoz connector settings: %w", err)
 			}
 
-			baseURL, err := normalizeSigNozBaseURL(settings.BaseURL)
+			baseURL, err := normalizeSelfHostedBaseURL(settings.BaseURL)
 			if err != nil {
 				return nil, fmt.Errorf("cannot create signoz driver: %w", err)
 			}
@@ -63,7 +62,7 @@ func signozRegistration() *Registration {
 				return nil
 			}
 
-			baseURL, err := normalizeSigNozBaseURL(settings.BaseURL)
+			baseURL, err := normalizeSelfHostedBaseURL(settings.BaseURL)
 			if err != nil {
 				logger.ErrorCtx(ctx, "invalid signoz base url in connector settings", log.Error(err))
 				return nil
@@ -72,26 +71,4 @@ func signozRegistration() *Registration {
 			return drivers.NewSigNozNameResolver(c, baseURL)
 		},
 	}
-}
-
-func normalizeSigNozBaseURL(raw string) (string, error) {
-	baseURL := strings.TrimSpace(raw)
-	if baseURL == "" {
-		return "", fmt.Errorf("base_url is required")
-	}
-
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return "", fmt.Errorf("base_url must be a valid URL: %w", err)
-	}
-
-	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return "", fmt.Errorf("base_url must be an http(s) URL")
-	}
-
-	u.Path = strings.TrimRight(u.Path, "/")
-	u.RawQuery = ""
-	u.Fragment = ""
-
-	return u.String(), nil
 }

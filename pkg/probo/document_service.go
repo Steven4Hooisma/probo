@@ -24,7 +24,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,13 +38,12 @@ import (
 	"go.gearno.de/crypto/uuid"
 	"go.gearno.de/kit/pg"
 	"go.probo.inc/probo/packages/emails"
-	"go.probo.inc/probo/pkg/agent"
+	"go.probo.inc/probo/pkg/awsconfig"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/docgen"
 	"go.probo.inc/probo/pkg/esign"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/html2pdf"
-	"go.probo.inc/probo/pkg/llm"
 	"go.probo.inc/probo/pkg/mail"
 	"go.probo.inc/probo/pkg/page"
 	"go.probo.inc/probo/pkg/pdfutils"
@@ -162,8 +160,8 @@ type (
 )
 
 const (
-	documentContentMaxTextLength = 50_000
-	documentContentMaxJSONBytes  = 500_000
+	documentContentMaxTextLength = 200_000
+	documentContentMaxJSONBytes  = 1 << 20 // 1 MiB
 )
 
 func (cdr *CreateDocumentRequest) Validate() error {
@@ -477,103 +475,6 @@ func (s *DocumentService) GetWithFilter(
 	}
 
 	return document, nil
-}
-
-func (s DocumentService) GenerateChangelog(
-	ctx context.Context, scope coredata.Scoper,
-	documentID gid.GID,
-) (*string, error) {
-	var changelog *string
-
-	draftVersion := &coredata.DocumentVersion{}
-	publishedVersion := &coredata.DocumentVersion{}
-
-	err := s.svc.pg.WithConn(
-		ctx,
-		func(ctx context.Context, conn pg.Querier) error {
-			if err := draftVersion.LoadLatestVersion(ctx, conn, scope, documentID); err != nil {
-				return fmt.Errorf("cannot load draft version: %w", err)
-			}
-
-			if draftVersion.Status != coredata.DocumentVersionStatusDraft {
-				return fmt.Errorf("latest version is not a draft")
-			}
-
-			document := &coredata.Document{}
-			if err := document.LoadByID(ctx, conn, scope, documentID); err != nil {
-				return fmt.Errorf("cannot load document: %w", err)
-			}
-
-			if document.ArchivedAt != nil {
-				return &ErrDocumentArchived{}
-			}
-
-			if document.CurrentPublishedMajor == nil {
-				initialVersionChangelog := "Initial version"
-				changelog = &initialVersionChangelog
-			} else {
-				if err := publishedVersion.LoadByDocumentIDAndVersion(ctx, conn, scope, documentID, *document.CurrentPublishedMajor, *document.CurrentPublishedMinor); err != nil {
-					return fmt.Errorf("cannot load published version: %w", err)
-				}
-			}
-
-			return nil
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if publishedVersion.Content == draftVersion.Content {
-		noDiffChangelog := "No changes detected"
-		changelog = &noDiffChangelog
-	}
-
-	if changelog == nil {
-		changelog, err = s.generateChangelog(ctx, scope, publishedVersion.Content, draftVersion.Content)
-		if err != nil {
-			return nil, fmt.Errorf("cannot generate changelog: %w", err)
-		}
-	}
-
-	return changelog, nil
-}
-
-//go:embed prompts/changelog_generator.txt
-var changelogGeneratorSystemPrompt string
-
-func (s DocumentService) generateChangelog(
-	ctx context.Context, scope coredata.Scoper,
-	oldContent, newContent string,
-) (*string, error) {
-	ag := agent.New(
-		"changelog_generator",
-		s.svc.llmClient,
-		agent.WithInstructions(changelogGeneratorSystemPrompt),
-		agent.WithModel(s.svc.llmConfig.Model),
-		agent.WithTemperature(s.svc.llmConfig.Temperature),
-		agent.WithMaxTokens(s.svc.llmConfig.MaxTokens),
-	)
-
-	result, err := ag.Run(
-		ctx,
-		[]llm.Message{
-			{
-				Role: llm.RoleUser,
-				Parts: []llm.Part{
-					llm.TextPart{Text: fmt.Sprintf("Old content: %s", oldContent)},
-					llm.TextPart{Text: fmt.Sprintf("New content: %s", newContent)},
-				},
-			},
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("cannot generate changelog: %w", err)
-	}
-
-	text := result.FinalMessage().Text()
-
-	return &text, nil
 }
 
 func (s *DocumentService) PublishVersionWithDefaultApprovers(
@@ -1760,6 +1661,11 @@ func (s *DocumentService) clearDocumentReferences(
 		return err
 	}
 
+	businessFunction := coredata.BusinessFunction{}
+	if err := businessFunction.ClearGeneratedDocumentID(ctx, tx, documentIDs); err != nil {
+		return err
+	}
+
 	soa := coredata.StatementOfApplicability{}
 	if err := soa.ClearDocumentIDByDocumentIDs(ctx, tx, documentIDs); err != nil {
 		return err
@@ -1783,10 +1689,8 @@ func (s *DocumentService) RequestExport(
 
 	exportJob := &coredata.ExportJob{}
 
-	if options.WithWatermark {
-		if options.WatermarkEmail == nil {
-			return nil, fmt.Errorf("watermark email is required when with watermark is true")
-		}
+	if err := options.validate(); err != nil {
+		return nil, fmt.Errorf("cannot validate PDF export options: %w", err)
 	}
 
 	err := s.svc.pg.WithTx(ctx, func(ctx context.Context, conn pg.Tx) error {
@@ -1807,7 +1711,7 @@ func (s *DocumentService) RequestExport(
 		args := coredata.DocumentExportArguments{
 			DocumentIDs:    documentIDs,
 			WithWatermark:  options.WithWatermark,
-			WatermarkEmail: options.WatermarkEmail,
+			WatermarkText:  options.WatermarkText,
 			WithSignatures: options.WithSignatures,
 		}
 
@@ -2624,8 +2528,24 @@ func (s *DocumentService) CancelSignatureRequest(
 
 type ExportPDFOptions struct {
 	WithWatermark  bool
-	WatermarkEmail *mail.Addr
+	WatermarkText  *string
 	WithSignatures bool
+}
+
+func (o ExportPDFOptions) validate() error {
+	if !o.WithWatermark {
+		return nil
+	}
+
+	if o.WatermarkText == nil {
+		return fmt.Errorf("watermark text is required when with watermark is true")
+	}
+
+	if err := pdfutils.ValidateWatermarkText(*o.WatermarkText); err != nil {
+		return fmt.Errorf("cannot validate watermark text: %w", err)
+	}
+
+	return nil
 }
 
 func (s *DocumentService) ExportPDF(
@@ -2634,6 +2554,10 @@ func (s *DocumentService) ExportPDF(
 	options ExportPDFOptions,
 ) ([]byte, error) {
 	var data []byte
+
+	if err := options.validate(); err != nil {
+		return nil, fmt.Errorf("cannot validate PDF export options: %w", err)
+	}
 
 	err := s.svc.pg.WithTx(
 		ctx,
@@ -2698,7 +2622,7 @@ func (s *DocumentService) BuildAndUploadExport(ctx context.Context, scope coreda
 
 			exportOptions := ExportPDFOptions{
 				WithWatermark:  exportArgs.WithWatermark,
-				WatermarkEmail: exportArgs.WatermarkEmail,
+				WatermarkText:  exportArgs.WatermarkText,
 				WithSignatures: exportArgs.WithSignatures,
 			}
 
@@ -2799,7 +2723,7 @@ func exportDocumentPDF(
 	// applied after merging the signature page so all pages are watermarked.
 	generateOptions := options
 	generateOptions.WithWatermark = false
-	generateOptions.WatermarkEmail = nil
+	generateOptions.WatermarkText = nil
 
 	pdfData, err := generateDocumentPDF(ctx, svc, html2pdfConverter, conn, scope, version, generateOptions)
 	if err != nil {
@@ -2821,11 +2745,15 @@ func exportDocumentPDF(
 	}
 
 	if options.WithWatermark {
-		if options.WatermarkEmail == nil {
-			return nil, fmt.Errorf("watermark email is required with watermark enabled")
+		if options.WatermarkText == nil {
+			return nil, fmt.Errorf("watermark text is required with watermark enabled")
 		}
 
-		pdfData, err = pdfutils.AddConfidentialWithTimestamp(pdfData, *options.WatermarkEmail)
+		pdfData, err = pdfutils.AddWatermarkWithTimestamp(
+			pdfData,
+			version.Classification.String(),
+			*options.WatermarkText,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("cannot add watermark to PDF: %w", err)
 		}
@@ -2868,11 +2796,15 @@ func exportStoredPDF(
 	}
 
 	if options.WithWatermark {
-		if options.WatermarkEmail == nil {
-			return nil, fmt.Errorf("watermark email is required with watermark enabled")
+		if options.WatermarkText == nil {
+			return nil, fmt.Errorf("watermark text is required with watermark enabled")
 		}
 
-		pdfData, err = pdfutils.AddConfidentialWithTimestamp(pdfData, *options.WatermarkEmail)
+		pdfData, err = pdfutils.AddWatermarkWithTimestamp(
+			pdfData,
+			version.Classification.String(),
+			*options.WatermarkText,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("cannot add watermark to PDF: %w", err)
 		}
@@ -2947,6 +2879,12 @@ func generateSignaturePagePDF(
 	return pdfData, nil
 }
 
+type documentPDFInput struct {
+	version            *coredata.DocumentVersion
+	approverNames      []string
+	horizontalLogoFile *coredata.File
+}
+
 func generateDocumentPDF(
 	ctx context.Context,
 	svc *Service,
@@ -2956,6 +2894,20 @@ func generateDocumentPDF(
 	version *coredata.DocumentVersion,
 	options ExportPDFOptions,
 ) ([]byte, error) {
+	input, err := loadDocumentPDFInput(ctx, conn, scope, version)
+	if err != nil {
+		return nil, err
+	}
+
+	return renderDocumentPDF(ctx, svc, html2pdfConverter, input, options)
+}
+
+func loadDocumentPDFInput(
+	ctx context.Context,
+	conn pg.Querier,
+	scope coredata.Scoper,
+	version *coredata.DocumentVersion,
+) (*documentPDFInput, error) {
 	document := &coredata.Document{}
 	organization := &coredata.Organization{}
 
@@ -3018,6 +2970,31 @@ func generateDocumentPDF(
 		return nil, fmt.Errorf("cannot load organization: %w", err)
 	}
 
+	var horizontalLogoFile *coredata.File
+
+	if organization.HorizontalLogoFileID != nil {
+		fileRecord := &coredata.File{}
+		if err := fileRecord.LoadByID(ctx, conn, scope, *organization.HorizontalLogoFileID); err == nil {
+			horizontalLogoFile = fileRecord
+		}
+	}
+
+	return &documentPDFInput{
+		version:            version,
+		approverNames:      approverNames,
+		horizontalLogoFile: horizontalLogoFile,
+	}, nil
+}
+
+func renderDocumentPDF(
+	ctx context.Context,
+	svc *Service,
+	html2pdfConverter *html2pdf.Converter,
+	input *documentPDFInput,
+	options ExportPDFOptions,
+) ([]byte, error) {
+	version := input.version
+
 	classification := docgen.ClassificationSecret
 
 	switch version.Classification {
@@ -3031,15 +3008,10 @@ func generateDocumentPDF(
 
 	horizontalLogoBase64 := ""
 
-	if organization.HorizontalLogoFileID != nil {
-		fileRecord := &coredata.File{}
-
-		fileErr := fileRecord.LoadByID(ctx, conn, scope, *organization.HorizontalLogoFileID)
-		if fileErr == nil {
-			base64Data, mimeType, logoErr := svc.fileManager.GetFileBase64(ctx, fileRecord)
-			if logoErr == nil {
-				horizontalLogoBase64 = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
-			}
+	if input.horizontalLogoFile != nil {
+		base64Data, mimeType, logoErr := svc.fileManager.GetFileBase64(ctx, input.horizontalLogoFile)
+		if logoErr == nil {
+			horizontalLogoBase64 = fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data)
 		}
 	}
 
@@ -3051,7 +3023,7 @@ func generateDocumentPDF(
 		Major:                       version.Major,
 		Minor:                       version.Minor,
 		Classification:              classification,
-		Approvers:                   approverNames,
+		Approvers:                   input.approverNames,
 		PublishedAt:                 version.PublishedAt,
 		CompanyHorizontalLogoBase64: horizontalLogoBase64,
 		Landscape:                   isLandscape,
@@ -3090,11 +3062,15 @@ func generateDocumentPDF(
 	}
 
 	if options.WithWatermark {
-		if options.WatermarkEmail == nil {
-			return nil, fmt.Errorf("watermark email is required with watermark enabled")
+		if options.WatermarkText == nil {
+			return nil, fmt.Errorf("watermark text is required with watermark enabled")
 		}
 
-		watermarkedPDF, err := pdfutils.AddConfidentialWithTimestamp(pdfData, *options.WatermarkEmail)
+		watermarkedPDF, err := pdfutils.AddWatermarkWithTimestamp(
+			pdfData,
+			version.Classification.String(),
+			*options.WatermarkText,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("cannot add watermark to PDF: %w", err)
 		}
@@ -3111,6 +3087,10 @@ func (s *DocumentService) Export(
 	file io.Writer,
 	options ExportPDFOptions,
 ) (err error) {
+	if err := options.validate(); err != nil {
+		return fmt.Errorf("cannot validate PDF export options: %w", err)
+	}
+
 	archive := zip.NewWriter(file)
 
 	defer func() {
@@ -3226,6 +3206,7 @@ func (s *DocumentService) GenerateDocumentExportDownloadURL(
 			ResponseContentType:        new(file.MimeType),
 			ResponseContentDisposition: new(fmt.Sprintf("attachment; filename=\"%s\"", file.FileName)),
 		},
+		awsconfig.UnsignedChecksumMode,
 		func(opts *s3.PresignOptions) {
 			opts.Expires = documentExportEmailExpiresIn
 		},

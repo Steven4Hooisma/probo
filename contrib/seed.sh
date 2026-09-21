@@ -128,20 +128,43 @@ EXPIRES_AT=$(date -u -v+1y +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
 vars=$(jo input="$(
   jo \
     name=seed \
-    expiresAt="$EXPIRES_AT"
+    expiresAt="$EXPIRES_AT" \
+    scopes="$(
+      jo -a \
+        v1:access-review \
+        v1:agent \
+        v1:ai-system \
+        v1:asset \
+        v1:audit \
+        v1:business-function \
+        v1:compliance-page \
+        v1:connector \
+        v1:control \
+        v1:datum \
+        v1:document \
+        v1:iam \
+        v1:itam \
+        v1:org \
+        v1:privacy \
+        v1:resource-alias \
+        v1:risk \
+        v1:task \
+        v1:third-party \
+        v1:webhook
+    )"
 )")
 resp=$(gql_connect '
-  mutation($input: CreatePersonalAPIKeyInput!) {
-    createPersonalAPIKey(input: $input) {
+  mutation($input: CreateOAuth2AccessTokenInput!) {
+    createOAuth2AccessToken(input: $input) {
       token
     }
   }
 ' "$vars")
-check_error "$resp" "createPersonalAPIKey"
-PROBO_TOKEN=$(echo "$resp" | jq -r '.data.createPersonalAPIKey.token')
+check_error "$resp" "createOAuth2AccessToken"
+PROBO_TOKEN=$(echo "$resp" | jq -r '.data.createOAuth2AccessToken.token')
 export PROBO_TOKEN
 export PROBO_HOST="$BASE_URL"
-echo "  Created API key"
+echo "  Created OAuth access token"
 
 echo ""
 echo "==> Seeding data..."
@@ -834,9 +857,9 @@ posture_evidence() {
       ;;
     WINDOWS:DISK_ENCRYPTION)
       case "$status" in
-        PASS) jq -nc '{raw:"Conversion Status: Fully Encrypted\n    Percentage Encrypted: 100%"}' ;;
-        FAIL) jq -nc '{raw:"Conversion Status: Fully Decrypted\n    Percentage Encrypted: 0%"}' ;;
-        *) jq -nc '{note:"manage-bde not found"}' ;;
+        PASS) jq -nc '{backend:"Get-BitLockerVolume",volumes:{ "C:":"On"}}' ;;
+        FAIL) jq -nc '{backend:"Get-BitLockerVolume",volumes:{ "C:":"Off"},encryption_percentage:100}' ;;
+        *) jq -nc '{note:"Get-BitLockerVolume not available"}' ;;
       esac
       ;;
     DARWIN:SCREEN_LOCK)
@@ -855,8 +878,8 @@ posture_evidence() {
       ;;
     WINDOWS:SCREEN_LOCK)
       case "$status" in
-        PASS) jq -nc '{backend:"hkey_users",users:{"S-1-5-21-1004336348-1177238915-682003330-1001":"1"}}' ;;
-        FAIL) jq -nc '{backend:"hkey_users",users:{"S-1-5-21-1004336348-1177238915-682003330-1001":"0"}}' ;;
+        PASS) jq -nc '{backend:"machine_inactivity_limit",screen_lock_enforced:true,policy:{InactivityTimeoutSecs:"900",MaxInactivityTimeDeviceLock:"",ScreenSaverIsSecure:"",ScreenSaveActive:"",ScreenSaveTimeOut:""}}' ;;
+        FAIL) jq -nc '{backend:"hkey_users",screen_lock_enforced:false,users:{"S-1-5-21-1004336348-1177238915-682003330-1001":"0::"}}' ;;
         *) jq -nc '{backend:"hkey_users",users:{},note:"no interactive user hives loaded"}' ;;
       esac
       ;;
@@ -878,7 +901,7 @@ posture_evidence() {
       case "$status" in
         PASS) jq -nc '{backend:"Get-NetFirewallProfile",raw:"Domain=True;Private=True;Public=True",profiles:{Domain:"True",Private:"True",Public:"True"}}' ;;
         FAIL) jq -nc '{backend:"Get-NetFirewallProfile",raw:"Domain=True;Private=True;Public=False",profiles:{Domain:"True",Private:"True",Public:"False"}}' ;;
-        *) jq -nc '{backend:"netsh",state_lines:[]}' ;;
+        *) jq -nc '{backend:"HNetCfg.FwPolicy2",degraded:true,primary_backend:"Get-NetFirewallProfile",primary_error:"command \"powershell.exe\" timed out after 10s: exit status 1",primary_timed_out:true,profiles:{}}' ;;
       esac
       ;;
     DARWIN:TIME_SYNC)
@@ -897,9 +920,9 @@ posture_evidence() {
       ;;
     WINDOWS:TIME_SYNC)
       case "$status" in
-        PASS) jq -nc '{raw:"Leap Indicator: 0(no warning)\nStratum: 4 (secondary reference)\nSource: time.windows.com,0x8\nPoll Interval: 10"}' ;;
-        FAIL) jq -nc '{raw:"Leap Indicator: 3(not synchronized)\nStratum: 0 (unspecified)\nSource: Local CMOS Clock\nPoll Interval: 10"}' ;;
-        *) jq -nc '{note:"w32tm unavailable"}' ;;
+        PASS) jq -nc '{backend:"w32time",w32time_service_start:"3",w32time_type:"NTP",ntp_server:"time.windows.com,0x8"}' ;;
+        FAIL) jq -nc '{backend:"w32time",w32time_service_start:"4",w32time_type:"NTP"}' ;;
+        *) jq -nc '{error:"exit status 0x80070426",stderr:""}' ;;
       esac
       ;;
     DARWIN:OS_VERSION)
@@ -936,9 +959,9 @@ posture_evidence() {
       ;;
     WINDOWS:AUTO_UPDATE)
       case "$status" in
-        PASS) jq -nc '{no_auto_update:"0",au_options:"4"}' ;;
-        FAIL) jq -nc '{no_auto_update:"",au_options:"2"}' ;;
-        *) jq -nc '{no_auto_update:"",au_options:"",wuauserv:""}' ;;
+        PASS) jq -nc '{no_auto_update:"0",au_options:"4",wuauserv_service_start:"2"}' ;;
+        FAIL) jq -nc '{no_auto_update:"",au_options:"2",wuauserv_service_start:"3"}' ;;
+        *) jq -nc '{no_auto_update:"",au_options:"",wuauserv_service_start:""}' ;;
       esac
       ;;
     DARWIN:PASSWORD_POLICY)
@@ -957,9 +980,9 @@ posture_evidence() {
       ;;
     WINDOWS:PASSWORD_POLICY)
       case "$status" in
-        PASS) jq -nc '{raw:"Minimum password length:                        8\n"}' ;;
-        FAIL) jq -nc '{raw:"Minimum password length:                        0\n"}' ;;
-        *) jq -nc '{error:"net accounts failed"}' ;;
+        PASS) jq -nc '{min_password_length:8}' ;;
+        FAIL) jq -nc '{min_password_length:0}' ;;
+        *) jq -nc '{error:"MinPasswordLength unavailable"}' ;;
       esac
       ;;
     # REMOTE_LOGIN is inverted: PASS means remote access is Off / denied.

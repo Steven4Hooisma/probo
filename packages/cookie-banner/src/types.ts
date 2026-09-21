@@ -44,21 +44,7 @@ export interface Category {
   posthog_consent: boolean;
 }
 
-export type Regulation =
-  | "GDPR"
-  | "UK_GDPR"
-  | "FADP"
-  | "CCPA"
-  | "PIPEDA"
-  | "LGPD"
-  | "LFPDPPP"
-  | "POPIA"
-  | "PDPA"
-  | "PIPL"
-  | "PIPA"
-  | "APPI"
-  | "DPDP"
-  | "PDPL";
+export type Regulation = string;
 
 export type Presentation = "OPT_IN" | "OPT_OUT" | "NOTICE";
 
@@ -104,8 +90,21 @@ export interface BannerConfig {
   regulation: Regulation | null;
   layout: BannerLayout;
   show_branding: boolean;
+  resource_reporting_enabled: boolean;
+  tcf_enabled?: boolean;
+  tcf_vendors?: TCFVendor[];
+  gvl_version?: number;
   categories: Category[];
   texts: BannerTexts;
+}
+
+export interface TCFVendor {
+  iab_vendor_id: number;
+  name: string;
+  purposes: number[];
+  leg_int_purposes: number[];
+  special_features: number[];
+  policy_url?: string;
 }
 
 export type ConsentAction =
@@ -130,8 +129,14 @@ export interface ConsentRecord {
   created_at: string;
 }
 
+export interface IntegrationConfig {
+  name: "gcm";
+  enabled: boolean;
+}
+
 export interface CookieBannerClientOptions {
   bannerId: string;
   baseUrl: string;
   lang?: string;
+  integrations?: IntegrationConfig[];
 }

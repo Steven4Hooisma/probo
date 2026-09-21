@@ -25,72 +25,120 @@ package tray
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"golang.org/x/sys/windows/registry"
 )
 
-const runKeyPath = `Software\Microsoft\Windows\CurrentVersion\Run`
-
-const runValueName = "ProboAgentTray"
+const (
+	runKeyPath   = `Software\Microsoft\Windows\CurrentVersion\Run`
+	runValueName = "ProboAgentTray"
+)
 
 func RegisterAutoStart(exePath string, runDir string) error {
-	if exePath == "" {
-		return fmt.Errorf("executable path is required")
-	}
-	if runDir == "" {
-		return fmt.Errorf("enrollment run directory is required")
-	}
-
-	sid, err := currentInteractiveUserSID()
+	guiExePath, err := registerAutoStart(exePath, runDir)
 	if err != nil {
-		return fmt.Errorf("cannot resolve interactive user for tray auto-start: %w", err)
+		return err
 	}
 
-	keyPath := sid + `\` + runKeyPath
-
-	key, _, err := registry.CreateKey(registry.USERS, keyPath, registry.QUERY_VALUE|registry.SET_VALUE)
-	if err != nil {
-		return fmt.Errorf("cannot open or create Run registry key for interactive user: %w", err)
-	}
-
-	defer func() { _ = key.Close() }()
-
-	command := trayRunCommand(exePath, runDir)
-
-	existing, _, err := key.GetStringValue(runValueName)
-	if err == nil && existing == command {
-		return nil
-	}
-	if err != nil && !errors.Is(err, registry.ErrNotExist) {
-		return fmt.Errorf("cannot read Run registry value: %w", err)
-	}
-
-	if err := key.SetStringValue(runValueName, command); err != nil {
-		return fmt.Errorf("cannot set Run registry value: %w", err)
-	}
+	startTrayBestEffort(guiExePath, runDir)
 
 	return nil
+}
+
+// RefreshAutoStart updates the Run entry without starting another tray process.
+// NOTE: Remove this function with the Run-entry migration after all
+// supported installs register probo-agentw.exe.
+func RefreshAutoStart(exePath string, runDir string) error {
+	_, err := registerAutoStart(exePath, runDir)
+
+	return err
+}
+
+func registerAutoStart(exePath string, runDir string) (string, error) {
+	if exePath == "" {
+		return "", fmt.Errorf("executable path is required")
+	}
+
+	if runDir == "" {
+		return "", fmt.Errorf("enrollment run directory is required")
+	}
+
+	guiExePath := guiExecutablePath(exePath)
+	if _, err := os.Stat(guiExePath); err != nil {
+		return "", fmt.Errorf("cannot access GUI executable %s: %w", guiExePath, err)
+	}
+
+	// HKLM Run is the machine-wide equivalent of /Library/LaunchAgents:
+	// every interactive user gets the tray at logon, including after an
+	// MSI install that had no GUI session yet.
+	command := trayRunCommand(guiExePath, runDir)
+
+	if err := setMachineRunValue(command); err != nil {
+		return "", err
+	}
+
+	return guiExePath, nil
 }
 
 func trayRunCommand(exePath string, runDir string) string {
 	return fmt.Sprintf(`"%s" tray --run-dir "%s"`, exePath, runDir)
 }
 
-func UnregisterAutoStart() error {
-	sid, err := currentInteractiveUserSID()
-	if err != nil {
-		return fmt.Errorf("cannot resolve interactive user for tray auto-start: %w", err)
+func guiExecutablePath(exePath string) string {
+	name := "probo-agentw"
+	if filepath.Ext(exePath) != "" {
+		name = agentGUIExeBaseName
 	}
 
-	keyPath := sid + `\` + runKeyPath
+	return filepath.Join(filepath.Dir(exePath), name)
+}
 
-	key, err := registry.OpenKey(registry.USERS, keyPath, registry.SET_VALUE)
+func UnregisterAutoStart() error {
+	err := deleteMachineRunValue()
+	stopInteractiveAgentProcessesBestEffort()
+	return err
+}
+
+func setMachineRunValue(command string) error {
+	key, _, err := registry.CreateKey(
+		registry.LOCAL_MACHINE,
+		runKeyPath,
+		registry.QUERY_VALUE|registry.SET_VALUE,
+	)
+	if err != nil {
+		return fmt.Errorf("cannot open or create machine Run registry key: %w", err)
+	}
+
+	defer func() { _ = key.Close() }()
+
+	existing, _, err := key.GetStringValue(runValueName)
+	if err != nil && !errors.Is(err, registry.ErrNotExist) {
+		return fmt.Errorf("cannot read Run registry value: %w", err)
+	}
+
+	if err != nil || existing != command {
+		if err := key.SetStringValue(runValueName, command); err != nil {
+			return fmt.Errorf("cannot set Run registry value: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func deleteMachineRunValue() error {
+	key, err := registry.OpenKey(
+		registry.LOCAL_MACHINE,
+		runKeyPath,
+		registry.SET_VALUE,
+	)
 	if err != nil {
 		if errors.Is(err, registry.ErrNotExist) {
 			return nil
 		}
 
-		return fmt.Errorf("cannot open Run registry key for interactive user: %w", err)
+		return fmt.Errorf("cannot open machine Run registry key: %w", err)
 	}
 
 	defer func() { _ = key.Close() }()

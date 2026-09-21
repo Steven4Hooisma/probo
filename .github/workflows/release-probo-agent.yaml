@@ -20,30 +20,27 @@ jobs:
         include:
           - { goos: linux, goarch: amd64 }
           - { goos: linux, goarch: arm64 }
-          - { goos: windows, goarch: amd64 }
-          - { goos: windows, goarch: arm64 }
           - { goos: freebsd, goarch: amd64 }
           - { goos: freebsd, goarch: arm64 }
     steps:
-      - uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" # v6
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v6
         with:
           submodules: recursive
-      - uses: "runs-on/action@d141ef83eb66d096ce8afc767e09115a65c63b60" # v2
+      - uses: "runs-on/action@46910bf61b41721b0579f237e186afb35477007a" # v2
       - uses: "./.github/actions/setup"
         with:
           node: "false"
-      - name: "Build binary"
+          go-cache-key-prefix: "${{ github.workflow }}-${{ github.job }}-${{ matrix.goos }}-${{ matrix.goarch }}"
+      - name: "Build binaries"
         env:
           CGO_ENABLED: "0"
           GOOS: "${{ matrix.goos }}"
           GOARCH: "${{ matrix.goarch }}"
         run: |
           VERSION="${GITHUB_REF_NAME##*/v}"
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
 
           go build -ldflags "-s -w -X 'main.version=${VERSION}'" \
-            -gcflags="-e" -o "dist/probo-agent${EXT}" ./cmd/probo-agent
+            -gcflags="-e" -o "dist/probo-agent" ./cmd/probo-agent
       - name: "Create archive"
         env:
           GOOS: "${{ matrix.goos }}"
@@ -51,31 +48,147 @@ jobs:
         run: |
           case "$GOOS" in
             linux)   OS="Linux" ;;
-            windows) OS="Windows" ;;
             freebsd) OS="Freebsd" ;;
           esac
           case "$GOARCH" in
             amd64) ARCH="x86_64" ;;
             *)     ARCH="$GOARCH" ;;
           esac
-          EXT=""
-          if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
 
           mkdir -p archives
           AGENT_DIR="probo-agent_${OS}_${ARCH}"
           mkdir -p "staging/${AGENT_DIR}"
-          cp "dist/probo-agent${EXT}" README.md LICENSE "staging/${AGENT_DIR}/"
+          cp "dist/probo-agent" README.md LICENSE "staging/${AGENT_DIR}/"
           if [ -f cmd/probo-agent/CHANGELOG.md ]; then
             cp cmd/probo-agent/CHANGELOG.md "staging/${AGENT_DIR}/"
           fi
-          if [ "$GOOS" = "windows" ]; then
-            (cd staging && zip -r "../archives/${AGENT_DIR}.zip" "${AGENT_DIR}")
-          else
-            tar -czf "archives/${AGENT_DIR}.tar.gz" -C staging "${AGENT_DIR}"
-          fi
+          tar -czf "archives/${AGENT_DIR}.tar.gz" -C staging "${AGENT_DIR}"
       - uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7
         with:
           name: "archive-${{ matrix.goos }}-${{ matrix.goarch }}"
+          path: "archives/"
+          retention-days: 1
+
+  build-windows:
+    name: "windows (${{ matrix.goarch }})"
+    runs-on: "windows-latest"
+    environment: "probo-agent-release"
+    permissions:
+      contents: "read"
+      id-token: "write"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goarch: amd64, arch_label: x86_64, wix_arch: amd64 }
+          - { goarch: arm64, arch_label: arm64, wix_arch: arm64 }
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v6
+        with:
+          submodules: recursive
+      - uses: "./.github/actions/setup"
+        with:
+          node: "false"
+          go-cache-key-prefix: "${{ github.workflow }}-${{ github.job }}-${{ matrix.goarch }}"
+      - name: "Install WiX"
+        shell: "pwsh"
+        run: |
+          dotnet tool install --global wix --version 6.0.2
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & "$env:USERPROFILE\.dotnet\tools\wix.exe" --version
+      - name: "Build binary"
+        shell: "pwsh"
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Version = $env:GITHUB_REF_NAME -replace '^.*\/v', ''
+          $Arch = "${{ matrix.goarch }}"
+          New-Item -ItemType Directory -Force -Path dist, archives | Out-Null
+          $ldflags = "-s -w -X 'main.version=$Version'"
+          $guiLdflags = "-s -w -H windowsgui -X 'main.version=$Version'"
+          go run ./cmd/probo-agent/installer/windows/mkicon `
+            -png ./pkg/deviceagent/tray/icon_color.png `
+            -syso "./cmd/probo-agent/rsrc_windows_${Arch}.syso" `
+            -arch $Arch
+          if ($LASTEXITCODE -ne 0) { throw "mkicon failed" }
+          $env:GOOS = "windows"
+          $env:GOARCH = $Arch
+          go build -ldflags $ldflags -gcflags="-e" -o dist/probo-agent.exe ./cmd/probo-agent
+          if ($LASTEXITCODE -ne 0) { throw "go build failed" }
+          go build -ldflags $guiLdflags -gcflags="-e" -o dist/probo-agentw.exe ./cmd/probo-agent
+          if ($LASTEXITCODE -ne 0) { throw "GUI go build failed" }
+      - name: "Azure login"
+        uses: "azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c" # v3.0.2
+        with:
+          client-id: "${{ secrets.AZURE_CLIENT_ID }}"
+          tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
+          subscription-id: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+      - name: "Sign Windows executables"
+        uses: "azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82" # v2.0.0
+        with:
+          endpoint: "${{ vars.AZURE_TRUSTED_SIGNING_ENDPOINT }}"
+          signing-account-name: "${{ vars.AZURE_TRUSTED_SIGNING_ACCOUNT }}"
+          certificate-profile-name: "${{ vars.AZURE_TRUSTED_SIGNING_PROFILE }}"
+          files: |
+            ${{ github.workspace }}/dist/probo-agent.exe
+            ${{ github.workspace }}/dist/probo-agentw.exe
+          file-digest: "SHA256"
+          timestamp-rfc3161: "http://timestamp.acs.microsoft.com"
+          timestamp-digest: "SHA256"
+          description: "Probo Agent"
+          description-url: "https://probo.com"
+      - name: "Build MSI"
+        id: "msi"
+        shell: "pwsh"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Version = $env:GITHUB_REF_NAME -replace '^.*\/v', ''
+          $ArchLabel = "${{ matrix.arch_label }}"
+          New-Item -ItemType Directory -Force -Path archives | Out-Null
+          $Msi = Join-Path $PWD "archives/probo-agent_${Version}_windows_${ArchLabel}.msi"
+          & ./cmd/probo-agent/installer/windows/build.ps1 `
+            -Binary ./dist/probo-agent.exe `
+            -GUIBinary ./dist/probo-agentw.exe `
+            -Version $Version `
+            -Arch "${{ matrix.wix_arch }}" `
+            -Output $Msi
+          "msi_path=$Msi" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      - name: "Sign MSI"
+        uses: "azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82" # v2.0.0
+        with:
+          endpoint: "${{ vars.AZURE_TRUSTED_SIGNING_ENDPOINT }}"
+          signing-account-name: "${{ vars.AZURE_TRUSTED_SIGNING_ACCOUNT }}"
+          certificate-profile-name: "${{ vars.AZURE_TRUSTED_SIGNING_PROFILE }}"
+          files: "${{ steps.msi.outputs.msi_path }}"
+          file-digest: "SHA256"
+          timestamp-rfc3161: "http://timestamp.acs.microsoft.com"
+          timestamp-digest: "SHA256"
+          description: "Probo Agent"
+          description-url: "https://probo.com"
+      - name: "Create zip archive"
+        shell: "pwsh"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ArchLabel = "${{ matrix.arch_label }}"
+          $AgentDir = "probo-agent_Windows_$ArchLabel"
+          $StagingRoot = Join-Path $PWD "staging"
+          $Staging = Join-Path $StagingRoot $AgentDir
+          New-Item -ItemType Directory -Force -Path $Staging, archives | Out-Null
+          Copy-Item dist/probo-agent.exe, dist/probo-agentw.exe $Staging/
+          Copy-Item README.md, LICENSE $Staging/
+          if (Test-Path cmd/probo-agent/CHANGELOG.md) {
+            Copy-Item cmd/probo-agent/CHANGELOG.md $Staging/
+          }
+          $Zip = Join-Path $PWD "archives/$AgentDir.zip"
+          if (Test-Path $Zip) { Remove-Item $Zip }
+          # Prefer tar so zip entry paths use forward slashes (Go updater
+          # matches with path.Clean, not filepath).
+          & tar.exe -a -c -f $Zip -C $StagingRoot $AgentDir
+          if ($LASTEXITCODE -ne 0) { throw "tar zip failed" }
+      - uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7
+        with:
+          name: "archive-windows-${{ matrix.goarch }}"
           path: "archives/"
           retention-days: 1
 
@@ -85,7 +198,7 @@ jobs:
     permissions:
       contents: "read"
     steps:
-      - uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" # v6
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v6
         with:
           submodules: recursive
       - uses: "./.github/actions/setup"
@@ -174,17 +287,17 @@ jobs:
 
   github-release:
     name: "github-release"
-    needs: [build-binary, build-macos]
+    needs: [build-binary, build-windows, build-macos]
     runs-on: "runs-on=${{ github.run_id }}/runner=2cpu-linux-x64/extras=s3-cache"
     permissions:
       contents: "write"
       id-token: "write"
       attestations: "write"
     steps:
-      - uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" # v6
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v6
         with:
           fetch-depth: 0
-      - uses: "runs-on/action@d141ef83eb66d096ce8afc767e09115a65c63b60" # v2
+      - uses: "runs-on/action@46910bf61b41721b0579f237e186afb35477007a" # v2
       - uses: "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6" # v4.1.2
       - uses: "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" # v8
         with:
@@ -194,7 +307,7 @@ jobs:
       - name: "Generate checksums and sign"
         run: |
           cd archives
-          sha256sum *.tar.gz *.zip *.pkg > checksums.txt
+          sha256sum *.tar.gz *.zip *.pkg *.msi > checksums.txt
           cosign sign-blob --bundle="checksums.txt.bundle" checksums.txt --yes
       - name: "Inject release checksums into install.sh"
         run: |
@@ -224,13 +337,13 @@ jobs:
           ' archives/install.sh > archives/install.sh.tmp
           mv archives/install.sh.tmp archives/install.sh
       - name: "Generate SBOM"
-        uses: "anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610" # v0.24.0
+        uses: "anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26" # v0.24.2
         with:
           path: ./cmd/probo-agent
           format: cyclonedx-json
           output-file: sbom.json
       - name: "Run vulnerability scan"
-        uses: "anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2" # v7.4.0
+        uses: "anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439" # v7.4.2
         with:
           sbom: "sbom.json"
           fail-build: true
@@ -238,12 +351,12 @@ jobs:
       - name: "Attest SBOM for archives"
         uses: "actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e" # v4
         with:
-          subject-path: "archives/*.tar.gz, archives/*.zip, archives/*.pkg"
+          subject-path: "archives/*.tar.gz, archives/*.zip, archives/*.pkg, archives/*.msi"
           sbom-path: "sbom.json"
       - name: "Attest build provenance for archives"
-        uses: "actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373" # v4
+        uses: "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8" # v4
         with:
-          subject-path: "archives/*.tar.gz, archives/*.zip, archives/*.pkg"
+          subject-path: "archives/*.tar.gz, archives/*.zip, archives/*.pkg, archives/*.msi"
       - name: "Extract release notes"
         run: |
           VERSION="${GITHUB_REF_NAME##*/v}"
@@ -260,7 +373,7 @@ jobs:
           GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: |
           PRERELEASE_FLAG=""
-          if echo "${GITHUB_REF_NAME}" | grep -qE '(alpha|beta|rc)'; then
+          if echo "${GITHUB_REF_NAME}" | grep -qE -- '-rc\.'; then
             PRERELEASE_FLAG="--prerelease"
           fi
 

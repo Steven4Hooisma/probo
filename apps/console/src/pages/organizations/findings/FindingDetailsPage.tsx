@@ -26,7 +26,6 @@ import {
 import {
   ActionDropdown,
   Badge,
-  Breadcrumb,
   Button,
   Card,
   DropdownItem,
@@ -50,7 +49,6 @@ import {
   useMutation,
   usePreloadedQuery,
 } from "react-relay";
-import { z } from "zod";
 
 import type { FindingDetailsPageDeleteMutation } from "#/__generated__/core/FindingDetailsPageDeleteMutation.graphql";
 import type { FindingDetailsPageQuery } from "#/__generated__/core/FindingDetailsPageQuery.graphql";
@@ -60,7 +58,9 @@ import { PeopleSelectField } from "#/components/form/PeopleSelectField";
 import { RiskSelectField } from "#/components/form/RiskSelectField";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
+import { FindingAuditsCard } from "./_components/FindingAuditsCard";
 import { FindingsConnectionKey } from "./FindingsPage";
 
 export const findingDetailsPageQuery = graphql`
@@ -88,6 +88,7 @@ export const findingDetailsPageQuery = graphql`
         }
         canUpdate: permission(action: "core:finding:update")
         canDelete: permission(action: "core:finding:delete")
+        canListAudits: permission(action: "core:audit:list")
       }
     }
   }
@@ -331,22 +332,8 @@ export default function FindingDetailsPage(props: Props) {
     { value: "HIGH", label: t("findingDetails.priority.high") },
   ];
 
-  const breadcrumbFindingsUrl = `/organizations/${organizationId}/findings`;
-
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          {
-            label: t("findingDetails.breadcrumbs.findings"),
-            to: breadcrumbFindingsUrl,
-          },
-          {
-            label: finding.referenceId || t("findingDetails.unknown"),
-          },
-        ]}
-      />
-
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-4">
           <div className="text-2xl font-semibold">
@@ -388,6 +375,11 @@ export default function FindingDetailsPage(props: Props) {
       </div>
 
       <div className="max-w-4xl">
+        {finding.canListAudits && (
+          <div className="mb-6">
+            <FindingAuditsCard />
+          </div>
+        )}
         <Card padded>
           <form onSubmit={e => void onSubmit(e)} className="space-y-6">
             <Field label={t("findingDetails.fields.description")}>

@@ -116,7 +116,7 @@ const (
 	OAuth2DeviceCodeEntityType                       uint16 = 84
 	_                                                uint16 = 85 // CookieEntityType - removed
 	CookieBannerTranslationEntityType                uint16 = 86
-	AgentRunEntityType                               uint16 = 87
+	AgentExecutionEntityType                         uint16 = 87
 	_                                                uint16 = 88 // CookiePatternEntityType - removed
 	TrackerPatternEntityType                         uint16 = 89
 	DetectedTrackerEntityType                        uint16 = 90
@@ -124,13 +124,13 @@ const (
 	CommonThirdPartyEntityType                       uint16 = 92
 	CommonThirdPartyDomainEntityType                 uint16 = 93
 	CommonTrackerPatternEntityType                   uint16 = 94
-	RiskAssessmentEntityType                         uint16 = 95
-	RiskAssessmentNodeEntityType                     uint16 = 96
-	RiskAssessmentProcessEntityType                  uint16 = 97
-	RiskAssessmentThreatEntityType                   uint16 = 98
-	RiskAssessmentScopeEntityType                    uint16 = 99
-	RiskAssessmentScenarioEntityType                 uint16 = 100
-	RiskAssessmentBoundaryEntityType                 uint16 = 101
+	RiskAnalysisEntityType                           uint16 = 95
+	RiskAnalysisNodeEntityType                       uint16 = 96
+	RiskAnalysisProcessEntityType                    uint16 = 97
+	RiskAnalysisThreatEntityType                     uint16 = 98
+	RiskAnalysisDiagramEntityType                    uint16 = 99
+	RiskAnalysisScenarioEntityType                   uint16 = 100
+	RiskAnalysisBoundaryEntityType                   uint16 = 101
 	AccessReviewCampaignSourceEntityType             uint16 = 102
 	AccessReviewCampaignSourceFetchAttemptEntityType uint16 = 103
 	CompliancePortalCommitmentGroupEntityType        uint16 = 104
@@ -143,6 +143,26 @@ const (
 	CompliancePortalAuditEntityType                  uint16 = 111
 	CompliancePortalThirdPartyEntityType             uint16 = 112
 	CompliancePortalDocumentEntityType               uint16 = 113
+	BusinessFunctionEntityType                       uint16 = 114
+	AiSystemEntityType                               uint16 = 115
+	ProbotIdentityBindingEntityType                  uint16 = 116
+	SlackbotInstallationEntityType                   uint16 = 117
+	BotDeliveryDestinationEntityType                 uint16 = 118
+	SlackbotMessageEntityType                        uint16 = 119
+	SlackbotEventEntityType                          uint16 = 120
+	_                                                uint16 = 121 // BotConversationEntityType - removed
+	SlackbotInteractiveCommandEntityType             uint16 = 122
+	OperationReceiptEntityType                       uint16 = 123
+	SlackDeliveryOperationEntityType                 uint16 = 124
+	AgentInputEntityType                             uint16 = 125
+	AgentExecutionAnchorEntityType                   uint16 = 126
+	BotMessageEntityType                             uint16 = 127
+	BotThreadSubjectEntityType                       uint16 = 128
+	TreatmentPlanEntityType                          uint16 = 129
+	CommonGVLSnapshotEntityType                      uint16 = 130
+	CommonGVLVendorEntityType                        uint16 = 131
+	TaskCommentEntityType                            uint16 = 132
+	TaskActivityEntityType                           uint16 = 133
 )
 
 func NewEntityFromID(id gid.GID) (any, bool) {
@@ -305,8 +325,8 @@ func NewEntityFromID(id gid.GID) (any, bool) {
 		return &OAuth2DeviceCode{ID: id}, true
 	case CookieBannerTranslationEntityType:
 		return &CookieBannerTranslation{ID: id}, true
-	case AgentRunEntityType:
-		return &AgentRun{ID: id}, true
+	case AgentExecutionEntityType:
+		return &AgentExecution{ID: id}, true
 	case TrackerPatternEntityType:
 		return &TrackerPattern{ID: id}, true
 	case DetectedTrackerEntityType:
@@ -319,20 +339,20 @@ func NewEntityFromID(id gid.GID) (any, bool) {
 		return &CommonThirdPartyDomain{ID: id}, true
 	case CommonTrackerPatternEntityType:
 		return &CommonTrackerPattern{ID: id}, true
-	case RiskAssessmentEntityType:
-		return &RiskAssessment{ID: id}, true
-	case RiskAssessmentNodeEntityType:
-		return &RiskAssessmentNode{ID: id}, true
-	case RiskAssessmentProcessEntityType:
-		return &RiskAssessmentProcess{ID: id}, true
-	case RiskAssessmentThreatEntityType:
-		return &RiskAssessmentThreat{ID: id}, true
-	case RiskAssessmentScopeEntityType:
-		return &RiskAssessmentScope{ID: id}, true
-	case RiskAssessmentScenarioEntityType:
-		return &RiskAssessmentScenario{ID: id}, true
-	case RiskAssessmentBoundaryEntityType:
-		return &RiskAssessmentBoundary{ID: id}, true
+	case RiskAnalysisEntityType:
+		return &RiskAnalysis{ID: id}, true
+	case RiskAnalysisNodeEntityType:
+		return &RiskAnalysisNode{ID: id}, true
+	case RiskAnalysisProcessEntityType:
+		return &RiskAnalysisProcess{ID: id}, true
+	case RiskAnalysisThreatEntityType:
+		return &RiskAnalysisThreat{ID: id}, true
+	case RiskAnalysisDiagramEntityType:
+		return &RiskAnalysisDiagram{ID: id}, true
+	case RiskAnalysisScenarioEntityType:
+		return &RiskAnalysisScenario{ID: id}, true
+	case RiskAnalysisBoundaryEntityType:
+		return &RiskAnalysisBoundary{ID: id}, true
 	case AccessReviewCampaignSourceEntityType:
 		return &AccessReviewCampaignSource{ID: id}, true
 	case AccessReviewCampaignSourceFetchAttemptEntityType:
@@ -357,6 +377,44 @@ func NewEntityFromID(id gid.GID) (any, bool) {
 		return &DeviceEnrollmentToken{ID: id}, true
 	case DevicePostureReportEntityType:
 		return &DevicePostureReport{ID: id}, true
+	case BusinessFunctionEntityType:
+		return &BusinessFunction{ID: id}, true
+	case AiSystemEntityType:
+		return &AiSystem{ID: id}, true
+	case ProbotIdentityBindingEntityType:
+		return &ProbotIdentityBinding{ID: id}, true
+	case SlackbotInstallationEntityType:
+		return &SlackbotInstallation{ID: id}, true
+	case BotDeliveryDestinationEntityType:
+		return &BotDeliveryDestination{ID: id}, true
+	case SlackbotMessageEntityType:
+		return &SlackbotMessage{ID: id}, true
+	case SlackbotEventEntityType:
+		return &SlackbotEvent{ID: id}, true
+	case SlackbotInteractiveCommandEntityType:
+		return &SlackbotInteractiveCommand{ID: id}, true
+	case OperationReceiptEntityType:
+		return &OperationReceipt{ID: id}, true
+	case SlackDeliveryOperationEntityType:
+		return &SlackDeliveryOperation{ID: id}, true
+	case AgentInputEntityType:
+		return &AgentInput{ID: id}, true
+	case AgentExecutionAnchorEntityType:
+		return &AgentExecutionAnchor{ID: id}, true
+	case BotMessageEntityType:
+		return &BotMessage{ID: id}, true
+	case BotThreadSubjectEntityType:
+		return &BotThreadSubject{ID: id}, true
+	case TreatmentPlanEntityType:
+		return &TreatmentPlan{ID: id}, true
+	case CommonGVLSnapshotEntityType:
+		return &CommonGVLSnapshot{ID: id}, true
+	case CommonGVLVendorEntityType:
+		return &CommonGVLVendor{ID: id}, true
+	case TaskCommentEntityType:
+		return &TaskComment{ID: id}, true
+	case TaskActivityEntityType:
+		return &TaskActivity{ID: id}, true
 	default:
 		return nil, false
 	}

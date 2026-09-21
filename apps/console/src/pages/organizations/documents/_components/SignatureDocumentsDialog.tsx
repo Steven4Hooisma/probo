@@ -20,7 +20,6 @@
 
 import { useList } from "@probo/hooks";
 import {
-  Avatar,
   Breadcrumb,
   Button,
   Checkbox,
@@ -35,11 +34,11 @@ import {
   Tr,
   useDialogRef,
 } from "@probo/ui";
+import { Avatar } from "@probo/ui/src/v2/Avatar/Avatar";
 import { type ReactNode, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { SignatureDocumentsDialogMutation } from "#/__generated__/core/SignatureDocumentsDialogMutation.graphql";
 import type { SignatureDocumentsDialogPeopleFragment$key } from "#/__generated__/core/SignatureDocumentsDialogPeopleFragment.graphql";
@@ -48,6 +47,7 @@ import type { SignatureDocumentsDialogPeopleRefetchQuery } from "#/__generated__
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useMutationWithToasts } from "#/hooks/useMutationWithToasts";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 type Props = {
   documentIds: string[];
@@ -97,6 +97,9 @@ const signatureDocumentsDialogPeopleFragment = graphql`
           id
           fullName
           emailAddress
+          avatar {
+            downloadUrl
+          }
         }
       }
     }
@@ -240,7 +243,13 @@ function PeopleList({
               </Td>
               <Td>
                 <div className="flex gap-3 items-center">
-                  <Avatar name={person.fullName} />
+                  <Avatar
+                    name={person.fullName}
+                    email={person.emailAddress}
+                    src={person.avatar?.downloadUrl}
+                    size={1}
+                    radius="full"
+                  />
                   <div>
                     <div className="text-sm">{person.fullName}</div>
                     <div className="text-xs text-txt-tertiary">

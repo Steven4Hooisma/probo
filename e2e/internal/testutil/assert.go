@@ -79,9 +79,18 @@ func AssertTimestampsOnCreate(t *testing.T, createdAt, updatedAt, beforeCreate t
 
 func AssertTimestampsOnUpdate(t *testing.T, createdAt, updatedAt, originalCreatedAt, originalUpdatedAt time.Time) {
 	t.Helper()
-	assert.Equal(t, originalCreatedAt, createdAt, "createdAt should not change on update")
-	assert.True(t, updatedAt.After(originalUpdatedAt),
-		"updatedAt should be strictly after previous updatedAt")
+	assert.WithinDuration(
+		t,
+		originalCreatedAt,
+		createdAt,
+		time.Microsecond,
+		"createdAt should not change on update",
+	)
+	assert.True(
+		t,
+		updatedAt.After(originalUpdatedAt),
+		"updatedAt should be strictly after previous updatedAt",
+	)
 }
 
 func AssertOptionalStringEqual(t *testing.T, expected, actual *string, fieldName string) {
@@ -126,6 +135,30 @@ func AssertTimesOrderedDescending(t *testing.T, times []time.Time, fieldName str
 	assert.True(t, isSorted, "%s should be in descending order", fieldName)
 }
 
+func AssertEqualEmail(t *testing.T, got, want string) {
+	t.Helper()
+
+	if got != want {
+		t.Fatal("email mismatch")
+	}
+}
+
+func AssertEmailPresent(t *testing.T, emails []string, email string) {
+	t.Helper()
+
+	if !slices.Contains(emails, email) {
+		t.Fatal("email missing")
+	}
+}
+
+func AssertEmailAbsent(t *testing.T, emails []string, email string) {
+	t.Helper()
+
+	if slices.Contains(emails, email) {
+		t.Fatal("email unexpectedly present")
+	}
+}
+
 func AssertNodeNotAccessible(t *testing.T, err error, nodeIsNil bool, resourceType string) {
 	t.Helper()
 
@@ -139,6 +172,16 @@ func AssertNodeNotAccessible(t *testing.T, err error, nodeIsNil bool, resourceTy
 func RequireForbiddenError(t *testing.T, err error, msgAndArgs ...any) {
 	t.Helper()
 	RequireErrorCode(t, err, "FORBIDDEN", msgAndArgs...)
+}
+
+func RequireConflictError(t *testing.T, err error, msgAndArgs ...any) {
+	t.Helper()
+	RequireErrorCode(t, err, "CONFLICT", msgAndArgs...)
+}
+
+func RequireMembershipRequiredError(t *testing.T, err error, msgAndArgs ...any) {
+	t.Helper()
+	RequireErrorCode(t, err, "MEMBERSHIP_REQUIRED", msgAndArgs...)
 }
 
 func RequireErrorCode(t *testing.T, err error, code string, msgAndArgs ...any) {

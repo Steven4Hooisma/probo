@@ -49,43 +49,29 @@
       "placeholderButton": "Placeholder button"
     }
   },
-  "overviewPage": {
-    "pageTitle": "Cookie Banners",
-    "title": "Cookie Banners",
-    "description": "Manage cookie consent banners for your websites. Configure categories, cookies, and install the SDK.",
-    "messages": { "successTitle": "Success", "deleted": "Cookie banner deleted successfully" },
-    "errors": { "title": "Error", "delete": "Failed to delete cookie banner" },
-    "deleteConfirmation": "This will permanently delete the cookie banner \"{{name}}\". This action cannot be undone.",
-    "actions": { "createFirst": "Create your first banner", "create": "Create banner", "delete": "Delete" },
-    "status": { "active": "Active", "inactive": "Inactive" }
-  },
-  "emptyState": {
-    "title": "No cookie banners yet",
-    "description": "Create your first cookie consent banner to start collecting GDPR-compliant consent from your website visitors.",
-    "steps": {
-      "create": { "title": "Create a banner", "description": "Set up your cookie consent banner with a name, origin URL, and privacy policy link." },
-      "categories": { "title": "Configure categories", "description": "Organize your cookies into categories like Analytics, Advertising, and Functional." },
-      "sdk": { "title": "Install the SDK", "description": "Add a single script tag or import the ES module to start collecting consent." }
-    }
-  },
   "translationsPage": {
     "necessaryFallback": "Necessary",
     "languageDefault": "{{language}} (default)",
     "defaultLanguageDescription": "This is the default language. These translations are shown when a visitor's language is not available."
+  },
+  "trackerAttribution": {
+    "firstParty": "First party",
+    "thirdParty": "Third party",
+    "visitorSoftware": "Visitor software",
+    "undetermined": "Undetermined"
   },
   "trackerPatternRowEdit": {
     "fields": { "description": "Description", "descriptionPlaceholder": "Description", "maxAge": "Max age" },
     "actions": { "save": "Save", "cancel": "Cancel" }
   },
   "trackerPatternRow": {
-    "messages": { "successTitle": "Success", "cookieDeleted": "Cookie deleted", "cookieMoved": "Cookie moved", "thirdPartyImported": "Third party imported", "cookieUpdated": "Cookie updated" },
-    "errors": { "title": "Error", "deleteCookie": "Failed to delete cookie", "moveCookie": "Failed to move cookie", "updateCookie": "Failed to update cookie", "importThirdParty": "Failed to import third party" },
+    "messages": { "successTitle": "Success", "cookieDeleted": "Cookie deleted", "cookieMoved": "Cookie moved", "cookieUpdated": "Cookie updated" },
+    "errors": { "title": "Error", "deleteCookie": "Failed to delete cookie", "moveCookie": "Failed to move cookie", "updateCookie": "Failed to update cookie" },
     "deleteConfirmation": "Are you sure you want to delete \"{{name}}\"?",
-    "actions": { "edit": "Edit", "importThirdParties": "Import to third parties", "include": "Include", "exclude": "Exclude", "delete": "Delete" },
+    "actions": { "edit": "Edit", "include": "Include", "exclude": "Exclude", "delete": "Delete" },
     "types": { "cookie": "Cookie", "localStorage": "localStorage", "sessionStorage": "sessionStorage", "indexedDb": "IndexedDB", "cacheStorage": "Cache storage" },
     "sources": { "script": "Script", "preExisting": "Pre-existing", "http": "HTTP", "extension": "Extension" },
-    "duration": { "session": "Session", "persistent": "Persistent", "second_one": "{{count}} second", "second_other": "{{count}} seconds", "minute_one": "{{count}} minute", "minute_other": "{{count}} minutes", "hour_one": "{{count}} hour", "hour_other": "{{count}} hours", "day_one": "{{count}} day", "day_other": "{{count}} days", "week_one": "{{count}} week", "week_other": "{{count}} weeks", "month_one": "{{count}} month", "month_other": "{{count}} months", "year_one": "{{count}} year", "year_other": "{{count}} years" },
-    "commonCatalog": "Common catalog"
+    "duration": { "session": "Session", "persistent": "Persistent" }
   },
   "trackerProperties": {
     "messages": { "successTitle": "Success", "moved": "Cookie moved", "copiedTitle": "Copied", "idCopied": "Common tracker ID copied to clipboard" },
@@ -94,8 +80,7 @@
     "matchTypes": { "exact": "Exact", "glob": "Glob" },
     "trackerTypes": { "cookie": "Cookie", "localStorage": "localStorage", "sessionStorage": "sessionStorage", "indexedDb": "IndexedDB", "cacheStorage": "Cache storage" },
     "sources": { "script": "Script", "preExisting": "Pre-existing", "http": "HTTP", "extension": "Extension" },
-    "duration": { "session": "Session", "persistent": "Persistent", "second_one": "{{count}} second", "second_other": "{{count}} seconds", "minute_one": "{{count}} minute", "minute_other": "{{count}} minutes", "hour_one": "{{count}} hour", "hour_other": "{{count}} hours", "day_one": "{{count}} day", "day_other": "{{count}} days", "week_one": "{{count}} week", "week_other": "{{count}} weeks", "month_one": "{{count}} month", "month_other": "{{count}} months", "year_one": "{{count}} year", "year_other": "{{count}} years" },
-    "commonCatalog": "Common catalog", "manual": "Manual", "boolean": { "yes": "Yes", "no": "No" }
+    "manual": "Manual", "boolean": { "yes": "Yes", "no": "No" }
   },
   "detectedTrackersSection": {
     "title": "Detected trackers",
@@ -107,9 +92,6 @@
   "detectedTrackerRow": {
     "sources": { "script": "Script", "preExisting": "Pre-existing", "http": "HTTP", "extension": "Extension" },
     "duration": { "second_one": "{{count}} second", "second_other": "{{count}} seconds" }
-  },
-  "trackerPatternDetailPage": {
-    "breadcrumbs": { "index": "Cookie banners", "trackers": "Trackers" }
   },
   "trackersPage": {
     "filters": { "search": "Search by name or description...", "allThirdParties": "All third parties", "allCategories": "All categories" },
@@ -129,8 +111,17 @@
     "title": "Settings",
     "messages": { "successTitle": "Success", "updated": "Banner settings updated" },
     "errors": { "title": "Error", "update": "Failed to update" },
-    "fields": { "name": "Name", "origin": "Origin URL", "cookiePolicyUrl": "Cookie policy URL", "privacyPolicyUrl": "Privacy policy URL", "consentExpiryDays": "Consent expiry (days)", "defaultLanguage": "Default language" },
-    "languages": { "english": "English", "french": "French", "german": "German", "spanish": "Spanish" },
+    "fields": {
+      "name": "Name",
+      "origin": "Origin URL",
+      "cookiePolicyUrl": "Cookie policy URL",
+      "privacyPolicyUrl": "Privacy policy URL",
+      "consentExpiryDays": "Consent expiry (days)",
+      "defaultLanguage": "Default language",
+      "resourceReportingEnabled": "Resource reporting",
+      "resourceReportingEnabledHelp": "When enabled, the banner SDK detects and reports third-party scripts, iframes, and other resources."
+    },
+    "languages": { "english": "English", "french": "French", "german": "German", "spanish": "Spanish", "dutch": "Dutch" },
     "actions": { "saving": "Saving...", "save": "Save" }
   },
   "trackerResourceRowEdit": {
@@ -199,34 +190,31 @@
   "consentRecordsPage": {
     "filters": { "allActions": "All actions", "visitorId": "Visitor ID", "bannerVersion": "Banner version" },
     "actions": { "acceptAll": "Accept all", "rejectAll": "Reject all", "customize": "Customize", "gpc": "GPC", "acknowledge": "Acknowledge" },
-    "columns": { "visitorId": "Visitor ID", "action": "Action", "bannerVersion": "Banner version", "ipAddress": "IP address", "sdkVersion": "SDK version", "regulation": "Regulation", "source": "Source", "country": "Country", "date": "Date" },
+    "columns": { "visitorId": "Visitor ID", "action": "Action", "bannerVersion": "Banner version", "ipAddress": "IP address", "sdkVersion": "SDK version", "regulation": "Regulation", "source": "Source", "country": "Country", "subdivision": "Subdivision", "date": "Date" },
     "empty": { "title": "No consent records", "description": "Consent records will appear here once visitors interact with your cookie banner." }
   },
   "consentRecordPage": {
-    "breadcrumbs": { "index": "Cookie banners", "records": "Consent records" },
     "title": "Consent record",
-    "properties": { "visitorId": "Visitor ID", "action": "Action", "bannerVersion": "Banner version", "ipAddress": "IP address", "userAgent": "User agent", "sdkVersion": "SDK version", "regulation": "Regulation", "regulationSource": "Regulation source", "country": "Country", "date": "Date" },
+    "properties": { "visitorId": "Visitor ID", "action": "Action", "bannerVersion": "Banner version", "ipAddress": "IP address", "userAgent": "User agent", "sdkVersion": "SDK version", "regulation": "Regulation", "regulationSource": "Regulation source", "country": "Country", "subdivision": "Subdivision", "date": "Date" },
     "actions": { "accept_all": "Accept all", "reject_all": "Reject all", "customize": "Customize", "gpc": "GPC", "acknowledge": "Acknowledge" },
     "consentData": "Consent data",
     "required": "(Required)",
     "consent": { "accepted": "Accepted", "rejected": "Rejected" },
-    "cookies": { "columns": { "cookie": "Cookie", "duration": "Duration", "description": "Description" } },
-    "duration": { "session": "Session", "persistent": "Persistent", "year_one": "{{count}} year", "year_other": "{{count}} years", "month_one": "{{count}} month", "month_other": "{{count}} months", "week_one": "{{count}} week", "week_other": "{{count}} weeks", "day_one": "{{count}} day", "day_other": "{{count}} days", "hour_one": "{{count}} hour", "hour_other": "{{count}} hours", "minute_one": "{{count}} minute", "minute_other": "{{count}} minutes", "second_one": "{{count}} second", "second_other": "{{count}} seconds" }
-  },
+    "cookies": { "columns": { "cookie": "Cookie", "duration": "Duration", "description": "Description" } }
+    },
   "configLayout": {
-    "breadcrumbs": { "index": "Cookie banners" },
     "version": "v{{version}}",
     "draft": " (draft)",
     "metadata": { "origin": "Origin", "id": "ID", "cookiePolicy": "Cookie policy" },
-    "messages": { "successTitle": "Success", "copiedTitle": "Copied", "activated": "Banner activated", "deactivated": "Banner deactivated", "published": "Version published", "idCopied": "Banner ID copied to clipboard" },
-    "errors": { "title": "Error", "activate": "Failed to activate", "deactivate": "Failed to deactivate", "publish": "Failed to publish" },
+    "messages": { "successTitle": "Success", "copiedTitle": "Copied", "activated": "Banner activated", "deactivated": "Banner deactivated", "published": "Version published", "idCopied": "Banner ID copied to clipboard", "deleted": "Cookie banner deleted successfully" },
+    "errors": { "title": "Error", "activate": "Failed to activate", "deactivate": "Failed to deactivate", "publish": "Failed to publish", "delete": "Failed to delete cookie banner" },
+    "deleteConfirmation": "This will permanently delete the cookie banner \"{{name}}\". This action cannot be undone.",
     "status": { "active": "Active", "inactive": "Inactive" },
-    "actions": { "publishing": "Publishing...", "publish": "Publish changes", "activate": "Activate", "deactivate": "Deactivate" },
-    "tabs": { "display": "Display", "settings": "Settings", "translations": "Translations", "trackers": "Trackers", "resources": "Resources", "consentRecords": "Consent records" }
+    "actions": { "publishing": "Publishing...", "publish": "Publish changes", "activate": "Activate", "deactivate": "Deactivate", "delete": "Delete" },
+    "tabs": { "display": "Display", "settings": "Settings", "translations": "Translations", "trackers": "Trackers", "resources": "Resources" }
   },
   "newCookieBannerPage": {
     "pageTitle": "New cookie banner",
-    "breadcrumbs": { "index": "Cookie banners", "new": "New" },
     "title": "Create cookie banner",
     "description": "Set up a new cookie consent banner with its origin URL and consent configuration.",
     "messages": { "successTitle": "Success", "created": "Cookie banner created successfully" },
@@ -239,5 +227,54 @@
       "consentExpiryDays": "Consent expiry (days)"
     },
     "actions": { "creating": "Creating...", "create": "Create banner" }
+  },
+  "tcfPage": {
+    "title": "TCF vendors",
+    "description": "Choose which IAB Global Vendor List vendors this banner discloses.",
+    "searchPlaceholder": "Search vendors",
+    "stats": {
+      "vendors": "Vendors",
+      "catalog": "Catalog",
+      "draft": "draft",
+      "live": "live",
+      "gvl": "GVL",
+      "tcfPolicy": "TCF policy",
+      "empty": "—",
+      "version": "v{{version}}",
+      "catalogTotal_one": "{{count}} vendor",
+      "catalogTotal_other": "{{count}} vendors",
+      "unpublishedAdded_one": "{{count}} vendor to add",
+      "unpublishedAdded_other": "{{count}} vendors to add",
+      "unpublishedRemoved_one": "{{count}} vendor to remove",
+      "unpublishedRemoved_other": "{{count}} vendors to remove",
+      "unpublishedChanged": "{{added}} to add, {{removed}} to remove",
+      "unpublishedNever": "Not published yet"
+    },
+    "emptyCatalog": "No GVL vendors are imported yet. Run gvl-import to fill the catalog.",
+    "emptyFiltered": "No matching vendors",
+    "emptyFilteredDescription": "Try a different name, IAB vendor ID, or membership filter.",
+    "filter": {
+      "label": "Vendor membership",
+      "all": "All vendors",
+      "on": "On this banner",
+      "off": "Not on this banner"
+    },
+    "previous": "Prev",
+    "next": "Next",
+    "noUpdatePermission": "You do not have permission to change TCF vendors.",
+    "iabVendorId": "IAB {{id}}",
+    "policy": "Privacy policy",
+    "notFound": "Page not found",
+    "actions": {
+      "clearSearch": "Clear filters",
+      "add": "Add",
+      "remove": "Remove",
+      "addVendor": "Add {{name}} to this banner",
+      "removeVendor": "Remove {{name}} from this banner"
+    },
+    "errors": {
+      "add": "Failed to add vendor",
+      "remove": "Failed to remove vendor"
+    }
   }
 }

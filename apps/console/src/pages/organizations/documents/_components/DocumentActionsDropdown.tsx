@@ -201,7 +201,7 @@ export function DocumentActionsDropdown(props: {
               } else {
                 toast({ title: t("documentActions.messages.successTitle"), description: t("documentActions.messages.draftDeleted"), variant: "success" });
                 onVersionChanged();
-                void navigate(`/organizations/${organizationId}/documents/${document.id}/description`);
+                void navigate(`/organizations/${organizationId}/governance/documents/${document.id}/description`);
               }
               resolve();
             },
@@ -228,14 +228,14 @@ export function DocumentActionsDropdown(props: {
   const handleExportDocumentVersion = (options: {
     withWatermark: boolean;
     withSignatures: boolean;
-    watermarkEmail?: string;
+    watermarkText?: string;
   }) => {
     const input = {
       documentVersionId: version.id,
       withWatermark: options.withWatermark,
       withSignatures: options.withSignatures,
       ...(options.withWatermark
-        && options.watermarkEmail && { watermarkEmail: options.watermarkEmail }),
+        && options.watermarkText && { watermarkText: options.watermarkText }),
     };
 
     exportDocumentVersion({
@@ -278,7 +278,7 @@ export function DocumentActionsDropdown(props: {
         documentId={document.id}
         documentTitle={version.title}
         connections={[documentsConnectionId]}
-        onSuccess={() => void navigate(`/organizations/${organizationId}/documents`)}
+        onSuccess={() => void navigate(`/organizations/${organizationId}/governance/documents`)}
       />
       <ActionDropdown variant="secondary">
         <DropdownItem

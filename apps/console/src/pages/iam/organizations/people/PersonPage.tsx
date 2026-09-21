@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { ActionDropdown, Avatar, Badge, Breadcrumb, Card, DropdownItem, IconArchive, IconTrashCan, useConfirm } from "@probo/ui";
+import { usePageTitle } from "@probo/hooks";
+import { ActionDropdown, Badge, Card, DropdownItem, IconArchive, IconTrashCan, useConfirm } from "@probo/ui";
+import { Avatar } from "@probo/ui/src/v2/Avatar/Avatar";
 import { useTranslation } from "react-i18next";
 import { type PreloadedQuery, usePreloadedQuery } from "react-relay";
 import { useNavigate } from "react-router";
@@ -40,6 +42,9 @@ export const personPageQuery = graphql`
         emailAddress
         source
         state
+        avatar {
+          downloadUrl
+        }
         canDeactivate: permission(action: "iam:membership-profile:deactivate")
         canRemoveMember: permission(action: "iam:membership:delete")
         ...PersonFormFragment
@@ -81,6 +86,8 @@ export function PersonPage(props: { queryRef: PreloadedQuery<PersonPageQuery> })
     throw new Error("invalid type for node");
   }
 
+  usePageTitle(person.fullName);
+
   const [deactivateUser, isDeactivating] = useMutationWithToasts(
     deactivateUserMutation,
     {
@@ -108,7 +115,7 @@ export function PersonPage(props: { queryRef: PreloadedQuery<PersonPageQuery> })
             },
           },
           onCompleted: () => {
-            void navigate(`/organizations/${organizationId}/people`);
+            void navigate(`/organizations/${organizationId}/settings/people`);
           },
         });
       },
@@ -129,7 +136,7 @@ export function PersonPage(props: { queryRef: PreloadedQuery<PersonPageQuery> })
             },
           },
           onCompleted: () => {
-            void navigate(`/organizations/${organizationId}/people`);
+            void navigate(`/organizations/${organizationId}/settings/people`);
           },
         });
       },
@@ -144,20 +151,15 @@ export function PersonPage(props: { queryRef: PreloadedQuery<PersonPageQuery> })
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          {
-            label: t("personPage.breadcrumb.people"),
-            to: `/organizations/${organizationId}/people`,
-          },
-          {
-            label: person.fullName,
-          },
-        ]}
-      />
       <div className="flex justify-between">
         <div className="flex items-center gap-6">
-          <Avatar name={person.fullName} size="xl" />
+          <Avatar
+            name={person.fullName}
+            email={person.emailAddress}
+            src={person.avatar?.downloadUrl}
+            size={5}
+            radius="full"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="text-2xl">{person.fullName}</span>

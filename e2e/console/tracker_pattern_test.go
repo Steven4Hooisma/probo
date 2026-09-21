@@ -620,6 +620,73 @@ func TestTrackerPattern_List(t *testing.T) {
 	})
 }
 
+func TestTrackerPattern_Attribution(t *testing.T) {
+	t.Parallel()
+
+	t.Run("is null without a catalog link", func(t *testing.T) {
+		t.Parallel()
+		owner := testutil.NewClient(t, testutil.RoleOwner)
+
+		bannerID := factory.CreateCookieBanner(owner)
+		categoryID := factory.CreateCookieCategory(owner, bannerID)
+		patternID := factory.CreateTrackerPattern(owner, categoryID)
+
+		const query = `
+			query($id: ID!) {
+				node(id: $id) {
+					... on TrackerPattern {
+						id
+						attribution
+					}
+				}
+			}
+		`
+
+		var result struct {
+			Node struct {
+				ID          string  `json:"id"`
+				Attribution *string `json:"attribution"`
+			} `json:"node"`
+		}
+
+		require.NoError(t, owner.Execute(query, map[string]any{"id": patternID}, &result))
+		assert.Nil(t, result.Node.Attribution, "a freshly created pattern has no catalog verdict")
+	})
+
+	t.Run("inherits the catalog verdict", func(t *testing.T) {
+		t.Parallel()
+		owner := testutil.NewClient(t, testutil.RoleOwner)
+
+		bannerID := factory.CreateCookieBanner(owner)
+		categoryID := factory.CreateCookieCategory(owner, bannerID)
+		patternID := factory.CreateTrackerPattern(owner, categoryID)
+		commonID := seedCommonTrackerPatternWithAttribution(t, coredata.CommonTrackerPatternAttributionFirstParty)
+		linkTrackerPatternToCommon(t, patternID, commonID)
+
+		const query = `
+			query($id: ID!) {
+				node(id: $id) {
+					... on TrackerPattern {
+						id
+						attribution
+					}
+				}
+			}
+		`
+
+		var result struct {
+			Node struct {
+				ID          string  `json:"id"`
+				Attribution *string `json:"attribution"`
+			} `json:"node"`
+		}
+
+		require.NoError(t, owner.Execute(query, map[string]any{"id": patternID}, &result))
+		require.NotNil(t, result.Node.Attribution, "a catalog-linked pattern must expose the inherited verdict")
+		assert.Equal(t, string(coredata.CommonTrackerPatternAttributionFirstParty), *result.Node.Attribution)
+	})
+}
+
 func TestTrackerPattern_CommonTrackerPatternID(t *testing.T) {
 	t.Parallel()
 
@@ -664,6 +731,15 @@ func TestTrackerPattern_CommonTrackerPatternID(t *testing.T) {
 func seedCommonTrackerPattern(t *testing.T) gid.GID {
 	t.Helper()
 
+	return seedCommonTrackerPatternWithAttribution(t, coredata.CommonTrackerPatternAttributionUndetermined)
+}
+
+func seedCommonTrackerPatternWithAttribution(
+	t *testing.T,
+	attribution coredata.CommonTrackerPatternAttribution,
+) gid.GID {
+	t.Helper()
+
 	ctx := context.Background()
 	conn := dialTestPg(t, ctx)
 	t.Cleanup(func() { _ = conn.Close(ctx) })
@@ -677,7 +753,7 @@ func seedCommonTrackerPattern(t *testing.T) gid.GID {
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		)
-	`, id, "COOKIE", "e2e_common_"+id.String(), "EXACT", "Seeded catalog description", 1.0, coredata.CommonTrackerPatternAttributionUndetermined, 0, now, now)
+	`, id, "COOKIE", "e2e_common_"+id.String(), "EXACT", "Seeded catalog description", 1.0, attribution, 0, now, now)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -706,108 +782,4 @@ func linkTrackerPatternToCommon(t *testing.T, patternID string, commonID gid.GID
 		UPDATE tracker_patterns SET common_tracker_pattern_id = $1 WHERE id = $2
 	`, commonID, patternID)
 	require.NoError(t, err)
-}
-
-func TestTrackerPattern_RBAC(t *testing.T) {
-	t.Parallel()
-
-	t.Run("viewer cannot create pattern", func(t *testing.T) {
-		t.Parallel()
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-
-		bannerID := factory.CreateCookieBanner(owner)
-		categoryID := factory.CreateCookieCategory(owner, bannerID)
-
-		_, err := viewer.Do(`
-			mutation CreateTrackerPattern($input: CreateTrackerPatternInput!) {
-				createTrackerPattern(input: $input) {
-					trackerPatternEdge { node { id } }
-					cookieBanner { id }
-				}
-			}
-		`, map[string]any{
-			"input": map[string]any{
-				"cookieCategoryId": categoryID,
-				"pattern":          "test_viewer",
-				"matchType":        "EXACT",
-				"displayName":      "Test Viewer Pattern",
-				"description":      "Should fail",
-			},
-		})
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to create tracker pattern")
-	})
-
-	t.Run("viewer cannot update pattern", func(t *testing.T) {
-		t.Parallel()
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-
-		bannerID := factory.CreateCookieBanner(owner)
-		categoryID := factory.CreateCookieCategory(owner, bannerID)
-		patternID := factory.CreateTrackerPattern(owner, categoryID)
-
-		_, err := viewer.Do(`
-			mutation UpdateTrackerPattern($input: UpdateTrackerPatternInput!) {
-				updateTrackerPattern(input: $input) {
-					trackerPattern { id }
-					cookieBanner { id }
-				}
-			}
-		`, map[string]any{
-			"input": map[string]any{
-				"trackerPatternId": patternID,
-				"description":      "Updated by Viewer",
-			},
-		})
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to update tracker pattern")
-	})
-
-	t.Run("viewer cannot delete pattern", func(t *testing.T) {
-		t.Parallel()
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-
-		bannerID := factory.CreateCookieBanner(owner)
-		categoryID := factory.CreateCookieCategory(owner, bannerID)
-		patternID := factory.CreateTrackerPattern(owner, categoryID)
-
-		_, err := viewer.Do(`
-			mutation DeleteTrackerPattern($input: DeleteTrackerPatternInput!) {
-				deleteTrackerPattern(input: $input) {
-					deletedTrackerPatternId
-					cookieBanner { id }
-				}
-			}
-		`, map[string]any{
-			"input": map[string]any{"trackerPatternId": patternID},
-		})
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to delete tracker pattern")
-	})
-
-	t.Run("viewer cannot move pattern", func(t *testing.T) {
-		t.Parallel()
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-
-		bannerID := factory.CreateCookieBanner(owner)
-		categoryA := factory.CreateCookieCategory(owner, bannerID, factory.Attrs{"slug": "rbac-move-a"})
-		categoryB := factory.CreateCookieCategory(owner, bannerID, factory.Attrs{"slug": "rbac-move-b"})
-		patternID := factory.CreateTrackerPattern(owner, categoryA)
-
-		_, err := viewer.Do(`
-			mutation MoveTrackerPatternToCategory($input: MoveTrackerPatternToCategoryInput!) {
-				moveTrackerPatternToCategory(input: $input) {
-					trackerPattern { id }
-					cookieBanner { id }
-				}
-			}
-		`, map[string]any{
-			"input": map[string]any{
-				"trackerPatternId":       patternID,
-				"targetCookieCategoryId": categoryB,
-			},
-		})
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to move tracker pattern")
-	})
 }

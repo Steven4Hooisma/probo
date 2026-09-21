@@ -19,10 +19,13 @@
 // SOFTWARE.
 
 import type { IExecuteFunctions, INodeExecutionData, INodeProperties } from 'n8n-workflow';
+import * as aiSystem from './aiSystem';
 import * as accessReview from './accessReview';
+import * as accessReviewSource from './accessReviewSource';
 import * as asset from './asset';
 import * as audit from './audit';
 import * as auditLog from './auditLog';
+import * as businessFunction from './businessFunction';
 import * as control from './control';
 import * as cookieBanner from './cookieBanner';
 import * as cookieCategory from './cookieCategory';
@@ -43,11 +46,14 @@ import * as organizationContext from './organizationContext';
 import * as processingActivity from './processingActivity';
 import * as rightsRequest from './rightsRequest';
 import * as resourceAlias from './resourceAlias';
-import * as riskAssessment from './riskAssessment';
+import * as riskAnalysis from './riskAnalysis';
 import * as user from './user';
 import * as risk from './risk';
 import * as statementOfApplicability from './statementOfApplicability';
+import * as treatmentPlan from './treatmentPlan';
 import * as task from './task';
+import * as taskComment from './taskComment';
+import * as taskActivity from './taskActivity';
 import * as tia from './tia';
 import * as compliancePortal from './compliancePortal';
 import * as thirdParty from './thirdParty';
@@ -64,10 +70,13 @@ export interface OperationModule {
 }
 
 export const resources: Record<string, ResourceModule> = {
+	aiSystem: aiSystem as ResourceModule,
 	accessReview: accessReview as ResourceModule,
+	accessReviewSource: accessReviewSource as ResourceModule,
 	asset: asset as ResourceModule,
 	audit: audit as ResourceModule,
 	auditLog: auditLog as ResourceModule,
+	businessFunction: businessFunction as ResourceModule,
 	control: control as ResourceModule,
 	cookieBanner: cookieBanner as ResourceModule,
 	cookieCategory: cookieCategory as ResourceModule,
@@ -88,11 +97,14 @@ export const resources: Record<string, ResourceModule> = {
 	processingActivity: processingActivity as ResourceModule,
 	rightsRequest: rightsRequest as ResourceModule,
 	resourceAlias: resourceAlias as ResourceModule,
-	riskAssessment: riskAssessment as ResourceModule,
+	riskAnalysis: riskAnalysis as ResourceModule,
 	user: user as ResourceModule,
 	risk: risk as ResourceModule,
 	statementOfApplicability: statementOfApplicability as ResourceModule,
 	task: task as ResourceModule,
+	taskComment: taskComment as ResourceModule,
+	taskActivity: taskActivity as ResourceModule,
+	treatmentPlan: treatmentPlan as ResourceModule,
 	tia: tia as ResourceModule,
 	compliancePortal: compliancePortal as ResourceModule,
 	thirdParty: thirdParty as ResourceModule,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { usePageTitle } from "@probo/hooks";
 import { Button, PageHeader } from "@probo/ui";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,6 +51,7 @@ export function PeoplePage(props: {
 
   const organizationId = useOrganizationId();
   const { t } = useTranslation();
+  usePageTitle(t("nav.users"));
 
   const [connectionId, setConnectionId] = useState<DataID>(
     ConnectionHandler.getConnectionID(
@@ -72,7 +74,7 @@ export function PeoplePage(props: {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("peoplePage.title")}>
+      <PageHeader title={t("nav.users")}>
         {organization.canCreateUser
           && (
             <AddPersonDialog connectionId={connectionId}>

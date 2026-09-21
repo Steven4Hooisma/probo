@@ -233,6 +233,15 @@ input DocumentFilter {
     documentTypes: [DocumentType!]
     classifications: [DocumentClassification!]
     status: [DocumentStatus!]
+    published: Boolean
+}
+
+input EmployeeDocumentFilter
+    @goModel(
+        model: "go.probo.inc/probo/pkg/server/api/console/v1/types.EmployeeDocumentFilter"
+    ) {
+    signed: Boolean
+    approvalStates: [DocumentVersionApprovalDecisionState!]
 }
 
 input DocumentVersionFilter {
@@ -270,6 +279,12 @@ type Document implements Node {
     currentPublishedMinor: Int
     alias: String @goField(forceResolver: true)
     organization: Organization! @goField(forceResolver: true)
+    compliancePortalDocument(
+        compliancePortalId: ID!
+    ): CompliancePortalDocument @goField(forceResolver: true)
+    compliancePortalDocumentAccess(
+        compliancePortalAccessId: ID!
+    ): CompliancePortalDocumentAccess @goField(forceResolver: true)
 
     versions(
         first: Int
@@ -504,6 +519,7 @@ type EmployeeDocumentConnection
     @goModel(
         model: "go.probo.inc/probo/pkg/server/api/console/v1/types.EmployeeDocumentConnection"
     ) {
+    totalCount: Int! @goField(forceResolver: true)
     edges: [EmployeeDocumentEdge!]!
     pageInfo: PageInfo!
 }
@@ -520,6 +536,7 @@ type EmployeeDocumentVersionConnection
     @goModel(
         model: "go.probo.inc/probo/pkg/server/api/console/v1/types.EmployeeDocumentVersionConnection"
     ) {
+    totalCount: Int! @goField(forceResolver: true)
     edges: [EmployeeDocumentVersionEdge!]!
     pageInfo: PageInfo!
 }
@@ -560,9 +577,6 @@ extend type Mutation {
     bulkExportDocuments(
         input: BulkExportDocumentsInput!
     ): BulkExportDocumentsPayload!
-    generateDocumentChangelog(
-        input: GenerateDocumentChangelogInput!
-    ): GenerateDocumentChangelogPayload!
     requestSignature(input: RequestSignatureInput!): RequestSignaturePayload!
     bulkRequestSignatures(
         input: BulkRequestSignaturesInput!
@@ -622,7 +636,8 @@ input DeleteDocumentInput {
 input ExportDocumentVersionPDFInput {
     documentVersionId: ID!
     withWatermark: Boolean!
-    watermarkEmail: EmailAddr
+    watermarkText: String
+    watermarkEmail: EmailAddr @deprecated(reason: "Use watermarkText.")
     withSignatures: Boolean!
 }
 
@@ -662,12 +677,9 @@ input BulkUnarchiveDocumentsInput {
 input BulkExportDocumentsInput {
     documentIds: [ID!]!
     withWatermark: Boolean!
-    watermarkEmail: EmailAddr
+    watermarkText: String
+    watermarkEmail: EmailAddr @deprecated(reason: "Use watermarkText.")
     withSignatures: Boolean!
-}
-
-input GenerateDocumentChangelogInput {
-    documentId: ID!
 }
 
 input RequestSignatureInput {
@@ -787,8 +799,4 @@ type ApproveDocumentVersionPayload {
 
 type RejectDocumentVersionPayload {
     approvalDecision: DocumentVersionApprovalDecision!
-}
-
-type GenerateDocumentChangelogPayload {
-    changelog: String!
 }

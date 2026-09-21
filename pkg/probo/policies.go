@@ -27,6 +27,7 @@ import (
 
 var (
 	organizationCondition = policy.Equals("principal.organization_id", "resource.organization_id")
+	ownerCondition        = policy.Equals("principal.id", "resource.owner_id")
 )
 
 // OwnerPolicy defines permissions for organization owners.
@@ -66,6 +67,8 @@ var ViewerPolicy = policy.NewPolicy(
 		ActionControlGet, ActionControlList,
 		ActionMeasureGet, ActionMeasureList,
 		ActionTaskGet, ActionTaskList,
+		ActionTaskCommentGet, ActionTaskCommentList,
+		ActionTaskActivityGet, ActionTaskActivityList,
 		ActionEvidenceList,
 		ActionDocumentGet, ActionDocumentList,
 		ActionDocumentVersionGet, ActionDocumentVersionList,
@@ -79,6 +82,8 @@ var ViewerPolicy = policy.NewPolicy(
 		ActionReportGet, ActionReportGetReportUrl, ActionReportDownloadUrlGet,
 		ActionFindingGet, ActionFindingList,
 		ActionObligationGet, ActionObligationList,
+		ActionBusinessFunctionGet, ActionBusinessFunctionList,
+		ActionAiSystemGet, ActionAiSystemList,
 		ActionProcessingActivityGet, ActionProcessingActivityList,
 		ActionDataProtectionImpactAssessmentGet, ActionDataProtectionImpactAssessmentList,
 		ActionTransferImpactAssessmentGet, ActionTransferImpactAssessmentList,
@@ -93,13 +98,6 @@ var ViewerPolicy = policy.NewPolicy(
 		ActionCookieCategoryGet, ActionCookieCategoryList,
 		ActionCookieGet, ActionCookieList,
 		ActionCookieConsentRecordList,
-		ActionRiskAssessmentGet, ActionRiskAssessmentList,
-		ActionRiskAssessmentScopeGet, ActionRiskAssessmentScopeList,
-		ActionRiskAssessmentNodeGet, ActionRiskAssessmentNodeList,
-		ActionRiskAssessmentBoundaryGet, ActionRiskAssessmentBoundaryList,
-		ActionRiskAssessmentProcessGet, ActionRiskAssessmentProcessList,
-		ActionRiskAssessmentThreatGet, ActionRiskAssessmentThreatList,
-		ActionRiskAssessmentScenarioGet, ActionRiskAssessmentScenarioList,
 	).WithSID("entity-read-access").When(organizationCondition),
 
 	policy.Allow(ActionOrganizationContextGet).WithSID("organization-context-read").When(organizationCondition),
@@ -154,19 +152,14 @@ var AuditorPolicy = policy.NewPolicy(
 		ActionReportGet, ActionReportGetReportUrl, ActionReportDownloadUrlGet,
 		ActionFindingGet, ActionFindingList,
 		ActionObligationGet, ActionObligationList,
+		ActionBusinessFunctionGet, ActionBusinessFunctionList,
+		ActionAiSystemGet, ActionAiSystemList,
 		ActionProcessingActivityGet, ActionProcessingActivityList,
 		ActionDataProtectionImpactAssessmentGet, ActionDataProtectionImpactAssessmentList,
 		ActionTransferImpactAssessmentGet, ActionTransferImpactAssessmentList,
 		ActionFileGet,
 		ActionStatementOfApplicabilityGet, ActionStatementOfApplicabilityList,
 		ActionApplicabilityStatementGet, ActionApplicabilityStatementList,
-		ActionRiskAssessmentGet, ActionRiskAssessmentList,
-		ActionRiskAssessmentScopeGet, ActionRiskAssessmentScopeList,
-		ActionRiskAssessmentNodeGet, ActionRiskAssessmentNodeList,
-		ActionRiskAssessmentBoundaryGet, ActionRiskAssessmentBoundaryList,
-		ActionRiskAssessmentProcessGet, ActionRiskAssessmentProcessList,
-		ActionRiskAssessmentThreatGet, ActionRiskAssessmentThreatList,
-		ActionRiskAssessmentScenarioGet, ActionRiskAssessmentScenarioList,
 	).WithSID("entity-read-access").When(organizationCondition),
 
 	policy.Allow(
@@ -178,6 +171,21 @@ var AuditorPolicy = policy.NewPolicy(
 		ActionEmployeeDocumentVersionExportPDF,
 	).WithSID("employee-document-access").When(organizationCondition),
 ).WithDescription("Read-only probo access for auditors (excludes internal/employee content)")
+
+// TaskCommentOwnershipPolicy is attached to owner, admin, and viewer so
+// permission(action:) on a comment matches mutation authorization: only the
+// author can update; the author can delete; owner/admin still delete any
+// comment through core:* on their role policy.
+var TaskCommentOwnershipPolicy = policy.NewPolicy(
+	"probo:task-comment-ownership",
+	"Task Comment Ownership",
+	policy.Deny(ActionTaskCommentUpdate).
+		WithSID("deny-update-others-task-comments").
+		When(policy.NotEquals("principal.id", "resource.owner_id")),
+	policy.Allow(ActionTaskCommentUpdate, ActionTaskCommentDelete).
+		WithSID("manage-own-task-comment").
+		When(organizationCondition, ownerCondition),
+).WithDescription("Authors can update and delete their own task comments; nobody else can update them")
 
 // CommonThirdPartyCatalogPolicy grants every authenticated identity
 // read access to the global common third-party catalog. The catalog is
@@ -191,6 +199,18 @@ var CommonThirdPartyCatalogPolicy = policy.NewPolicy(
 		ActionCommonThirdPartyList,
 	).WithSID("read-common-third-party-catalog"),
 ).WithDescription("Allows every authenticated user to read the global common third-party catalog")
+
+// CommonGVLVendorCatalogPolicy grants every authenticated identity
+// read access to the global IAB GVL vendor catalog. The catalog is
+// shared across all tenants and has no organization scoping, so the
+// allow has no condition.
+var CommonGVLVendorCatalogPolicy = policy.NewPolicy(
+	"probo:common-gvl-vendor-catalog",
+	"Probo Common GVL Vendor Catalog",
+	policy.Allow(
+		ActionCommonGVLVendorList,
+	).WithSID("read-common-gvl-vendor-catalog"),
+).WithDescription("Allows every authenticated user to read the global IAB GVL vendor catalog")
 
 // EmployeePolicy defines permissions for employee role.
 var EmployeePolicy = policy.NewPolicy(
@@ -217,13 +237,68 @@ var EmployeePolicy = policy.NewPolicy(
 	).WithSID("document-version-approval").When(organizationCondition),
 ).WithDescription("Employee access - can sign documents, approve documents, and view internal content")
 
+// CompliancePortalManagerPolicy defines permissions needed to manage the
+// compliance portal and toggle portal visibility on related core entities.
+var CompliancePortalManagerPolicy = policy.NewPolicy(
+	"probo:compliance-portal-manager",
+	"Probo Compliance Portal Manager",
+	policy.Allow(
+		ActionOrganizationGet,
+		ActionOrganizationGetLogoUrl,
+		ActionOrganizationGetHorizontalLogoUrl,
+	).WithSID("org-read-access").When(organizationCondition),
+
+	policy.Allow(
+		ActionDocumentGet, ActionDocumentList, ActionDocumentUpdate,
+		ActionDocumentVersionGet, ActionDocumentVersionList,
+		ActionAuditGet, ActionAuditList, ActionAuditUpdate,
+		ActionReportGet, ActionReportGetReportUrl, ActionReportDownloadUrlGet,
+		ActionFrameworkGet, ActionFrameworkList,
+		ActionThirdPartyGet, ActionThirdPartyList, ActionThirdPartyUpdate,
+		ActionFileGet,
+		ActionElectronicSignatureGet,
+		ActionSlackConnectionList, ActionConnectorList,
+		ActionConnectorInitiate, ActionConnectorDelete,
+	).WithSID("compliance-portal-related-access").When(organizationCondition),
+).WithDescription("Access required to manage the compliance portal and related entity visibility")
+
+// CompliancePortalAccessManagerPolicy defines permissions needed to review and
+// approve compliance portal visitor access requests.
+//
+// Related document, audit, report, and file reads are intentionally
+// organization-scoped: access requests reference those entities by ID, and the
+// authorizer has no request-entitlement condition yet. Callers still only load
+// the IDs attached to requests they can list.
+var CompliancePortalAccessManagerPolicy = policy.NewPolicy(
+	"probo:compliance-portal-access-manager",
+	"Probo Compliance Portal Access Manager",
+	policy.Allow(
+		ActionOrganizationGet,
+		ActionOrganizationGetLogoUrl,
+		ActionOrganizationGetHorizontalLogoUrl,
+	).WithSID("org-read-access").When(organizationCondition),
+
+	policy.Allow(
+		ActionDocumentGet,
+		ActionDocumentVersionGet, ActionDocumentVersionList,
+		ActionAuditGet,
+		ActionReportGet, ActionReportGetReportUrl, ActionReportDownloadUrlGet,
+		ActionFrameworkGet,
+		ActionFileGet,
+		ActionElectronicSignatureGet,
+	).WithSID("compliance-portal-access-related").When(organizationCondition),
+).WithDescription("Organization-scoped read of entities that portal access requests may reference")
+
 // ProboPolicySet returns the PolicySet for the probo service.
 func ProboPolicySet() *iam.PolicySet {
 	return iam.NewPolicySet().
-		AddRolePolicy("OWNER", OwnerPolicy).
-		AddRolePolicy("ADMIN", AdminPolicy).
-		AddRolePolicy("VIEWER", ViewerPolicy).
+		AddRolePolicy("OWNER", OwnerPolicy, TaskCommentOwnershipPolicy).
+		AddRolePolicy("ADMIN", AdminPolicy, TaskCommentOwnershipPolicy).
+		AddRolePolicy("VIEWER", ViewerPolicy, TaskCommentOwnershipPolicy).
 		AddRolePolicy("AUDITOR", AuditorPolicy).
 		AddRolePolicy("EMPLOYEE", EmployeePolicy).
-		AddIdentityScopedPolicy(CommonThirdPartyCatalogPolicy)
+		AddRolePolicy("COMPLIANCE_PORTAL_MANAGER", CompliancePortalManagerPolicy).
+		AddRolePolicy("COMPLIANCE_PORTAL_ACCESS_MANAGER", CompliancePortalAccessManagerPolicy).
+		AddIdentityScopedPolicy(CommonThirdPartyCatalogPolicy).
+		AddIdentityScopedPolicy(CommonGVLVendorCatalogPolicy)
 }

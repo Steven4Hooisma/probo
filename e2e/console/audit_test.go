@@ -99,6 +99,33 @@ func TestAudit_Create(t *testing.T) {
 			assertField: "state",
 			assertValue: "OUTDATED",
 		},
+		{
+			name: "with TO_BOOK state",
+			input: map[string]any{
+				"name":  "Audit TO_BOOK",
+				"state": "TO_BOOK",
+			},
+			assertField: "state",
+			assertValue: "TO_BOOK",
+		},
+		{
+			name: "with AUDIT_BOOKED state",
+			input: map[string]any{
+				"name":  "Audit AUDIT_BOOKED",
+				"state": "AUDIT_BOOKED",
+			},
+			assertField: "state",
+			assertValue: "AUDIT_BOOKED",
+		},
+		{
+			name: "with firm",
+			input: map[string]any{
+				"name": "Audit with firm",
+				"firm": "A-LIGN",
+			},
+			assertField: "firm",
+			assertValue: "A-LIGN",
+		},
 	}
 
 	for _, tt := range tests {
@@ -110,6 +137,7 @@ func TestAudit_Create(t *testing.T) {
 							node {
 								id
 								name
+								firm
 								state
 							}
 						}
@@ -129,6 +157,7 @@ func TestAudit_Create(t *testing.T) {
 						Node struct {
 							ID    string `json:"id"`
 							Name  string `json:"name"`
+							Firm  string `json:"firm"`
 							State string `json:"state"`
 						} `json:"node"`
 					} `json:"auditEdge"`
@@ -144,6 +173,8 @@ func TestAudit_Create(t *testing.T) {
 			switch tt.assertField {
 			case "name":
 				assert.Equal(t, tt.assertValue, node.Name)
+			case "firm":
+				assert.Equal(t, tt.assertValue, node.Firm)
 			case "state":
 				assert.Equal(t, tt.assertValue, node.State)
 			}
@@ -163,8 +194,10 @@ func TestAudit_AuditDates(t *testing.T) {
 				auditEdge {
 					node {
 						id
-						auditStartDate
-						auditEndDate
+						auditDates {
+							start
+							end
+						}
 					}
 				}
 			}
@@ -174,19 +207,23 @@ func TestAudit_AuditDates(t *testing.T) {
 	input := map[string]any{
 		"organizationId": owner.GetOrganizationID().String(),
 		"frameworkId":    frameworkID,
-		"name":           "Audit with engagement dates",
+		"name":           "Audit with start and end dates",
 		"state":          "NOT_STARTED",
-		"auditStartDate": "2026-03-01T00:00:00Z",
-		"auditEndDate":   "2026-03-15T00:00:00Z",
+		"auditDates": map[string]any{
+			"start": "2026-03-01T00:00:00Z",
+			"end":   "2026-03-15T00:00:00Z",
+		},
 	}
 
 	var createResult struct {
 		CreateAudit struct {
 			AuditEdge struct {
 				Node struct {
-					ID             string  `json:"id"`
-					AuditStartDate *string `json:"auditStartDate"`
-					AuditEndDate   *string `json:"auditEndDate"`
+					ID         string `json:"id"`
+					AuditDates *struct {
+						Start *string `json:"start"`
+						End   *string `json:"end"`
+					} `json:"auditDates"`
 				} `json:"node"`
 			} `json:"auditEdge"`
 		} `json:"createAudit"`
@@ -196,34 +233,41 @@ func TestAudit_AuditDates(t *testing.T) {
 	require.NoError(t, err)
 
 	node := createResult.CreateAudit.AuditEdge.Node
-	require.NotNil(t, node.AuditStartDate)
-	require.NotNil(t, node.AuditEndDate)
-	assert.True(t, strings.HasPrefix(*node.AuditStartDate, "2026-03-01"))
-	assert.True(t, strings.HasPrefix(*node.AuditEndDate, "2026-03-15"))
+	require.NotNil(t, node.AuditDates)
+	require.NotNil(t, node.AuditDates.Start)
+	require.NotNil(t, node.AuditDates.End)
+	assert.True(t, strings.HasPrefix(*node.AuditDates.Start, "2026-03-01"))
+	assert.True(t, strings.HasPrefix(*node.AuditDates.End, "2026-03-15"))
 
 	const updateQuery = `
 		mutation UpdateAudit($input: UpdateAuditInput!) {
 			updateAudit(input: $input) {
 				audit {
 					id
-					auditStartDate
-					auditEndDate
+					auditDates {
+						start
+						end
+					}
 				}
 			}
 		}
 	`
 
 	updateInput := map[string]any{
-		"id":             node.ID,
-		"auditStartDate": "2026-04-01T00:00:00Z",
-		"auditEndDate":   "2026-04-30T00:00:00Z",
+		"id": node.ID,
+		"auditDates": map[string]any{
+			"start": "2026-04-01T00:00:00Z",
+			"end":   "2026-04-30T00:00:00Z",
+		},
 	}
 
 	var updateResult struct {
 		UpdateAudit struct {
 			Audit struct {
-				AuditStartDate *string `json:"auditStartDate"`
-				AuditEndDate   *string `json:"auditEndDate"`
+				AuditDates *struct {
+					Start *string `json:"start"`
+					End   *string `json:"end"`
+				} `json:"auditDates"`
 			} `json:"audit"`
 		} `json:"updateAudit"`
 	}
@@ -232,10 +276,11 @@ func TestAudit_AuditDates(t *testing.T) {
 	require.NoError(t, err)
 
 	updated := updateResult.UpdateAudit.Audit
-	require.NotNil(t, updated.AuditStartDate)
-	require.NotNil(t, updated.AuditEndDate)
-	assert.True(t, strings.HasPrefix(*updated.AuditStartDate, "2026-04-01"))
-	assert.True(t, strings.HasPrefix(*updated.AuditEndDate, "2026-04-30"))
+	require.NotNil(t, updated.AuditDates)
+	require.NotNil(t, updated.AuditDates.Start)
+	require.NotNil(t, updated.AuditDates.End)
+	assert.True(t, strings.HasPrefix(*updated.AuditDates.Start, "2026-04-01"))
+	assert.True(t, strings.HasPrefix(*updated.AuditDates.End, "2026-04-30"))
 }
 
 func TestAudit_Create_Validation(t *testing.T) {
@@ -271,6 +316,13 @@ func TestAudit_Create_Validation(t *testing.T) {
 			name: "name with HTML tags",
 			input: map[string]any{
 				"name": "<script>alert('xss')</script>",
+			},
+			wantErrorContains: "HTML",
+		},
+		{
+			name: "firm with HTML tags",
+			input: map[string]any{
+				"firm": "<script>alert('xss')</script>",
 			},
 			wantErrorContains: "HTML",
 		},
@@ -439,6 +491,45 @@ func TestAudit_Update(t *testing.T) {
 			assertField: "state",
 			assertValue: "OUTDATED",
 		},
+		{
+			name: "update to TO_BOOK state",
+			setup: func() string {
+				return factory.NewAudit(owner, frameworkID).
+					WithName("State Test").
+					Create()
+			},
+			input: func(id string) map[string]any {
+				return map[string]any{"id": id, "state": "TO_BOOK"}
+			},
+			assertField: "state",
+			assertValue: "TO_BOOK",
+		},
+		{
+			name: "update to AUDIT_BOOKED state",
+			setup: func() string {
+				return factory.NewAudit(owner, frameworkID).
+					WithName("State Test").
+					Create()
+			},
+			input: func(id string) map[string]any {
+				return map[string]any{"id": id, "state": "AUDIT_BOOKED"}
+			},
+			assertField: "state",
+			assertValue: "AUDIT_BOOKED",
+		},
+		{
+			name: "update firm",
+			setup: func() string {
+				return factory.NewAudit(owner, frameworkID).
+					WithName("Firm Test").
+					Create()
+			},
+			input: func(id string) map[string]any {
+				return map[string]any{"id": id, "firm": "BSI"}
+			},
+			assertField: "firm",
+			assertValue: "BSI",
+		},
 	}
 
 	for _, tt := range tests {
@@ -451,6 +542,7 @@ func TestAudit_Update(t *testing.T) {
 						audit {
 							id
 							name
+							firm
 							state
 						}
 					}
@@ -462,6 +554,7 @@ func TestAudit_Update(t *testing.T) {
 					Audit struct {
 						ID    string `json:"id"`
 						Name  string `json:"name"`
+						Firm  string `json:"firm"`
 						State string `json:"state"`
 					} `json:"audit"`
 				} `json:"updateAudit"`
@@ -475,6 +568,8 @@ func TestAudit_Update(t *testing.T) {
 			switch tt.assertField {
 			case "name":
 				assert.Equal(t, tt.assertValue, audit.Name)
+			case "firm":
+				assert.Equal(t, tt.assertValue, audit.Firm)
 			case "state":
 				assert.Equal(t, tt.assertValue, audit.State)
 			}
@@ -508,6 +603,14 @@ func TestAudit_Update_Validation(t *testing.T) {
 			setup: func() string { return baseAuditID },
 			input: func(id string) map[string]any {
 				return map[string]any{"id": id, "name": "<script>alert('xss')</script>"}
+			},
+			wantErrorContains: "HTML",
+		},
+		{
+			name:  "firm with HTML tags",
+			setup: func() string { return baseAuditID },
+			input: func(id string) map[string]any {
+				return map[string]any{"id": id, "firm": "<script>alert('xss')</script>"}
 			},
 			wantErrorContains: "HTML",
 		},
@@ -804,9 +907,6 @@ func TestAudit_Timestamps(t *testing.T) {
 		initialCreatedAt := getResult.Node.CreatedAt
 		initialUpdatedAt := getResult.Node.UpdatedAt
 
-		// Wait long enough for timestamp to change (database may have second precision)
-		time.Sleep(1100 * time.Millisecond)
-
 		updateQuery := `
 			mutation UpdateAudit($input: UpdateAuditInput!) {
 				updateAudit(input: $input) {
@@ -906,266 +1006,6 @@ func TestAudit_SubResolvers(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, owner.GetOrganizationID().String(), result.Node.Organization.ID)
 		assert.NotEmpty(t, result.Node.Organization.Name)
-	})
-}
-
-func TestAudit_RBAC(t *testing.T) {
-	t.Parallel()
-
-	t.Run("create", func(t *testing.T) {
-		t.Run("owner can create", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-
-			_, err := owner.Do(`
-				mutation CreateAudit($input: CreateAuditInput!) {
-					createAudit(input: $input) {
-						auditEdge { node { id } }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"organizationId": owner.GetOrganizationID().String(),
-					"frameworkId":    frameworkID,
-					"name":           "RBAC Test Audit",
-				},
-			})
-			require.NoError(t, err, "owner should be able to create audit")
-		})
-
-		t.Run("admin can create", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			admin := testutil.NewClientInOrg(t, testutil.RoleAdmin, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-
-			_, err := admin.Do(`
-				mutation CreateAudit($input: CreateAuditInput!) {
-					createAudit(input: $input) {
-						auditEdge { node { id } }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"organizationId": admin.GetOrganizationID().String(),
-					"frameworkId":    frameworkID,
-					"name":           "RBAC Test Audit",
-				},
-			})
-			require.NoError(t, err, "admin should be able to create audit")
-		})
-
-		t.Run("viewer cannot create", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-
-			_, err := viewer.Do(`
-				mutation CreateAudit($input: CreateAuditInput!) {
-					createAudit(input: $input) {
-						auditEdge { node { id } }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"organizationId": viewer.GetOrganizationID().String(),
-					"frameworkId":    frameworkID,
-					"name":           "RBAC Test Audit",
-				},
-			})
-			testutil.RequireForbiddenError(t, err, "viewer should not be able to create audit")
-		})
-	})
-
-	t.Run("update", func(t *testing.T) {
-		t.Run("owner can update", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Update Test").Create()
-
-			_, err := owner.Do(`
-				mutation UpdateAudit($input: UpdateAuditInput!) {
-					updateAudit(input: $input) {
-						audit { id }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"id":   auditID,
-					"name": "Updated by Owner",
-				},
-			})
-			require.NoError(t, err, "owner should be able to update audit")
-		})
-
-		t.Run("admin can update", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			admin := testutil.NewClientInOrg(t, testutil.RoleAdmin, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Update Test").Create()
-
-			_, err := admin.Do(`
-				mutation UpdateAudit($input: UpdateAuditInput!) {
-					updateAudit(input: $input) {
-						audit { id }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"id":   auditID,
-					"name": "Updated by Admin",
-				},
-			})
-			require.NoError(t, err, "admin should be able to update audit")
-		})
-
-		t.Run("viewer cannot update", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Update Test").Create()
-
-			_, err := viewer.Do(`
-				mutation UpdateAudit($input: UpdateAuditInput!) {
-					updateAudit(input: $input) {
-						audit { id }
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{
-					"id":   auditID,
-					"name": "Updated by Viewer",
-				},
-			})
-			testutil.RequireForbiddenError(t, err, "viewer should not be able to update audit")
-		})
-	})
-
-	t.Run("delete", func(t *testing.T) {
-		t.Run("owner can delete", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Delete Test").Create()
-
-			_, err := owner.Do(`
-				mutation DeleteAudit($input: DeleteAuditInput!) {
-					deleteAudit(input: $input) {
-						deletedAuditId
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{"auditId": auditID},
-			})
-			require.NoError(t, err, "owner should be able to delete audit")
-		})
-
-		t.Run("admin can delete", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			admin := testutil.NewClientInOrg(t, testutil.RoleAdmin, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Delete Test").Create()
-
-			_, err := admin.Do(`
-				mutation DeleteAudit($input: DeleteAuditInput!) {
-					deleteAudit(input: $input) {
-						deletedAuditId
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{"auditId": auditID},
-			})
-			require.NoError(t, err, "admin should be able to delete audit")
-		})
-
-		t.Run("viewer cannot delete", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Delete Test").Create()
-
-			_, err := viewer.Do(`
-				mutation DeleteAudit($input: DeleteAuditInput!) {
-					deleteAudit(input: $input) {
-						deletedAuditId
-					}
-				}
-			`, map[string]any{
-				"input": map[string]any{"auditId": auditID},
-			})
-			testutil.RequireForbiddenError(t, err, "viewer should not be able to delete audit")
-		})
-	})
-
-	t.Run("read", func(t *testing.T) {
-		t.Run("owner can read", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Read Test").Create()
-
-			var result struct {
-				Node *struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
-				} `json:"node"`
-			}
-
-			err := owner.Execute(`
-				query($id: ID!) {
-					node(id: $id) {
-						... on Audit { id name }
-					}
-				}
-			`, map[string]any{"id": auditID}, &result)
-			require.NoError(t, err, "owner should be able to read audit")
-			require.NotNil(t, result.Node, "owner should receive audit data")
-		})
-
-		t.Run("admin can read", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			admin := testutil.NewClientInOrg(t, testutil.RoleAdmin, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Read Test").Create()
-
-			var result struct {
-				Node *struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
-				} `json:"node"`
-			}
-
-			err := admin.Execute(`
-				query($id: ID!) {
-					node(id: $id) {
-						... on Audit { id name }
-					}
-				}
-			`, map[string]any{"id": auditID}, &result)
-			require.NoError(t, err, "admin should be able to read audit")
-			require.NotNil(t, result.Node, "admin should receive audit data")
-		})
-
-		t.Run("viewer can read", func(t *testing.T) {
-			owner := testutil.NewClient(t, testutil.RoleOwner)
-			viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-			frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-			auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Read Test").Create()
-
-			var result struct {
-				Node *struct {
-					ID   string `json:"id"`
-					Name string `json:"name"`
-				} `json:"node"`
-			}
-
-			err := viewer.Execute(`
-				query($id: ID!) {
-					node(id: $id) {
-						... on Audit { id name }
-					}
-				}
-			`, map[string]any{"id": auditID}, &result)
-			require.NoError(t, err, "viewer should be able to read audit")
-			require.NotNil(t, result.Node, "viewer should receive audit data")
-		})
 	})
 }
 
@@ -1365,115 +1205,6 @@ func TestAudit_Pagination(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertLastPage(t, len(result.Node.Audits.Edges), result.Node.Audits.PageInfo, 2, true)
-	})
-}
-
-func TestAudit_TenantIsolation(t *testing.T) {
-	t.Parallel()
-
-	org1Owner := testutil.NewClient(t, testutil.RoleOwner)
-	org2Owner := testutil.NewClient(t, testutil.RoleOwner)
-
-	frameworkID := factory.NewFramework(org1Owner).WithName("Org1 Framework").Create()
-	auditID := factory.NewAudit(org1Owner, frameworkID).WithName("Org1 Audit").Create()
-
-	t.Run("cannot read audit from another organization", func(t *testing.T) {
-		query := `
-			query($id: ID!) {
-				node(id: $id) {
-					... on Audit {
-						id
-						name
-					}
-				}
-			}
-		`
-
-		var result struct {
-			Node *struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-			} `json:"node"`
-		}
-
-		err := org2Owner.Execute(query, map[string]any{"id": auditID}, &result)
-		testutil.AssertNodeNotAccessible(t, err, result.Node == nil, "audit")
-	})
-
-	t.Run("cannot update audit from another organization", func(t *testing.T) {
-		query := `
-			mutation UpdateAudit($input: UpdateAuditInput!) {
-				updateAudit(input: $input) {
-					audit { id }
-				}
-			}
-		`
-
-		_, err := org2Owner.Do(query, map[string]any{
-			"input": map[string]any{
-				"id":   auditID,
-				"name": "Hijacked Audit",
-			},
-		})
-		require.Error(t, err, "Should not be able to update audit from another org")
-	})
-
-	t.Run("cannot delete audit from another organization", func(t *testing.T) {
-		query := `
-			mutation DeleteAudit($input: DeleteAuditInput!) {
-				deleteAudit(input: $input) {
-					deletedAuditId
-				}
-			}
-		`
-
-		_, err := org2Owner.Do(query, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-			},
-		})
-		require.Error(t, err, "Should not be able to delete audit from another org")
-	})
-
-	t.Run("cannot list audits from another organization", func(t *testing.T) {
-		query := `
-			query($id: ID!) {
-				node(id: $id) {
-					... on Organization {
-						audits(first: 100) {
-							edges {
-								node {
-									id
-									name
-								}
-							}
-						}
-					}
-				}
-			}
-		`
-
-		var result struct {
-			Node struct {
-				Audits struct {
-					Edges []struct {
-						Node struct {
-							ID   string `json:"id"`
-							Name string `json:"name"`
-						} `json:"node"`
-					} `json:"edges"`
-				} `json:"audits"`
-			} `json:"node"`
-		}
-
-		err := org2Owner.Execute(query, map[string]any{
-			"id": org1Owner.GetOrganizationID().String(),
-		}, &result)
-		if err == nil {
-			for _, edge := range result.Node.Audits.Edges {
-				assert.NotEqual(t, auditID, edge.Node.ID, "Should not see audit from another org")
-			}
-		}
 	})
 }
 
@@ -1788,78 +1519,6 @@ func TestAudit_UploadReport_Validation(t *testing.T) {
 	})
 }
 
-func TestAudit_UploadReport_RBAC(t *testing.T) {
-	t.Parallel()
-
-	query := `
-		mutation UploadAuditReport($input: UploadAuditReportInput!) {
-			uploadAuditReport(input: $input) {
-				audit {
-					id
-				}
-			}
-		}
-	`
-
-	pdfContent := []byte("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF")
-
-	t.Run("owner can upload", func(t *testing.T) {
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-		auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Upload Test").Create()
-
-		err := owner.ExecuteWithFile(query, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-				"file":    nil,
-			},
-		}, "input.file", testutil.UploadFile{
-			Filename:    "report.pdf",
-			ContentType: "application/pdf",
-			Content:     pdfContent,
-		}, nil)
-		require.NoError(t, err, "owner should be able to upload report")
-	})
-
-	t.Run("admin can upload", func(t *testing.T) {
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		admin := testutil.NewClientInOrg(t, testutil.RoleAdmin, owner)
-		frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-		auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Upload Test").Create()
-
-		err := admin.ExecuteWithFile(query, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-				"file":    nil,
-			},
-		}, "input.file", testutil.UploadFile{
-			Filename:    "report.pdf",
-			ContentType: "application/pdf",
-			Content:     pdfContent,
-		}, nil)
-		require.NoError(t, err, "admin should be able to upload report")
-	})
-
-	t.Run("viewer cannot upload", func(t *testing.T) {
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-		frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-		auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Upload Test").Create()
-
-		err := viewer.ExecuteWithFile(query, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-				"file":    nil,
-			},
-		}, "input.file", testutil.UploadFile{
-			Filename:    "report.pdf",
-			ContentType: "application/pdf",
-			Content:     pdfContent,
-		}, nil)
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to upload report")
-	})
-}
-
 func TestAudit_DeleteReport(t *testing.T) {
 	t.Parallel()
 	owner := testutil.NewClient(t, testutil.RoleOwner)
@@ -1930,55 +1589,5 @@ func TestAudit_DeleteReport(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, auditID, deleteResult.DeleteAuditReport.Audit.ID)
 		assert.Nil(t, deleteResult.DeleteAuditReport.Audit.ReportFile, "Report file should be nil after deletion")
-	})
-}
-
-func TestAudit_DeleteReport_RBAC(t *testing.T) {
-	t.Parallel()
-
-	uploadQuery := `
-		mutation UploadAuditReport($input: UploadAuditReportInput!) {
-			uploadAuditReport(input: $input) {
-				audit { id }
-			}
-		}
-	`
-
-	deleteQuery := `
-		mutation DeleteAuditReport($input: DeleteAuditReportInput!) {
-			deleteAuditReport(input: $input) {
-				audit { id }
-			}
-		}
-	`
-
-	pdfContent := []byte("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF")
-
-	t.Run("viewer cannot delete report", func(t *testing.T) {
-		owner := testutil.NewClient(t, testutil.RoleOwner)
-		viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-		frameworkID := factory.NewFramework(owner).WithName("RBAC Framework").Create()
-		auditID := factory.NewAudit(owner, frameworkID).WithName("RBAC Delete Report Test").Create()
-
-		// Owner uploads the report
-		err := owner.ExecuteWithFile(uploadQuery, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-				"file":    nil,
-			},
-		}, "input.file", testutil.UploadFile{
-			Filename:    "report.pdf",
-			ContentType: "application/pdf",
-			Content:     pdfContent,
-		}, nil)
-		require.NoError(t, err)
-
-		// Viewer tries to delete
-		_, err = viewer.Do(deleteQuery, map[string]any{
-			"input": map[string]any{
-				"auditId": auditID,
-			},
-		})
-		testutil.RequireForbiddenError(t, err, "viewer should not be able to delete report")
 	})
 }

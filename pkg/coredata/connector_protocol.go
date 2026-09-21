@@ -28,14 +28,10 @@ import (
 type ConnectorProtocol string
 
 const (
-	ConnectorProtocolOAuth2 ConnectorProtocol = "OAUTH2"
-	ConnectorProtocolAPIKey ConnectorProtocol = "API_KEY"
-	// ConnectorProtocolPrivateKeyJWT authenticates by signing a short-lived
-	// client assertion with a customer-held private key and exchanging it for
-	// a bearer token (RFC 7523). Unlike API_KEY the stored credential never
-	// leaves Probo on the wire, and unlike OAUTH2 there is no user-facing
-	// authorization step. Apple Business Manager requires it.
-	ConnectorProtocolPrivateKeyJWT ConnectorProtocol = "PRIVATE_KEY_JWT"
+	ConnectorProtocolOAuth2           ConnectorProtocol = "OAUTH2"
+	ConnectorProtocolAPIKey           ConnectorProtocol = "API_KEY"
+	ConnectorProtocolGitHubApp        ConnectorProtocol = "GITHUB_APP"
+	ConnectorProtocolWorkloadIdentity ConnectorProtocol = "WORKLOAD_IDENTITY"
 )
 
 var (
@@ -48,7 +44,8 @@ func ConnectorProtocols() []ConnectorProtocol {
 	return []ConnectorProtocol{
 		ConnectorProtocolOAuth2,
 		ConnectorProtocolAPIKey,
-		ConnectorProtocolPrivateKeyJWT,
+		ConnectorProtocolGitHubApp,
+		ConnectorProtocolWorkloadIdentity,
 	}
 }
 
@@ -57,7 +54,12 @@ func (v ConnectorProtocol) IsValid() bool {
 	case
 		ConnectorProtocolOAuth2,
 		ConnectorProtocolAPIKey,
+<<<<<<< HEAD
 		ConnectorProtocolPrivateKeyJWT:
+=======
+		ConnectorProtocolGitHubApp,
+		ConnectorProtocolWorkloadIdentity:
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 		return true
 	}
 

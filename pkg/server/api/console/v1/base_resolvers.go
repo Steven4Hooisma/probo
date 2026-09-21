@@ -13,12 +13,19 @@ import (
 
 	"go.gearno.de/kit/log"
 	"go.probo.inc/probo/pkg/accessreview"
-	"go.probo.inc/probo/pkg/agentrun"
+	"go.probo.inc/probo/pkg/agentexecution"
+	cloudaws "go.probo.inc/probo/pkg/cloud/aws"
+	cloudazure "go.probo.inc/probo/pkg/cloud/azure"
+	cloudgcp "go.probo.inc/probo/pkg/cloud/gcp"
 	"go.probo.inc/probo/pkg/complianceportal/management"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/itam"
+	"go.probo.inc/probo/pkg/mailman"
+	"go.probo.inc/probo/pkg/page"
 	"go.probo.inc/probo/pkg/probo"
+	"go.probo.inc/probo/pkg/probot/identitybinding"
+	"go.probo.inc/probo/pkg/riskmanagement"
 	"go.probo.inc/probo/pkg/server/api/authn"
 	"go.probo.inc/probo/pkg/server/api/console/v1/schema"
 	"go.probo.inc/probo/pkg/server/api/console/v1/types"
@@ -83,6 +90,26 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewTask(task), nil
 		}
+	case coredata.TaskCommentEntityType:
+		action = probo.ActionTaskCommentGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			taskComment, err := r.probo.TaskComments.Get(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewTaskComment(taskComment), nil
+		}
+	case coredata.TaskActivityEntityType:
+		action = probo.ActionTaskActivityGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			taskActivity, err := r.probo.TaskActivities.Get(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewTaskActivity(taskActivity), nil
+		}
 	case coredata.EvidenceEntityType:
 		action = probo.ActionEvidenceList
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
@@ -133,75 +160,85 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewRisk(risk), nil
 		}
-	case coredata.RiskAssessmentEntityType:
-		action = probo.ActionRiskAssessmentGet
+	case coredata.RiskAnalysisEntityType:
+		action = riskmanagement.ActionRiskAnalysisGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			ra, err := r.riskManagement.Get(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessment(ra), nil
+			return types.NewRiskAnalysis(ra), nil
 		}
-	case coredata.RiskAssessmentNodeEntityType:
-		action = probo.ActionRiskAssessmentNodeGet
+	case coredata.TreatmentPlanEntityType:
+		action = riskmanagement.ActionTreatmentPlanGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			tp, err := r.riskManagement.GetTreatmentPlan(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewTreatmentPlan(tp), nil
+		}
+	case coredata.RiskAnalysisNodeEntityType:
+		action = riskmanagement.ActionRiskAnalysisNodeGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			n, err := r.riskManagement.GetNode(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentNode(n), nil
+			return types.NewRiskAnalysisNode(n), nil
 		}
-	case coredata.RiskAssessmentProcessEntityType:
-		action = probo.ActionRiskAssessmentProcessGet
+	case coredata.RiskAnalysisProcessEntityType:
+		action = riskmanagement.ActionRiskAnalysisProcessGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			p, err := r.riskManagement.GetProcess(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentProcess(p), nil
+			return types.NewRiskAnalysisProcess(p), nil
 		}
-	case coredata.RiskAssessmentThreatEntityType:
-		action = probo.ActionRiskAssessmentThreatGet
+	case coredata.RiskAnalysisThreatEntityType:
+		action = riskmanagement.ActionRiskAnalysisThreatGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			t, err := r.riskManagement.GetThreat(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentThreat(t), nil
+			return types.NewRiskAnalysisThreat(t), nil
 		}
-	case coredata.RiskAssessmentScopeEntityType:
-		action = probo.ActionRiskAssessmentScopeGet
+	case coredata.RiskAnalysisDiagramEntityType:
+		action = riskmanagement.ActionRiskAnalysisDiagramGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
-			s, err := r.riskManagement.GetScope(ctx, scope, id)
+			s, err := r.riskManagement.GetDiagram(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentScope(s), nil
+			return types.NewRiskAnalysisDiagram(s), nil
 		}
-	case coredata.RiskAssessmentBoundaryEntityType:
-		action = probo.ActionRiskAssessmentBoundaryGet
+	case coredata.RiskAnalysisBoundaryEntityType:
+		action = riskmanagement.ActionRiskAnalysisBoundaryGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			b, err := r.riskManagement.GetBoundary(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentBoundary(b), nil
+			return types.NewRiskAnalysisBoundary(b), nil
 		}
-	case coredata.RiskAssessmentScenarioEntityType:
-		action = probo.ActionRiskAssessmentScenarioGet
+	case coredata.RiskAnalysisScenarioEntityType:
+		action = riskmanagement.ActionRiskAnalysisScenarioGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
 			s, err := r.riskManagement.GetScenario(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewRiskAssessmentScenario(s), nil
+			return types.NewRiskAnalysisScenario(s), nil
 		}
 	case coredata.ThirdPartyComplianceReportEntityType:
 		action = probo.ActionThirdPartyComplianceReportGet
@@ -253,6 +290,16 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewDocumentVersionSignature(documentVersionSignature), nil
 		}
+	case coredata.DocumentVersionApprovalQuorumEntityType:
+		action = probo.ActionDocumentVersionApprovalList
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			quorum, err := r.probo.DocumentApprovals.GetQuorum(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewDocumentVersionApprovalQuorum(quorum), nil
+		}
 	case coredata.AssetEntityType:
 		action = probo.ActionAssetList
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
@@ -283,6 +330,16 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewAudit(audit), nil
 		}
+	case coredata.AiSystemEntityType:
+		action = probo.ActionAiSystemList
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			aiSystem, err := r.probo.AiSystems.Get(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewAiSystem(aiSystem), nil
+		}
 	case coredata.FindingEntityType:
 		action = probo.ActionFindingList
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
@@ -302,6 +359,16 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 			}
 
 			return types.NewObligation(obligation), nil
+		}
+	case coredata.BusinessFunctionEntityType:
+		action = probo.ActionBusinessFunctionList
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			businessFunction, err := r.probo.BusinessFunctions.Get(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewBusinessFunction(businessFunction), nil
 		}
 	case coredata.ProcessingActivityEntityType:
 		action = probo.ActionProcessingActivityList
@@ -355,6 +422,70 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewCompliancePortalAccess(compliancePortalAccess), nil
 		}
+	case coredata.CompliancePortalDocumentAccessEntityType:
+		action = management.ActionCompliancePortalAccessGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			documentAccess, err := r.management.GetDocumentAccess(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewCompliancePortalDocumentAccess(documentAccess), nil
+		}
+	case coredata.CompliancePortalDocumentEntityType:
+		action = management.ActionCompliancePortalGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			link, err := r.management.GetDocumentLinkByID(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewCompliancePortalDocument(link), nil
+		}
+	case coredata.CompliancePortalAuditEntityType:
+		action = management.ActionCompliancePortalGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			link, err := r.management.GetAuditLinkByID(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewCompliancePortalAudit(link), nil
+		}
+	case coredata.CompliancePortalThirdPartyEntityType:
+		action = management.ActionCompliancePortalGet
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			link, err := r.management.GetThirdPartyLinkByID(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewCompliancePortalThirdParty(link), nil
+		}
+	case coredata.MailingListSubscriberEntityType:
+		action = management.ActionMailingListSubscriberList
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			subscriber, err := r.mailman.GetSubscriberByID(ctx, scope, id)
+			if err != nil {
+				return nil, err
+			}
+
+			return types.NewMailingListSubscriber(subscriber), nil
+		}
+	case coredata.MailingListUpdateEntityType:
+		action = management.ActionMailingListUpdateList
+		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
+			update, err := r.mailman.GetMailingListUpdate(ctx, scope, id)
+			if err != nil {
+				if errors.Is(err, mailman.ErrMailingListUpdateNotFound) {
+					return nil, coredata.ErrResourceNotFound
+				}
+
+				return nil, err
+			}
+
+			return types.NewMailingListUpdate(update), nil
+		}
 	case coredata.RightsRequestEntityType:
 		action = probo.ActionRightsRequestGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
@@ -385,15 +516,15 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 			return types.NewWebhookSubscription(wc), nil
 		}
-	case coredata.AgentRunEntityType:
-		action = agentrun.ActionAgentRunGet
+	case coredata.AgentExecutionEntityType:
+		action = agentexecution.ActionAgentExecutionGet
 		loadNode = func(ctx context.Context, scope *coredata.Scope, id gid.GID) (types.Node, error) {
-			run, err := r.agentRun.Get(ctx, scope, id)
+			run, err := r.agentExecution.Get(ctx, scope, id)
 			if err != nil {
 				return nil, err
 			}
 
-			return types.NewAgentRun(run), nil
+			return types.NewAgentExecution(run), nil
 		}
 	case coredata.DeviceEntityType:
 		action = itam.ActionDeviceGet
@@ -525,21 +656,7 @@ func (r *queryResolver) Node(ctx context.Context, id gid.GID) (types.Node, error
 
 // Viewer is the resolver for the viewer field.
 func (r *queryResolver) Viewer(ctx context.Context) (*types.Viewer, error) {
-	identity := authn.IdentityFromContext(ctx)
-
-	session := authn.SessionFromContext(ctx)
-	apiKey := authn.APIKeyFromContext(ctx)
-
-	var viewerID gid.GID
-	if session != nil {
-		viewerID = session.ID
-	} else if apiKey != nil {
-		viewerID = apiKey.ID
-	} else {
-		viewerID = identity.ID
-	}
-
-	return &types.Viewer{ID: viewerID}, nil
+	return currentViewer(ctx), nil
 }
 
 // CommonThirdParties is the resolver for the commonThirdParties field.
@@ -564,6 +681,60 @@ func (r *queryResolver) CommonThirdParties(ctx context.Context, name string) ([]
 	return result, nil
 }
 
+// CommonGVLVendors is the resolver for the commonGVLVendors field.
+func (r *queryResolver) CommonGVLVendors(ctx context.Context, first *int, after *page.CursorKey, last *int, before *page.CursorKey, orderBy *types.CommonGVLVendorOrderBy, filter *types.CommonGVLVendorFilter) (*types.CommonGVLVendorConnection, error) {
+	identity := authn.IdentityFromContext(ctx)
+
+	if _, err := r.authorize(ctx, identity.ID, probo.ActionCommonGVLVendorList); err != nil {
+		return nil, err
+	}
+
+	pageOrderBy := page.OrderBy[coredata.CommonGVLVendorOrderField]{
+		Field:     coredata.CommonGVLVendorOrderFieldName,
+		Direction: page.OrderDirectionAsc,
+	}
+	if orderBy != nil {
+		pageOrderBy = page.OrderBy[coredata.CommonGVLVendorOrderField]{
+			Field:     orderBy.Field,
+			Direction: orderBy.Direction,
+		}
+	}
+
+	cursor := types.NewCursor(first, after, last, before, pageOrderBy)
+
+	cdFilter, err := commonGVLVendorFilter(ctx, r, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	vendors, err := r.cookieBanner.ListCommonGVLVendors(ctx, cursor, cdFilter)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot list common gvl vendors", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	p := page.NewPage(vendors, cursor)
+
+	return types.NewCommonGVLVendorConnection(p, r, nil, cdFilter), nil
+}
+
+// CommonGVLCatalog is the resolver for the commonGVLCatalog field.
+func (r *queryResolver) CommonGVLCatalog(ctx context.Context) (*types.CommonGVLCatalog, error) {
+	identity := authn.IdentityFromContext(ctx)
+
+	if _, err := r.authorize(ctx, identity.ID, probo.ActionCommonGVLVendorList); err != nil {
+		return nil, err
+	}
+
+	catalog, err := r.cookieBanner.GetCommonGVLCatalog(ctx)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot get common gvl catalog", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewCommonGVLCatalog(catalog), nil
+}
+
 // AccessReviewDrivers is the resolver for the accessReviewDrivers field.
 func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.ConnectorProviderInfo, error) {
 	identity := authn.IdentityFromContext(ctx)
@@ -576,15 +747,19 @@ func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.Conne
 	infos := make([]*types.ConnectorProviderInfo, 0, len(registrations))
 
 	for _, reg := range registrations {
-		if reg == nil || reg.NewDriver == nil {
+		// A workload identity provider builds its driver from a cloud session
+		// rather than an HTTP client, so it registers NewCloudDriver and leaves
+		// NewDriver nil.
+		if reg == nil || (reg.NewDriver == nil && !reg.SupportsWorkloadIdentity()) {
 			continue
 		}
 
 		provider := reg.Provider
-		_, oauthErr := r.connectorRegistry.Get(string(provider))
-		oauthConfigured := oauthErr == nil
-		apiKeySupported := reg.SupportsAPIKey
-		clientCredentialsSupported := reg.SupportsClientCredentials
+		configuredProtocols := connectorProtocols(
+			r.connectorRegistry.ConfiguredProtocols(string(provider)),
+		)
+		apiKeySupported := reg.SupportsAPIKey()
+		clientCredentialsSupported := reg.SupportsClientCredentials()
 
 		// ManagedAPIKey (Model B, e.g. Crisp) providers are connectable only
 		// once the operator configures the Probo-held key (and any required
@@ -592,12 +767,22 @@ func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.Conne
 		// such a provider ships deactivated. Gating on full readiness keeps a
 		// half-configured provider out of the catalog rather than surfacing it
 		// and failing at connect time.
-		apiKeyManaged := r.providerRegistry.ManagedConnectorReady(provider)
+		//
+		// A provider with an install ceremony is connected by the redirect, not
+		// by the API-key dialog; OffersAPIKeyForm owns that rule.
+		installReady := reg.SupportsInstall() && r.providerRegistry.ManagedConnectorReady(provider)
+		apiKeyManaged := reg.OffersAPIKeyForm() && r.providerRegistry.ManagedConnectorReady(provider)
 
-		// Skip providers that cannot be connected in this deployment: no
-		// OAuth client credentials configured and no key-based fallback
-		// (API key, managed API key, or client credentials) supported.
-		if !oauthConfigured && !apiKeySupported && !clientCredentialsSupported && !apiKeyManaged {
+		// WIF is a connect path only when this deployment can mint federation
+		// tokens. AWS has no other path, so it stays hidden until then.
+		workloadIdentityReady := reg.SupportsWorkloadIdentity() && r.identityFederation != nil
+
+		if len(configuredProtocols) == 0 &&
+			!apiKeySupported &&
+			!clientCredentialsSupported &&
+			!apiKeyManaged &&
+			!workloadIdentityReady &&
+			!installReady {
 			continue
 		}
 
@@ -611,6 +796,14 @@ func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.Conne
 			documentationURL = new(reg.DocumentationURL)
 		}
 
+		// A provider that pins its token endpoint leaves the connect form
+		// nothing to ask for, and the create mutation ignores the field
+		// regardless.
+		var clientCredentialsTokenURL *string
+		if pinned := pinnedClientCredentialsTokenURL(reg); pinned != "" {
+			clientCredentialsTokenURL = new(pinned)
+		}
+
 		// The two settings lists are surfaced separately, never merged: a
 		// provider offering both connect paths (1Password) needs different
 		// fields on each, so a client that saw one flat list would render the
@@ -619,11 +812,13 @@ func (r *queryResolver) AccessReviewDrivers(ctx context.Context) ([]*types.Conne
 			Provider:                       provider,
 			DisplayName:                    reg.DisplayName,
 			DocumentationURL:               documentationURL,
-			OauthConfigured:                oauthConfigured,
+			OauthConfigured:                slices.Contains(configuredProtocols, coredata.ConnectorProtocolOAuth2),
+			ConfiguredProtocols:            configuredProtocols,
 			APIKeySupported:                apiKeySupported,
 			APIKeyManaged:                  apiKeyManaged,
 			ClientCredentialsSupported:     clientCredentialsSupported,
 			Oauth2Scopes:                   scopes,
+<<<<<<< HEAD
 			APIKeyExtraSettings:            connectorProviderSettingInfos(reg.APIKeyExtraSettings),
 			ClientCredentialsExtraSettings: connectorProviderSettingInfos(reg.ClientCredentialsExtraSettings),
 			PrivateKeyJwtSupported:         reg.SupportsPrivateKeyJWT,
@@ -696,6 +891,15 @@ func (r *queryResolver) DeviceSourceProviders(ctx context.Context) ([]*types.Con
 			Oauth2Scopes:                   scopes,
 			APIKeyExtraSettings:            connectorProviderSettingInfos(reg.APIKeyExtraSettings),
 			ClientCredentialsExtraSettings: connectorProviderSettingInfos(reg.ClientCredentialsExtraSettings),
+=======
+			APIKeyExtraSettings:            connectorProviderSettingInfos(reg.APIKeyExtraSettings()),
+			APIKeyFormat:                   connectorAPIKeyFormat(reg),
+			ClientCredentialsExtraSettings: connectorProviderSettingInfos(reg.ClientCredentialsExtraSettings()),
+			ClientCredentialsTokenURL:      clientCredentialsTokenURL,
+			WorkloadIdentitySupported:      workloadIdentityReady,
+			InstallSupported:               installReady,
+			WorkloadIdentityExtraSettings:  connectorProviderSettingInfos(reg.WorkloadIdentityExtraSettings()),
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 		})
 	}
 
@@ -709,23 +913,107 @@ func (r *queryResolver) DeviceSourceProviders(ctx context.Context) ([]*types.Con
 	return infos, nil
 }
 
-// CrispVerificationCode is the resolver for the crispVerificationCode field. It
-// returns the deterministic ownership-verification code the customer must paste
-// into the Probo plugin's per-website settings in their Crisp dashboard before
-// connecting that website. Authorized against the organization with the same
-// action as the create mutation because the code is organization-bound. This is
-// a UI-only helper; MCP/CLI/n8n are intentionally not extended.
-func (r *queryResolver) CrispVerificationCode(ctx context.Context, organizationID gid.GID, websiteID string) (string, error) {
+// AWSConnectorSetup is the resolver for the awsConnectorSetup field.
+func (r *queryResolver) AWSConnectorSetup(ctx context.Context, organizationID gid.GID) (*types.AWSConnectorSetup, error) {
 	if _, err := r.authorize(ctx, organizationID, probo.ActionConnectorCreate); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	websiteID = strings.TrimSpace(websiteID)
-	if websiteID == "" {
-		return "", gqlutils.Invalidf(ctx, "websiteId is required")
+	if r.identityFederation == nil {
+		return nil, gqlutils.Invalidf(ctx, "identity federation is not configured in this deployment")
 	}
 
-	return computeCrispVerificationCode(r.tokenSecret, organizationID.String(), websiteID), nil
+	setup, err := cloudaws.ConnectorSetupFor(
+		r.identityFederation,
+		organizationID,
+		r.awsConnectorInstall,
+	)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot build aws connector setup", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return newAWSConnectorSetup(setup), nil
+}
+
+// GCPConnectorSetup is the resolver for the gcpConnectorSetup field.
+func (r *queryResolver) GCPConnectorSetup(ctx context.Context, organizationID gid.GID) (*types.GCPConnectorSetup, error) {
+	if _, err := r.authorize(ctx, organizationID, probo.ActionConnectorCreate); err != nil {
+		return nil, err
+	}
+
+	if r.identityFederation == nil {
+		return nil, gqlutils.Invalidf(ctx, "identity federation is not configured in this deployment")
+	}
+
+	setup, err := cloudgcp.ConnectorSetupFor(
+		r.identityFederation,
+		organizationID,
+		r.gcpConnectorInstall,
+	)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot build gcp connector setup", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return newGCPConnectorSetup(setup), nil
+}
+
+// AzureConnectorSetup is the resolver for the azureConnectorSetup field.
+func (r *queryResolver) AzureConnectorSetup(ctx context.Context, organizationID gid.GID) (*types.AzureConnectorSetup, error) {
+	if _, err := r.authorize(ctx, organizationID, probo.ActionConnectorCreate); err != nil {
+		return nil, err
+	}
+
+	if r.identityFederation == nil {
+		return nil, gqlutils.Invalidf(ctx, "identity federation is not configured in this deployment")
+	}
+
+	setup, err := cloudazure.ConnectorSetupFor(
+		r.identityFederation,
+		organizationID,
+		r.azureConnectorInstall,
+	)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot build azure connector setup", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return newAzureConnectorSetup(setup), nil
+}
+
+// ProbotIdentityBindPreview is the resolver for the probotIdentityBindPreview field.
+func (r *queryResolver) ProbotIdentityBindPreview(ctx context.Context, token string) (*types.ProbotIdentityBindPreview, error) {
+	if r.probotIdentityBindings == nil {
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	if authn.IdentityFromContext(ctx) == nil {
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	preview, err := r.probotIdentityBindings.Preview(ctx, token)
+	if err != nil {
+		switch {
+		case errors.Is(err, identitybinding.ErrChallengeAlreadyUsed),
+			errors.Is(err, identitybinding.ErrChallengeExpired),
+			errors.Is(err, coredata.ErrResourceNotFound):
+			return nil, gqlutils.Invalid(ctx, err)
+		default:
+			r.logger.ErrorCtx(
+				ctx,
+				"cannot preview Probot identity binding",
+				log.Error(err),
+			)
+
+			return nil, gqlutils.Internal(ctx)
+		}
+	}
+
+	return types.NewProbotIdentityBindPreview(*preview), nil
 }
 
 // Mutation returns schema.MutationResolver implementation.

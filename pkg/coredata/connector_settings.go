@@ -27,6 +27,12 @@ import (
 	"go.probo.inc/probo/pkg/connector"
 )
 
+const (
+	// DefaultAWSRoleName is the role name the customer setup template
+	// creates, used when a connector names none.
+	DefaultAWSRoleName = "ProboAudit"
+)
+
 type (
 	SlackConnectorSettings struct {
 		Channel   string `json:"channel,omitempty"`
@@ -212,6 +218,80 @@ type (
 	// access bindings plus the bindings of every property beneath it.
 	GoogleAnalyticsConnectorSettings struct {
 		AccountID string `json:"account_id"`
+	}
+
+	// CloudflareConnectorSettings stores the Cloudflare account the user
+	// picked after connecting. An API token can reach many accounts, so the
+	// post-connect picker scopes the access source to one; AccountID is the
+	// selected account's UUID used as the {account_id} path segment on
+	// /accounts/{account_id}/members.
+	CloudflareConnectorSettings struct {
+		AccountID string `json:"account_id"`
+	}
+
+	// AuthentikConnectorSettings holds the base URL of the customer's
+	// authentik instance. Self-hosted, so there is no shared API host: the
+	// driver, name resolver and probe all join onto this origin.
+	AuthentikConnectorSettings struct {
+		BaseURL string `json:"base_url"`
+	}
+
+	// NewRelicConnectorSettings holds the New Relic data region the user key
+	// belongs to. NerdGraph runs one endpoint per region and answers a key
+	// from the other region with 403 "not authorized for account region", so
+	// the region is not discoverable from the credential — the customer names
+	// it and the driver, name resolver and probe all resolve their host from
+	// it.
+	NewRelicConnectorSettings struct {
+		Region string `json:"region"`
+	}
+
+	// RetoolConnectorSettings optionally holds the base URL of a self-hosted
+	// Retool instance. It is empty for Retool Cloud, whose API token already
+	// routes to its own organization through the shared api.retool.com
+	// gateway, so a cloud customer has no URL to supply.
+	RetoolConnectorSettings struct {
+		BaseURL string `json:"base_url"`
+	}
+
+	// TwingateConnectorSettings holds the customer's Twingate network name,
+	// the label in {network}.twingate.com. Twingate is cloud-only and gives
+	// every tenant its own host, so the network is the whole of what
+	// identifies the tenant.
+	TwingateConnectorSettings struct {
+		Network string `json:"network"`
+	}
+
+	// AWSConnectorSettings names the IAM role Probo assumes. Every field is
+	// public knowledge — the account owns the trust, and the connection
+	// itself holds no credential — so unlike the connection blob these stay
+	// in plain settings JSONB.
+	AWSConnectorSettings struct {
+		// RoleARN is the IAM role the customer created for Probo. The account
+		// is the one that ARN names; it is not stored separately.
+		RoleARN string `json:"role_arn"`
+	}
+
+	// GCPConnectorSettings names the workload identity provider and the
+	// service account Probo impersonates. Every field is public knowledge —
+	// the project owns the trust, and the connection itself holds no
+	// credential — so unlike the connection blob these stay in plain
+	// settings JSONB.
+	GCPConnectorSettings struct {
+		WorkloadIdentityProvider string `json:"workload_identity_provider"`
+		ServiceAccountEmail      string `json:"service_account_email"`
+	}
+
+	// AzureConnectorSettings names the Entra application Probo federates
+	// with and the subscription it reviews. Every field is public knowledge —
+	// the tenant owns the trust, and the connection itself holds no
+	// credential — so unlike the connection blob these stay in plain
+	// settings JSONB.
+	AzureConnectorSettings struct {
+		TenantID       string `json:"tenant_id"`
+		ClientID       string `json:"client_id"`
+		SubscriptionID string `json:"subscription_id"`
+		Environment    string `json:"environment"`
 	}
 )
 

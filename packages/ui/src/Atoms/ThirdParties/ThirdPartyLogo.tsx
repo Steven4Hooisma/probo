@@ -23,10 +23,16 @@ import type { ComponentProps, FC } from "react";
 import { Anthropic } from "./Anthropic";
 import { Apollo } from "./Apollo";
 import { Asana } from "./Asana";
+import { Attio } from "./Attio";
+import { Authentik } from "./Authentik";
+import { AWS } from "./AWS";
+import { Azure } from "./Azure";
 import { BetterStack } from "./BetterStack";
 import { Bitbucket } from "./Bitbucket";
 import { Brevo } from "./Brevo";
 import { Brex } from "./Brex";
+import { CalCom } from "./CalCom";
+import { Calendly } from "./Calendly";
 import { Clerk } from "./Clerk";
 import { ClickHouse } from "./ClickHouse";
 import { ClickUp } from "./ClickUp";
@@ -37,7 +43,9 @@ import { Datadog } from "./Datadog";
 import { Deepgram } from "./Deepgram";
 import { DocuSign } from "./DocuSign";
 import { Dotfile } from "./Dotfile";
+import { ElevenLabs } from "./ElevenLabs";
 import { Figma } from "./Figma";
+import { GCP } from "./GCP";
 import { GitHub } from "./GitHub";
 import { GitLab } from "./GitLab";
 import { Google } from "./Google";
@@ -53,9 +61,12 @@ import { Mercury } from "./Mercury";
 import { Metabase } from "./Metabase";
 import { Microsoft } from "./Microsoft";
 import { Monday } from "./Monday";
+import { MongoDB } from "./MongoDB";
 import { Neon } from "./Neon";
 import { Netlify } from "./Netlify";
+import { NewRelic } from "./NewRelic";
 import { Notion } from "./Notion";
+import { Nuki } from "./Nuki";
 import { Okta } from "./Okta";
 import { OnePassword } from "./OnePassword";
 import { OpenAI } from "./OpenAI";
@@ -67,6 +78,7 @@ import { Qovery } from "./Qovery";
 import { Railway } from "./Railway";
 import { Render } from "./Render";
 import { Resend } from "./Resend";
+import { Retool } from "./Retool";
 import { Scaleway } from "./Scaleway";
 import { Segment } from "./Segment";
 import { SendGrid } from "./SendGrid";
@@ -77,19 +89,26 @@ import { Square } from "./Square";
 import { Supabase } from "./Supabase";
 import { Tailscale } from "./Tailscale";
 import { Tally } from "./Tally";
+import { Twingate } from "./Twingate";
 import { UpCloud } from "./UpCloud";
 import { Vercel } from "./Vercel";
 import { Yousign } from "./Yousign";
 import { Zendesk } from "./Zendesk";
 
 const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
+  AWS: AWS,
+  AZURE: Azure,
   ANTHROPIC: Anthropic,
   APOLLO: Apollo,
   ASANA: Asana,
+  ATTIO: Attio,
+  AUTHENTIK: Authentik,
   BETTER_STACK: BetterStack,
   BITBUCKET: Bitbucket,
   BREVO: Brevo,
   BREX: Brex,
+  CAL_COM: CalCom,
+  CALENDLY: Calendly,
   CLERK: Clerk,
   CLICKHOUSE: ClickHouse,
   CLICKUP: ClickUp,
@@ -100,7 +119,9 @@ const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
   DEEPGRAM: Deepgram,
   DOCUSIGN: DocuSign,
   DOTFILE: Dotfile,
+  ELEVENLABS: ElevenLabs,
   FIGMA: Figma,
+  GCP: GCP,
   GITHUB: GitHub,
   GITLAB: GitLab,
   GOOGLE: Google,
@@ -118,9 +139,12 @@ const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
   MICROSOFT: Microsoft,
   MICROSOFT_365: Microsoft,
   MONDAY: Monday,
+  MONGODB_ATLAS: MongoDB,
   NEON: Neon,
   NETLIFY: Netlify,
+  NEW_RELIC: NewRelic,
   NOTION: Notion,
+  NUKI: Nuki,
   OKTA: Okta,
   ONE_PASSWORD: OnePassword,
   ONEPASSWORD: OnePassword,
@@ -133,6 +157,7 @@ const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
   RAILWAY: Railway,
   RENDER: Render,
   RESEND: Resend,
+  RETOOL: Retool,
   SCALEWAY: Scaleway,
   SEGMENT: Segment,
   SENDGRID: SendGrid,
@@ -143,6 +168,7 @@ const thirdParties: Record<string, FC<ComponentProps<"svg">>> = {
   SUPABASE: Supabase,
   TAILSCALE: Tailscale,
   TALLY: Tally,
+  TWINGATE: Twingate,
   UPCLOUD: UpCloud,
   VERCEL: Vercel,
   YOUSIGN: Yousign,

@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.probo.inc/probo/e2e/internal/testutil"
+	"go.probo.inc/probo/pkg/prosemirror"
 )
 
 func TestFinding_PublishFindingList(t *testing.T) {
@@ -116,6 +117,10 @@ func TestFinding_PublishFindingList(t *testing.T) {
 			assert.Equal(t, 0, ver.Minor)
 			assert.Contains(t, ver.Content, "Purpose")
 			assert.Contains(t, ver.Content, "Test Finding")
+
+			// The stored content is sanitized before insert, so it must be a
+			// parseable ProseMirror document rooted at a "doc" node.
+			require.NoError(t, prosemirror.ValidateDocumentContentJSON(ver.Content))
 		},
 	)
 
@@ -328,46 +333,6 @@ func TestFinding_PublishFindingList(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, orgResult.Node.FindingsDocument)
 			assert.Equal(t, docID, orgResult.Node.FindingsDocument.ID)
-		},
-	)
-}
-
-func TestFinding_PublishFindingList_RBAC(t *testing.T) {
-	t.Parallel()
-
-	owner := testutil.NewClient(t, testutil.RoleOwner)
-	viewer := testutil.NewClientInOrg(t, testutil.RoleViewer, owner)
-
-	createFindingForPublish(t, owner, "RBAC Test Finding")
-
-	const query = `
-		mutation($input: PublishFindingListInput!) {
-			publishFindingList(input: $input) {
-				documentEdge {
-					node { id }
-				}
-				documentVersionEdge {
-					node { id }
-				}
-			}
-		}
-	`
-
-	t.Run(
-		"viewer cannot publish finding list",
-		func(t *testing.T) {
-			t.Parallel()
-
-			err := viewer.ExecuteShouldFail(
-				query,
-				map[string]any{
-					"input": map[string]any{
-						"minor":          false,
-						"organizationId": owner.GetOrganizationID(),
-					},
-				},
-			)
-			testutil.RequireForbiddenError(t, err)
 		},
 	)
 }

@@ -1,7 +1,10 @@
 enum TaskState @goModel(model: "go.probo.inc/probo/pkg/coredata.TaskState") {
+    BACKLOG @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateBacklog")
     TODO @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateTodo")
     IN_PROGRESS @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateInProgress")
     DONE @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateDone")
+    CANCELED @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateCanceled")
+    DUPLICATE @goEnum(value: "go.probo.inc/probo/pkg/coredata.TaskStateDuplicate")
 }
 
 enum TaskPriority
@@ -41,12 +44,13 @@ input TaskOrder
 type Task implements Node {
     id: ID!
     name: String!
-    description: String
+    content: String!
     state: TaskState!
     priority: TaskPriority!
     rank: Int!
-    timeEstimate: Duration
+    timeEstimate: TimeSpan
     deadline: Datetime
+    recurrenceInterval: TimeSpan
     assignedTo: Profile @goField(forceResolver: true)
 
     organization: Organization! @goField(forceResolver: true)
@@ -59,6 +63,22 @@ type Task implements Node {
         before: CursorKey
         orderBy: EvidenceOrder
     ): EvidenceConnection! @goField(forceResolver: true)
+
+    comments(
+        first: Int
+        after: CursorKey
+        last: Int
+        before: CursorKey
+        orderBy: TaskCommentOrder
+    ): TaskCommentConnection! @goField(forceResolver: true)
+
+    activities(
+        first: Int
+        after: CursorKey
+        last: Int
+        before: CursorKey
+        orderBy: TaskActivityOrder
+    ): TaskActivityConnection! @goField(forceResolver: true)
 
     createdAt: Datetime!
     updatedAt: Datetime!
@@ -90,24 +110,27 @@ input CreateTaskInput {
     organizationId: ID!
     measureId: ID
     name: String!
-    description: String
+    content: String
+    state: TaskState
     priority: TaskPriority!
-    timeEstimate: Duration
+    timeEstimate: TimeSpan
     assignedToId: ID
     deadline: Datetime
+    recurrenceInterval: TimeSpan
 }
 
 input UpdateTaskInput {
     taskId: ID!
     name: String
-    description: String @goField(omittable: true)
+    content: String @goField(omittable: true)
     state: TaskState
     priority: TaskPriority
     rank: Int
-    timeEstimate: Duration @goField(omittable: true)
+    timeEstimate: TimeSpan @goField(omittable: true)
     deadline: Datetime @goField(omittable: true)
     assignedToId: ID @goField(omittable: true)
     measureId: ID @goField(omittable: true)
+    recurrenceInterval: TimeSpan @goField(omittable: true)
 }
 
 input DeleteTaskInput {
@@ -120,6 +143,7 @@ type CreateTaskPayload {
 
 type UpdateTaskPayload {
     task: Task!
+    nextTaskEdge: TaskEdge
 }
 
 type DeleteTaskPayload {

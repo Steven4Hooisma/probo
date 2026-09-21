@@ -51,6 +51,11 @@ if (script) {
         el.setAttribute("lang", lang.split("-")[0].toLowerCase());
       }
 
+      const gcm = script.getAttribute("data-gcm-enabled");
+      if (gcm) {
+        el.setAttribute("gcm-enabled", gcm);
+      }
+
       document.body.appendChild(el);
     };
 

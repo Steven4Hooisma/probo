@@ -35,10 +35,12 @@ func openaiRegistration() *Registration {
 		DisplayName:      "OpenAI",
 		DocumentationURL: accessReviewDocsURL("openai"),
 		Endpoints: Endpoints{
-			Probe:   "https://api.openai.com/v1/models",
 			APIBase: "https://api.openai.com/v1",
+			Probe:   "https://api.openai.com/v1/organization/users?limit=1",
 		},
-		SupportsAPIKey: true,
+		APIKey: &APIKeyConfig{
+			KeyFormat: apiKeyPrefix("sk-admin-", "sk-admin-…"),
+		},
 		NewDriver: func(_ context.Context, c *http.Client, _ *coredata.Connector, _ *log.Logger, ep Endpoints) (drivers.Driver, error) {
 			return drivers.NewOpenAIDriver(c, ep.APIBase), nil
 		},

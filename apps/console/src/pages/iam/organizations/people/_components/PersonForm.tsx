@@ -18,14 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { formatDatetime, getAssignableRoles, getMembershipRoles, peopleRoles, roles } from "@probo/helpers";
+import { formatDatetime, getAssignableRoles, getMembershipRoles, roles } from "@probo/helpers";
 import { Button, Field, Input, Option } from "@probo/ui";
 import { use } from "react";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useFragment } from "react-relay";
 import { type DataID, graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { PersonForm_createMutation } from "#/__generated__/iam/PersonForm_createMutation.graphql";
 import type { PersonForm_updateMutation } from "#/__generated__/iam/PersonForm_updateMutation.graphql";
@@ -35,6 +34,7 @@ import { EmailsField } from "#/components/form/EmailsField";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useMutationWithToasts } from "#/hooks/useMutationWithToasts";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 import { CurrentUser } from "#/providers/CurrentUser";
 
 const fragment = graphql`
@@ -49,8 +49,10 @@ const fragment = graphql`
     kind
     position
     additionalEmailAddresses
-    contractStartDate
-    contractEndDate
+    contract {
+      start
+      end
+    }
     canUpdate: permission(action: "iam:membership-profile:update")
   }
 `;
@@ -72,32 +74,46 @@ const updatePersonMutation = graphql`
     updateUser(input: $input) {
       profile {
         id
+        ...PersonFormFragment
+        ...PeopleListItemFragment
       }
     }
   }
 `;
 
-const schema = z.object({
+const emptyToNull = (value: unknown) => (value === "" || value == null ? null : value);
+
+const sharedPersonFields = {
   fullName: z.string().min(1),
-  emailAddress: z.string().email(),
-  role: z.enum(roles),
-  position: z.string().min(1).optional().nullable(),
+  // SCIM often syncs title/userType as ""; treat blanks as unset so the form
+  // stays valid and contract dates remain savable for SCIM-managed people.
+  position: z.preprocess(emptyToNull, z.string().min(1).nullable().optional()),
   additionalEmailAddresses: z.preprocess(
     // Empty additional emails are skipped
     v => (v as string[]).filter(v => !!v),
     z.array(z.string().email()),
   ),
-  kind: z.string().min(1).optional().nullable(),
+  kind: z.preprocess(emptyToNull, z.string().min(1).nullable().optional()),
   contractStartDate: z.string().optional().nullable(),
   contractEndDate: z.string().optional().nullable(),
+};
+
+const createSchema = z.object({
+  ...sharedPersonFields,
+  emailAddress: z.string().email(),
+  role: z.enum(roles),
 });
+
+const updateSchema = z.object(sharedPersonFields);
+
+type PersonFormValues = z.infer<typeof createSchema>;
 
 export function PersonForm(props: {
   id?: string;
   connectionId?: DataID;
   disabled?: boolean;
   scimManaged?: boolean;
-  defaultValues?: z.infer<typeof schema>;
+  defaultValues?: PersonFormValues;
   onSubmit?: () => void;
 }) {
   const {
@@ -123,8 +139,16 @@ export function PersonForm(props: {
   const { role } = use(CurrentUser);
   const availableRoles = getAssignableRoles(role);
 
+  // The edit path validates against updateSchema (no emailAddress/role, which
+  // the update mutation ignores and whose inputs are not rendered), while the
+  // form is typed against createSchema so role/email stay available to the
+  // create branch. The runtime resolver is what fixes the reported bug: the
+  // edit form no longer fails validation on two fields it never shows.
   const { control, formState, handleSubmit: handleSubmitWrapper, register, reset }
-    = useFormWithSchema(schema, { defaultValues });
+    = useFormWithSchema(
+      (id ? updateSchema : createSchema) as typeof createSchema,
+      { defaultValues },
+    );
   const watchedRole = useWatch({
     control,
     name: "role",
@@ -144,14 +168,16 @@ export function PersonForm(props: {
       errorMessage: t("personForm.errors.update"),
     },
   );
-  const handleSubmit = handleSubmitWrapper(async (data: z.infer<typeof schema>) => {
+  const handleSubmit = handleSubmitWrapper(async (data) => {
     const sharedInput = {
       fullName: data.fullName,
       additionalEmailAddresses: data.additionalEmailAddresses,
       kind: data.kind,
       position: data.position,
-      contractStartDate: formatDatetime(data.contractStartDate) ?? null,
-      contractEndDate: formatDatetime(data.contractEndDate) ?? null,
+      contract: {
+        start: formatDatetime(data.contractStartDate) ?? null,
+        end: formatDatetime(data.contractEndDate) ?? null,
+      },
     };
 
     if (id) {
@@ -183,75 +209,80 @@ export function PersonForm(props: {
 
   return (
     <form onSubmit={e => void handleSubmit(e)} className="space-y-4">
-      <Field label={t("personForm.fields.fullName")} {...register("fullName")} type="text" disabled={disabled || scimManaged} />
-      {id
-        ? (
-            <>
-              <input type="hidden" {...register("emailAddress")} disabled />
-              <input type="hidden" {...register("role")} disabled />
-            </>
-          )
-        : (
-            <>
-              <Field label={t("personForm.fields.emailAddress")} {...register("emailAddress")} type="email" disabled={disabled || !!id} />
-              <ControlledField
-                control={control}
-                name="role"
-                type="select"
-                label={t("personForm.fields.role")}
-                disabled={disabled || !!id}
-              >
-                {getMembershipRoles(t)
-                  .filter(({ value }) => availableRoles.includes(value))
-                  .map(({ value, label }) => (
-                    <Option key={value} value={value}>
-                      {label}
-                    </Option>
-                  ))}
-              </ControlledField>
+      <Field
+        label={t("personForm.fields.fullName")}
+        {...register("fullName")}
+        type="text"
+        disabled={disabled}
+        readOnly={scimManaged}
+      />
+      {!id && (
+        <>
+          <Field label={t("personForm.fields.emailAddress")} {...register("emailAddress")} type="email" disabled={disabled} />
+          <ControlledField
+            control={control}
+            name="role"
+            type="select"
+            label={t("personForm.fields.role")}
+            disabled={disabled}
+          >
+            {getMembershipRoles(t)
+              .filter(({ value }) => availableRoles.includes(value))
+              .map(({ value, label }) => (
+                <Option key={value} value={value}>
+                  {label}
+                </Option>
+              ))}
+          </ControlledField>
 
-              <div className="mt-4 space-y-2 text-sm text-txt-tertiary">
-                {watchedRole === "OWNER" && (
-                  <p>{t("personForm.roleDescriptions.owner")}</p>
-                )}
-                {watchedRole === "ADMIN" && (
-                  <p>
-                    {t("personForm.roleDescriptions.admin")}
-                  </p>
-                )}
-                {watchedRole === "VIEWER" && <p>{t("personForm.roleDescriptions.viewer")}</p>}
-                {watchedRole === "AUDITOR" && (
-                  <p>
-                    {t("personForm.roleDescriptions.auditor")}
-                  </p>
-                )}
-                {watchedRole === "EMPLOYEE" && (
-                  <p>{t("personForm.roleDescriptions.employee")}</p>
-                )}
-              </div>
-            </>
-          )}
-      <ControlledField
-        control={control}
-        name="kind"
-        type="select"
+          <div className="mt-4 space-y-2 text-sm text-txt-tertiary">
+            {watchedRole === "OWNER" && (
+              <p>{t("personForm.roleDescriptions.owner")}</p>
+            )}
+            {watchedRole === "ADMIN" && (
+              <p>
+                {t("personForm.roleDescriptions.admin")}
+              </p>
+            )}
+            {watchedRole === "VIEWER" && <p>{t("personForm.roleDescriptions.viewer")}</p>}
+            {watchedRole === "AUDITOR" && (
+              <p>
+                {t("personForm.roleDescriptions.auditor")}
+              </p>
+            )}
+            {watchedRole === "EMPLOYEE" && (
+              <p>{t("personForm.roleDescriptions.employee")}</p>
+            )}
+            {watchedRole === "COMPLIANCE_PORTAL_MANAGER" && (
+              <p>{t("personForm.roleDescriptions.compliancePortalManager")}</p>
+            )}
+            {watchedRole === "COMPLIANCE_PORTAL_ACCESS_MANAGER" && (
+              <p>{t("personForm.roleDescriptions.compliancePortalAccessManager")}</p>
+            )}
+          </div>
+        </>
+      )}
+      <Field
+        {...register("kind")}
+        type="text"
         label={t("personForm.fields.type")}
-        disabled={disabled || scimManaged}
-      >
-        {peopleRoles.map(role => (
-          <Option key={role} value={role}>
-            {t(`personForm.kinds.${role}`)}
-          </Option>
-        ))}
-      </ControlledField>
+        disabled={disabled}
+        readOnly={scimManaged}
+      />
       <Field
         label={t("personForm.fields.position")}
         {...register("position")}
         type="text"
         placeholder={t("personForm.fields.positionPlaceholder")}
-        disabled={disabled || scimManaged}
+        disabled={disabled}
+        readOnly={scimManaged}
       />
-      <EmailsField control={control} register={register} disabled={disabled || scimManaged} />
+      <EmailsField
+        control={control}
+        register={register}
+        disabled={disabled}
+        readOnly={scimManaged}
+      />
       <Field label={t("personForm.fields.contractStartDate")}>
         <Input
           {...register("contractStartDate")}
@@ -289,14 +320,14 @@ export function PersonFormLoader(props: { fragmentRef: PersonFormFragment$key })
       scimManaged={person.source === "SCIM"}
       defaultValues={
         {
-          kind: person.kind,
+          kind: person.kind || null,
           fullName: person.fullName,
           emailAddress: person.emailAddress,
           role: person.membership.role,
-          position: person.position,
+          position: person.position || null,
           additionalEmailAddresses: [...person.additionalEmailAddresses],
-          contractStartDate: person.contractStartDate?.split("T")[0] || "",
-          contractEndDate: person.contractEndDate?.split("T")[0] || "",
+          contractStartDate: person.contract?.start?.split("T")[0] || "",
+          contractEndDate: person.contract?.end?.split("T")[0] || "",
         }
       }
     />

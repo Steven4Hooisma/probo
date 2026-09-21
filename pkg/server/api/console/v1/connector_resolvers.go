@@ -19,6 +19,23 @@ import (
 	"go.probo.inc/probo/pkg/server/gqlutils"
 )
 
+// CanReconnect is the resolver for the canReconnect field.
+func (r *connectorResolver) CanReconnect(ctx context.Context, obj *types.Connector) (bool, error) {
+	cnnctr, err := r.probo.Connectors.GetWithConnection(
+		ctx,
+		coredata.NewScopeFromObjectID(obj.ID),
+		obj.ID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("cannot load connector connection: %w", err)
+	}
+
+	return connector.SupportsReconnectFor(
+		cnnctr.Connection,
+		connector.ProtocolType(obj.Protocol),
+	), nil
+}
+
 // Oauth2Scopes is the resolver for the oauth2Scopes field.
 func (r *connectorResolver) Oauth2Scopes(ctx context.Context, obj *types.Connector) ([]string, error) {
 	scopes := r.providerRegistry.ProviderOAuth2Scopes(obj.Provider)
@@ -29,11 +46,62 @@ func (r *connectorResolver) Oauth2Scopes(ctx context.Context, obj *types.Connect
 	return scopes, nil
 }
 
+// ConnectionStatus is the resolver for the connectionStatus field.
+func (r *connectorResolver) ConnectionStatus(ctx context.Context, obj *types.Connector) (types.ConnectorConnectionStatus, error) {
+	scope, err := r.authorize(ctx, obj.ID, probo.ActionConnectorGet)
+	if err != nil {
+		return "", err
+	}
+
+	status, err := r.connectorConnectionStatus(ctx, scope, obj.ID)
+	if err != nil {
+		if errors.Is(err, coredata.ErrResourceNotFound) {
+			return "", gqlutils.NotFound(ctx, err)
+		}
+
+		return "", err
+	}
+
+	return status, nil
+}
+
+// DisplayName is the resolver for the displayName field.
+func (r *connectorResolver) DisplayName(ctx context.Context, obj *types.Connector) (string, error) {
+	return r.providerRegistry.ProviderDisplayName(obj.Provider), nil
+}
+
+// DocumentationURL is the resolver for the documentationUrl field.
+//
+// The same page ConnectorProviderInfo advertises before connecting, repeated
+// on the connector so a source whose connection went wrong can point at the
+// prerequisites — plan, role, key kind — that explain why.
+func (r *connectorResolver) DocumentationURL(ctx context.Context, obj *types.Connector) (*string, error) {
+	reg, ok := r.providerRegistry.Get(obj.Provider)
+	if !ok || reg.DocumentationURL == "" {
+		return nil, nil
+	}
+
+	return new(reg.DocumentationURL), nil
+}
+
 // CreateAPIKeyConnector is the resolver for the createAPIKeyConnector field.
 func (r *mutationResolver) CreateAPIKeyConnector(ctx context.Context, input types.CreateAPIKeyConnectorInput) (*types.CreateAPIKeyConnectorPayload, error) {
 	scope, err := r.authorize(ctx, input.OrganizationID, probo.ActionConnectorCreate)
 	if err != nil {
 		return nil, err
+	}
+
+	// A provider connected by installing Probo's app at the vendor is bound by
+	// the ceremony, which proves control of the vendor tenant server-side AND
+	// binds the result to the identity that started it. Accepting a tenant id
+	// here instead would let any member holding ActionConnectorCreate bind any
+	// tenant Probo's app can reach. This gate is also what makes CompleteInstall
+	// the single writer of install-provider connectors, which is what the
+	// advisory lock it takes relies on. Gated on the ceremony, not on
+	// IsManagedAPIKey: a future managed provider with no ceremony still belongs
+	// here.
+	if reg, ok := r.providerRegistry.Get(input.Provider); ok && reg.SupportsInstall() {
+		return nil, gqlutils.Invalidf(ctx, "%s is connected through its install flow, not with an API key", reg.DisplayName)
 	}
 
 	apiKey, err := r.resolveAPIKeyConnectorCredential(input.Provider, input.APIKey)
@@ -53,24 +121,21 @@ func (r *mutationResolver) CreateAPIKeyConnector(ctx context.Context, input type
 		return nil, gqlutils.Invalid(ctx, err)
 	}
 
-	req.RawSettings = raw
-
-	// Crisp (ManagedAPIKey) requires proof the organization controls the Crisp
-	// website before the connection is created; every other API-key provider is
-	// unaffected. Runs after settings validation and before any write, so a
-	// failed check leaves no row.
-	if input.Provider == coredata.ConnectorProviderCrisp {
-		if err := r.verifyCrispOwnership(ctx, input); err != nil {
+	// Tally has no settings input: the key itself is validated against
+	// GET /users/me and the organization id it returns becomes the
+	// persisted settings. Runs before any write, so a rejected key
+	// leaves no row.
+	if input.Provider == coredata.ConnectorProviderTally {
+		raw, err = r.resolveTallySettings(ctx, apiKey)
+		if err != nil {
 			return nil, err
 		}
 	}
 
+	req.RawSettings = raw
+
 	cnnctr, err := r.probo.Connectors.Create(ctx, scope, req)
 	if err != nil {
-		if errors.Is(err, coredata.ErrResourceAlreadyExists) {
-			return nil, gqlutils.Conflict(ctx, err)
-		}
-
 		r.logger.ErrorCtx(ctx, "cannot create API key connector", log.Error(err))
 
 		return nil, gqlutils.Internal(ctx)
@@ -88,11 +153,16 @@ func (r *mutationResolver) CreateClientCredentialsConnector(ctx context.Context,
 		return nil, err
 	}
 
+	tokenURL, err := clientCredentialsTokenURL(r.providerRegistry, input.Provider, input.TokenURL)
+	if err != nil {
+		return nil, gqlutils.Invalid(ctx, err)
+	}
+
 	oauth2Conn := &connector.OAuth2Connection{
 		GrantType:    connector.OAuth2GrantTypeClientCredentials,
 		ClientID:     input.ClientID,
 		ClientSecret: input.ClientSecret,
-		TokenURL:     input.TokenURL,
+		TokenURL:     tokenURL,
 	}
 
 	if input.Scope != nil {
@@ -115,10 +185,6 @@ func (r *mutationResolver) CreateClientCredentialsConnector(ctx context.Context,
 
 	cnnctr, err := r.probo.Connectors.Create(ctx, scope, req)
 	if err != nil {
-		if errors.Is(err, coredata.ErrResourceAlreadyExists) {
-			return nil, gqlutils.Conflict(ctx, err)
-		}
-
 		r.logger.ErrorCtx(ctx, "cannot create client credentials connector", log.Error(err))
 
 		return nil, gqlutils.Internal(ctx)
@@ -129,13 +195,19 @@ func (r *mutationResolver) CreateClientCredentialsConnector(ctx context.Context,
 	}, nil
 }
 
+<<<<<<< HEAD
 // CreatePrivateKeyJwtConnector is the resolver for the createPrivateKeyJwtConnector field.
 func (r *mutationResolver) CreatePrivateKeyJwtConnector(ctx context.Context, input types.CreatePrivateKeyJwtConnectorInput) (*types.CreatePrivateKeyJwtConnectorPayload, error) {
+=======
+// CreateWorkloadIdentityConnector is the resolver for the createWorkloadIdentityConnector field.
+func (r *mutationResolver) CreateWorkloadIdentityConnector(ctx context.Context, input types.CreateWorkloadIdentityConnectorInput) (*types.CreateWorkloadIdentityConnectorPayload, error) {
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 	scope, err := r.authorize(ctx, input.OrganizationID, probo.ActionConnectorCreate)
 	if err != nil {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	reg, ok := r.providerRegistry.Get(input.Provider)
 	if !ok || !reg.SupportsPrivateKeyJWT {
 		return nil, gqlutils.Invalid(ctx, fmt.Errorf("provider %q does not support private key JWT authentication", input.Provider))
@@ -159,11 +231,21 @@ func (r *mutationResolver) CreatePrivateKeyJwtConnector(ctx context.Context, inp
 	// watching.
 	if err := conn.Validate(); err != nil {
 		return nil, gqlutils.Invalid(ctx, err)
+=======
+	if r.identityFederation == nil {
+		return nil, gqlutils.Invalidf(ctx, "identity federation is not configured in this deployment")
+	}
+
+	raw, err := r.workloadIdentitySettings(ctx, input)
+	if err != nil {
+		return nil, err
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 	}
 
 	cnnctr, err := r.probo.Connectors.Create(ctx, scope, probo.CreateConnectorRequest{
 		OrganizationID: input.OrganizationID,
 		Provider:       input.Provider,
+<<<<<<< HEAD
 		Protocol:       coredata.ConnectorProtocolPrivateKeyJWT,
 		Connection:     conn,
 	})
@@ -173,11 +255,23 @@ func (r *mutationResolver) CreatePrivateKeyJwtConnector(ctx context.Context, inp
 		}
 
 		r.logger.ErrorCtx(ctx, "cannot create private key jwt connector", log.Error(err))
+=======
+		Protocol:       coredata.ConnectorProtocolWorkloadIdentity,
+		Connection:     &connector.WorkloadIdentityConnection{},
+		RawSettings:    raw,
+	})
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot create workload identity connector", log.Error(err))
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 
 		return nil, gqlutils.Internal(ctx)
 	}
 
+<<<<<<< HEAD
 	return &types.CreatePrivateKeyJwtConnectorPayload{
+=======
+	return &types.CreateWorkloadIdentityConnectorPayload{
+>>>>>>> faf387c6508d274c04be30b6efe6e1c571d2d464
 		Connector: types.NewConnector(cnnctr),
 	}, nil
 }
@@ -190,6 +284,10 @@ func (r *mutationResolver) DeleteConnector(ctx context.Context, input types.Dele
 	}
 
 	if err := r.probo.Connectors.Delete(ctx, scope, input.ConnectorID); err != nil {
+		if errors.Is(err, coredata.ErrResourceInUse) {
+			return nil, gqlutils.Conflictf(ctx, "connector is in use")
+		}
+
 		panic(fmt.Errorf("cannot delete connector: %w", err))
 	}
 

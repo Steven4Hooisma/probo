@@ -3,10 +3,21 @@
 After confirming commits below, follow the
 [common steps](./README.md#3-common-steps-every-track).
 
+## Stable or RC
+
+This track can ship a GitHub prerelease for fleet testing. **Ask the
+user before bumping the version: stable release, or RC (`-rc.N`)?**
+Do not assume stable. Other tracks have no RC path — do not ask this
+for them.
+
+If they choose RC, follow [RC release](#rc-release) instead of a
+plain `X.Y.Z` bump.
+
 ## Track facts
 
 - **Tag pattern**: `probo-agent/v*`
-- **Version source**: `cmd/probo-agent/VERSION` (single `X.Y.Z` line)
+- **Version source**: `cmd/probo-agent/VERSION` (single `X.Y.Z` or
+  `X.Y.Z-rc.N` line)
 - **Version bump**: Edit `cmd/probo-agent/VERSION` directly
 - **Changelog**: `cmd/probo-agent/CHANGELOG.md`
 - **Files to stage**: `cmd/probo-agent/VERSION`, `cmd/probo-agent/CHANGELOG.md`
@@ -22,6 +33,35 @@ git log $(git describe --tags --abbrev=0 --match='probo-agent/v*')..HEAD --oneli
 
 If empty or non-user-facing only, do not release this track.
 
+## RC release
+
+Only this track supports RCs. Form is **`probo-agent/vX.Y.Z-rc.N`**
+only (`N` is a positive integer: `-rc.1`, then `-rc.2`). No `alpha`,
+`beta`, or undotted `rc1`.
+
+1. Decide `X.Y.Z` the same way as a stable bump (PATCH vs MINOR).
+2. If no RC exists for that `X.Y.Z`, use `-rc.1`. If `vX.Y.Z-rc.N`
+   already exists, use `-rc.(N+1)`.
+3. Set `cmd/probo-agent/VERSION` to `X.Y.Z-rc.N`.
+4. Changelog heading: `## [X.Y.Z-rc.N] - YYYY-MM-DD`.
+5. Commit subject and annotated tag: `probo-agent/vX.Y.Z-rc.N`.
+6. Push the commit, then the tag **alone**. The workflow marks the
+   GitHub Release as a prerelease when the tag contains `-rc.`.
+
+Promoting to stable later: drop `-rc.N`, reuse the same `X.Y.Z`, and
+add a new changelog heading `## [X.Y.Z]`.
+
+Installer `ProductVersion` / `pkgbuild --version` / `CFBundleVersion`
+strip `-rc.N` to `X.Y.Z`. Filenames, `ldflags`, and
+`CFBundleShortVersionString` keep the full string. MSI/PKG upgrade
+from an RC to the matching stable may be treated as the same product
+version — use auto-update (zip/tar) or uninstall first.
+
+Production auto-update ignores GitHub prereleases. Test-fleet hosts
+set `allow_prereleases: true` in `config.json` (or install with
+`--allow-prereleases` / `PROBO_ALLOW_PRERELEASES=true`) and restart
+the service.
+
 ## Build
 
 ```shell
@@ -34,20 +74,22 @@ and FreeBSD builds stay pure Go (no tray).
 
 ## Notes
 
-CI builds binaries for linux, windows, and freebsd (amd64/arm64) on
-Linux runners, and builds **CGO-enabled** darwin archives plus a
-signed/notarized fat `.pkg` on a macOS runner. The GitHub
-Release includes those archives, `probo-agent_*_darwin.pkg`,
-`install.sh`, signed checksums, SBOM, and build attestations. The agent
-auto-update path downloads the matching archive plus `checksums.txt` and
-verifies the cosign bundle before installing.
+CI builds linux and freebsd (amd64/arm64) on Linux runners, builds
+**CGO-enabled** darwin archives plus a signed/notarized fat `.pkg` on a
+macOS runner, and builds **Windows** zip archives plus Authenticode-signed
+MSIs on `windows-latest` (Azure Trusted Signing). The GitHub Release
+includes those archives, `probo-agent_*_darwin.pkg`,
+`probo-agent_*_windows_*.msi`, `install.sh`, signed checksums, SBOM, and
+build attestations. The agent auto-update path downloads the matching
+archive plus `checksums.txt` and verifies the cosign bundle before
+installing.
 
 The menu bar / tray enrollment flow is **macOS and Windows only**.
 Linux and FreeBSD use `probo-agent install --server …
 --enrollment-token …` from the shell, or the curl-to-sh installer
-documented below. Windows release binaries are cross-compiled from
-Linux with `CGO_ENABLED=0` (tray is pure Go). macOS release binaries
-and the `.pkg` are built on macOS with `CGO_ENABLED=1`.
+documented below. Windows release binaries are built natively on
+Windows runners with `CGO_ENABLED=0` (tray is pure Go). macOS release
+binaries and the `.pkg` are built on macOS with `CGO_ENABLED=1`.
 
 ### macOS `.pkg` (MDM / GUI install)
 
@@ -64,15 +106,23 @@ then the app bundle, optionally signs the product with
 profile; submits use `--keychain-profile` so the secret is not on
 `notarytool submit` argv).
 
-The Finder/Dock icon for `Probo Agent.app` comes from a single master
-PNG, `cmd/probo-agent/installer/macos/enroll-ui/Resources/icon-original.png`
-(Probo square mark). At PKG build time `build.sh` pads/resizes it with
+The Finder/Dock icon for `Probo Agent.app`, the Windows tray /
+`.exe` / MSI icon, and the macOS menu-bar outline all come from two
+committed PNGs in `pkg/deviceagent/tray/`:
+
+- `icon_color.png` — 1200px color mark (rounded square, transparent
+  corners). Feeds the macOS `AppIcon.icns` pipeline, the Windows tray
+  ICO at runtime, and `mkicon` (exe `.syso` + MSI `ARPPRODUCTICON`).
+- `icon_template.png` — 36px black+alpha outline. macOS menu bar
+  template icon, and the tinted status rows in the tray menu.
+
+At PKG build time `build.sh` pads/resizes `icon_color.png` with
 `sips`, compiles `AppIcon.icns` with `iconutil` under the build stage
 directory, and installs it into `Contents/Resources/`. `Info.plist`
 sets `CFBundleIconFile` to `AppIcon`. Do not commit generated
-`.icns` / iconset PNGs.
+`.icns` / iconset PNGs, `.ico`, or `rsrc_windows_*.syso`.
 
-The master PNG must have the rounded-square mark pre-baked with fully
+The color PNG must have the rounded-square mark pre-baked with fully
 transparent corners. macOS composites legacy `.icns` icons onto a light
 rounded plate, so any opaque pixel outside the rounded square renders as
 a visible square frame around the mark.
@@ -95,10 +145,11 @@ cmd/probo-agent/installer/macos/build.sh \
   --version "$(cat cmd/probo-agent/VERSION)"
 ```
 
-PKG postinstall always installs the global tray LaunchAgent, registers
-`probo://`, and installs the privileged helper
-(`com.probo.agent.helper`) under `/Library/PrivilegedHelperTools` as
-root. The only admin authentication is the normal macOS Installer
+The PKG payload installs the agent at `/Library/Probo/probo-agent`
+(root:wheel, 0755). PKG postinstall runs `probo-agent setup-tray`
+(LaunchAgent persist and start), registers `probo://`, and installs the
+privileged helper (`com.probo.agent.helper`) under
+`/Library/PrivilegedHelperTools` as root. The only admin authentication is the normal macOS Installer
 prompt for the PKG itself. The LaunchDaemon for `probo-agent run` is
 created only after enrollment (`probo-agent install`, deep link, or MDM
 `/tmp/probo-agent.conf`).
@@ -143,15 +194,87 @@ export APPLE_ID_PASSWORD="app-specific-password"
 # optional: NOTARYTOOL_KEYCHAIN_PROFILE=probo-agent-notary (default)
 ```
 
+### Windows MSI (MDM / GUI install)
+
+Release builds use `cmd/probo-agent/installer/windows/build.ps1` (WiX)
+on `windows-latest`. The MSI installs `probo-agent.exe` and
+`probo-agentw.exe` under `C:\Program Files\Probo\`. The console binary
+is for CLI commands and the Windows service. The GUI-subsystem binary
+is for the tray and the machine-wide `probo://` handler (HKLM). The MSI
+does **not** create the Windows service — enrollment (`probo-agent
+install` / deep link) still owns `sc.exe create`, same idea as the
+macOS LaunchDaemon-after-enroll flow.
+
+Published assets per arch:
+
+| Artifact | Role |
+|----------|------|
+| `probo-agent_*_windows_*.msi` | Initial install (double-click or `msiexec /i … /qn`); self-contained (embedded CAB) |
+| `probo-agent_Windows_*.zip` | Auto-update archive containing both executables |
+
+Both nested executables and the MSI are Authenticode-signed with
+**Azure Trusted Signing** before upload. Local unsigned MSI builds (no
+signing) are fine for layout testing:
+
+```powershell
+# Requires: go, and `dotnet tool install --global wix`
+$Version = Get-Content cmd/probo-agent/VERSION -Raw
+$Version = $Version.Trim()
+go run ./cmd/probo-agent/installer/windows/mkicon `
+  -png ./pkg/deviceagent/tray/icon_color.png `
+  -syso ./cmd/probo-agent/rsrc_windows_amd64.syso `
+  -arch amd64
+go build -ldflags "-X 'main.version=$Version'" -o dist/probo-agent.exe ./cmd/probo-agent
+go build -ldflags "-H windowsgui -X 'main.version=$Version'" -o dist/probo-agentw.exe ./cmd/probo-agent
+./cmd/probo-agent/installer/windows/build.ps1 `
+  -Binary dist/probo-agent.exe `
+  -GUIBinary dist/probo-agentw.exe `
+  -Version $Version `
+  -Arch amd64
+```
+
+`probo-agent.exe` keeps the console PE subsystem so `install` /
+`collect` / `status` / `uninstall` block the shell and propagate
+`ERRORLEVEL`. `probo-agentw.exe` uses the GUI subsystem so Explorer
+does not create a console for tray or deeplink launches. `mkicon` must
+run before both builds so the `.syso` is linked into each exe
+(Explorer, Task Manager). The MSI build runs `mkicon` again for
+`ARPPRODUCTICON` (Settings > Apps). Generated `.syso` files are
+gitignored.
+
+For per-user protocol registration without the MSI (dev machines),
+`cmd/probo-agent/installer/windows/register-protocol.ps1` still writes
+an HKCU handler pointing at `%ProgramFiles%\Probo\probo-agentw.exe`.
+
+### Azure Trusted Signing (GitHub)
+
+The `build-windows` job signs with Azure Artifact Signing (Trusted
+Signing) only — no PFX in repository secrets. The job uses the GitHub
+Environment `probo-agent-release` and OIDC (no client secret).
+
+**Full setup guide:**
+[`probo-agent-windows-signing.md`](./probo-agent-windows-signing.md)
+
+Quick reference (names must match the guide and workflow):
+
+| Name | Kind | Purpose |
+|------|------|---------|
+| `AZURE_CLIENT_ID` | secret | Entra app (federated credential) |
+| `AZURE_TENANT_ID` | secret | Entra tenant |
+| `AZURE_SUBSCRIPTION_ID` | secret | Azure subscription |
+| `AZURE_TRUSTED_SIGNING_ENDPOINT` | variable | e.g. `https://eus.codesigning.azure.net/` |
+| `AZURE_TRUSTED_SIGNING_ACCOUNT` | variable | Artifact Signing account name |
+| `AZURE_TRUSTED_SIGNING_PROFILE` | variable | Certificate profile name |
+
+Timestamps use Microsoft ACS (`http://timestamp.acs.microsoft.com`).
+Leaf certificates are short-lived; the RFC3161 timestamp is required.
+
 Windows enrollment is browser-driven: the console issues a
 `probo://enroll?server=...&token=...` deep link handled by
 `Probo Agent.app` on macOS (PKG-installed helper + XPC) or
-`probo-agent enroll-url` on Windows. After install, register the protocol for the
-current user with
-`cmd/probo-agent/installer/windows/register-protocol.ps1` (per-user
-`HKCU` handler pointing at `probo-agent.exe`). The system tray helper
-(`probo-agent tray`) shows enrollment status; enrollment itself happens
-in the browser.
+`probo-agent enroll-url` on Windows (MSI-registered protocol). The
+system tray helper (`probo-agent tray`) shows enrollment status;
+enrollment itself happens in the browser.
 
 Region labels and console URLs for the macOS installer HTML live in
 `cmd/probo-agent/installer/regions.json`. A Go test keeps US/EU URLs in
@@ -184,9 +307,10 @@ anchors trust to the script the user already obtained, rather than a
 co-downloaded `checksums.txt`. Post-install upgrades still use cosign
 bundle verification via the agent auto-update path.
 
-The script installs the binary to `/usr/local/bin/probo-agent`, then runs
-`probo-agent install` to enroll and start the OS service. Agent state defaults
-to `/var/lib/probo-agent` (override with `--dir` or `PROBO_AGENT_STATE_DIR`).
+The script installs the binary to `/Library/Probo/probo-agent` on macOS, or
+`/usr/local/bin/probo-agent` on Linux and FreeBSD, then runs `probo-agent
+install` to enroll and start the OS service. Agent state defaults to
+`/var/lib/probo-agent` (override with `--dir` or `PROBO_AGENT_STATE_DIR`).
 
 Environment variables:
 
@@ -199,6 +323,7 @@ Environment variables:
 | `PROBO_SERVER_URL` | Probo server base URL (skip interactive prompt) |
 | `PROBO_ENROLLMENT_TOKEN` | One-shot enrollment token (skip interactive prompt) |
 | `PROBO_NO_AUTO_UPDATE` | Set to `true` to pass `--no-auto-update` |
+| `PROBO_ALLOW_PRERELEASES` | Set to `true` to pass `--allow-prereleases` |
 
 Never pass the enrollment token in the curl URL.
 

@@ -30,14 +30,13 @@ import (
 	"go.probo.inc/probo/pkg/coredata"
 )
 
-// AsanaDriver fetches users for a given Asana workspace via REST API
-// using a pre-authenticated HTTP client (Bearer token). Pagination is
-// driven by the body field `next_page.uri`.
+// AsanaDriver fetches workspace memberships via the Asana REST API.
+// MFA and last-login are not available from the API.
 //
-// The user object exposes very little: gid, name, email. There is no
-// role / MFA / last-login signal. Active is derived defensively from
-// the presence of an email — Asana hides the email field for
-// deactivated or privacy-protected users.
+// The workspace-scoped memberships query filters to active memberships, so
+// deactivated members are absent rather than returned with is_active false,
+// and is_active covers invitees who never accepted. Removals therefore reach a
+// campaign as entries missing from the fetch, not as inactive ones.
 type AsanaDriver struct {
 	httpClient   *http.Client
 	workspaceGID string
@@ -47,18 +46,12 @@ type AsanaDriver struct {
 var _ Driver = (*AsanaDriver)(nil)
 
 const (
-	asanaWorkspacesSegment = "workspaces"
-	asanaUsersSegment      = "users"
+	asanaWorkspacesSegment           = "workspaces"
+	asanaWorkspaceMembershipsSegment = "workspace_memberships"
+	asanaMembershipsOptFields        = "user.gid,user.name,user.email,is_admin,is_guest,is_view_only,is_active,created_at"
+	asanaDefaultBaseURL              = "https://app.asana.com/api/1.0"
 )
 
-// asanaDefaultBaseURL is the Asana API root. It backs only the exported
-// ListAsanaOrganizations, and only when its caller resolves no APIBase for
-// the provider (unregistered, or registered without one). Every other path
-// goes through the injected baseURL instead.
-const asanaDefaultBaseURL = "https://app.asana.com/api/1.0"
-
-// NewAsanaDriver builds a driver against baseURL, the versioned Asana API
-// origin (e.g. https://app.asana.com/api/1.0).
 func NewAsanaDriver(httpClient *http.Client, workspaceGID, baseURL string) *AsanaDriver {
 	return &AsanaDriver{
 		httpClient: &http.Client{
@@ -72,60 +65,78 @@ func NewAsanaDriver(httpClient *http.Client, workspaceGID, baseURL string) *Asan
 	}
 }
 
-type asanaUser struct {
-	GID   string `json:"gid"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
+type (
+	asanaMembershipUser struct {
+		GID   string `json:"gid"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
 
-type asanaUsersPage struct {
-	Data     []asanaUser `json:"data"`
-	NextPage *struct {
-		URI string `json:"uri"`
-	} `json:"next_page"`
-}
+	// The membership flags are pointers: this endpoint answers with
+	// WorkspaceMembershipCompact and only adds them because opt_fields asks
+	// for them, so an absent flag must stay unknown rather than decode to
+	// false.
+	asanaMembership struct {
+		User       asanaMembershipUser `json:"user"`
+		IsAdmin    *bool               `json:"is_admin"`
+		IsGuest    *bool               `json:"is_guest"`
+		IsViewOnly *bool               `json:"is_view_only"`
+		IsActive   *bool               `json:"is_active"`
+		CreatedAt  string              `json:"created_at"`
+	}
+
+	asanaMembershipsPage struct {
+		Data     []asanaMembership `json:"data"`
+		NextPage *struct {
+			URI string `json:"uri"`
+		} `json:"next_page"`
+	}
+)
 
 func (d *AsanaDriver) ListAccounts(ctx context.Context) ([]AccountRecord, error) {
 	var records []AccountRecord
 
-	u, err := url.JoinPath(d.baseURL, asanaWorkspacesSegment, url.PathEscape(d.workspaceGID), asanaUsersSegment)
+	u, err := url.JoinPath(
+		d.baseURL,
+		asanaWorkspacesSegment,
+		url.PathEscape(d.workspaceGID),
+		asanaWorkspaceMembershipsSegment,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot build asana users URL: %w", err)
+		return nil, fmt.Errorf("cannot build asana memberships URL: %w", err)
 	}
 
 	parsed, err := url.Parse(u)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse asana users URL: %w", err)
+		return nil, fmt.Errorf("cannot parse asana memberships URL: %w", err)
 	}
 
 	q := parsed.Query()
-	q.Set("opt_fields", "email,name")
+	q.Set("opt_fields", asanaMembershipsOptFields)
 	q.Set("limit", "100")
 	parsed.RawQuery = q.Encode()
 	next := parsed.String()
 
 	for range maxPaginationPages {
-		page, err := d.queryUsers(ctx, next)
+		page, err := d.queryMemberships(ctx, next)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, u := range page.Data {
-			// Asana's workspace-users endpoint exposes no active flag,
-			// and a missing email can mean deactivated, privacy-protected,
-			// limited-access, or an external collaborator. Inferring
-			// Active=false from any of those would fabricate state, so
-			// leave Active nil (unknown) and let downstream review surface
-			// the gap honestly.
+		for _, m := range page.Data {
 			records = append(
 				records,
 				AccountRecord{
-					Email:       u.Email,
-					FullName:    u.Name,
-					ExternalID:  u.GID,
+					Email:       m.User.Email,
+					FullName:    m.User.Name,
+					ExternalID:  m.User.GID,
+					Roles:       asanaRoles(m.IsAdmin, m.IsGuest, m.IsViewOnly),
+					Active:      m.IsActive,
+					IsAdmin:     m.IsAdmin,
 					MFAStatus:   coredata.MFAStatusUnknown,
 					AuthMethod:  coredata.AccessReviewEntryAuthMethodUnknown,
 					AccountType: coredata.AccessReviewEntryAccountTypeUser,
+					CreatedAt:   parseRFC3339Ptr(m.CreatedAt),
 				},
 			)
 		}
@@ -143,42 +154,59 @@ func (d *AsanaDriver) ListAccounts(ctx context.Context) ([]AccountRecord, error)
 	return nil, fmt.Errorf("cannot list all asana accounts: %w", ErrPaginationLimitReached)
 }
 
-func (d *AsanaDriver) queryUsers(ctx context.Context, endpoint string) (*asanaUsersPage, error) {
+func (d *AsanaDriver) queryMemberships(ctx context.Context, endpoint string) (*asanaMembershipsPage, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create asana users request: %w", err)
+		return nil, fmt.Errorf("cannot create asana memberships request: %w", err)
 	}
 
 	req.Header.Set("Accept", "application/json")
 
 	httpResp, err := d.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("cannot execute asana users request: %w", err)
+		return nil, fmt.Errorf("cannot execute asana memberships request: %w", err)
 	}
 
 	defer func() { _ = httpResp.Body.Close() }()
 
 	if httpResp.StatusCode < 200 || httpResp.StatusCode >= 300 {
-		return nil, fmt.Errorf("cannot fetch asana users: unexpected status %d", httpResp.StatusCode)
+		return nil, fmt.Errorf("cannot fetch asana memberships: unexpected status %d", httpResp.StatusCode)
 	}
 
-	var page asanaUsersPage
+	var page asanaMembershipsPage
 	if err := json.NewDecoder(httpResp.Body).Decode(&page); err != nil {
-		return nil, fmt.Errorf("cannot decode asana users response: %w", err)
+		return nil, fmt.Errorf("cannot decode asana memberships response: %w", err)
 	}
 
 	return &page, nil
 }
 
-// asanaNameResolver resolves the Asana workspace name.
+// asanaRoles derives the workspace role from the membership flags. A set flag
+// classifies on its own, but "Member" means "none of the three", so it is only
+// reachable once all three came back false. Inferring it from a partial
+// response would assert precisely what Asana withheld: an account whose
+// is_guest was omitted could be a guest.
+func asanaRoles(isAdmin, isGuest, isViewOnly *bool) []string {
+	switch {
+	case isAdmin != nil && *isAdmin:
+		return []string{"Admin"}
+	case isGuest != nil && *isGuest:
+		return []string{"Guest"}
+	case isViewOnly != nil && *isViewOnly:
+		return []string{"View only"}
+	case isAdmin != nil && isGuest != nil && isViewOnly != nil:
+		return []string{"Member"}
+	default:
+		return nil
+	}
+}
+
 type asanaNameResolver struct {
 	httpClient   *http.Client
 	workspaceGID string
 	baseURL      string
 }
 
-// NewAsanaNameResolver resolves the workspace name against baseURL, the
-// versioned Asana API origin (e.g. https://app.asana.com/api/1.0).
 func NewAsanaNameResolver(httpClient *http.Client, workspaceGID, baseURL string) NameResolver {
 	return &asanaNameResolver{httpClient: httpClient, workspaceGID: workspaceGID, baseURL: baseURL}
 }

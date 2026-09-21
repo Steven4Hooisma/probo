@@ -37,6 +37,7 @@ import (
 	"go.probo.inc/probo/pkg/connector"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/crypto/cipher"
+	"go.probo.inc/probo/pkg/crypto/jose"
 	"go.probo.inc/probo/pkg/crypto/passwdhash"
 	"go.probo.inc/probo/pkg/filemanager"
 	"go.probo.inc/probo/pkg/gid"
@@ -103,14 +104,14 @@ type (
 		Logger                         *log.Logger
 		TracerProvider                 trace.TracerProvider
 		Registerer                     prometheus.Registerer
-		ConnectorRegistry              *connector.ConnectorRegistry
+		ConnectorRegistry              *connector.Registry
 		DomainVerificationInterval     time.Duration
 		DomainVerificationResolverAddr string
 		SCIMBridgeSyncInterval         time.Duration
 		SCIMBridgePollInterval         time.Duration
 		GoogleOIDC                     oidc.ProviderConfig
 		MicrosoftOIDC                  oidc.ProviderConfig
-		OAuth2ServerSigningKeys        oauth2.SigningKeys
+		OAuth2ServerKeyRing            *jose.KeyRing
 		OAuth2ServerOptions            []oauth2.Option
 		OAuth2ScopeRegistry            *oauth2scope.Registry
 	}
@@ -225,7 +226,7 @@ func NewService(
 
 	svc.OAuth2ServerService = oauth2.NewService(
 		pgClient,
-		cfg.OAuth2ServerSigningKeys,
+		cfg.OAuth2ServerKeyRing,
 		uri.URI(cfg.BaseURL.String()),
 		cfg.Logger.Named("oauth2"),
 		append(
@@ -259,11 +260,41 @@ func (s *Service) OAuth2ServerMetadata(endpoints oauth2.Endpoints) *oauth2.Serve
 
 // OAuth2ProtectedResourceMetadata returns the RFC 9728 protected resource metadata document.
 func (s *Service) OAuth2ProtectedResourceMetadata(resource uri.URI) *oauth2.ProtectedResourceMetadata {
-	return oauth2.NewProtectedResourceMetadata(resource, resource, s.OAuth2ScopeRegistry.AllWriteScopes())
+	return oauth2.NewProtectedResourceMetadata(
+		resource,
+		s.OAuth2ServerService.Issuer(),
+		s.OAuth2ScopeRegistry.AllWriteScopes(),
+	)
+}
+
+// OAuth2MCPResource returns the MCP protected-resource identifier.
+func (s *Service) OAuth2MCPResource() (uri.URI, error) {
+	return oauth2.MCPResource(uri.URI(s.baseURL))
 }
 
 func (s *Service) IsSignUpEnabled() bool {
 	return !s.disableSignup
+}
+
+func (s *Service) IdentityHasMembership(
+	ctx context.Context,
+	identityID gid.GID,
+	role *coredata.MembershipRole,
+) (bool, error) {
+	filter := coredata.NewMembershipProfileFilter(nil).
+		WithMembership().
+		WithStates(coredata.ProfileStateActive)
+
+	if role != nil {
+		filter = filter.WithRole(*role)
+	}
+
+	count, err := s.AccountService.CountProfiles(ctx, identityID, filter)
+	if err != nil {
+		return false, fmt.Errorf("cannot count memberships: %w", err)
+	}
+
+	return count > 0, nil
 }
 
 func (s *Service) Run(ctx context.Context) error {

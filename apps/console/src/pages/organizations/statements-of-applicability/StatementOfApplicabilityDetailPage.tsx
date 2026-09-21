@@ -23,7 +23,6 @@ import { usePageTitle } from "@probo/hooks";
 import { dateFormat } from "@probo/i18n";
 import {
   ActionDropdown,
-  Breadcrumb,
   Button,
   Card,
   DropdownItem,
@@ -48,7 +47,6 @@ import {
   usePreloadedQuery,
 } from "react-relay";
 import { Link, useNavigate, useParams } from "react-router";
-import { z } from "zod";
 
 import type { StatementOfApplicabilityDetailPageDeleteMutation } from "#/__generated__/core/StatementOfApplicabilityDetailPageDeleteMutation.graphql";
 import type { StatementOfApplicabilityDetailPageQuery } from "#/__generated__/core/StatementOfApplicabilityDetailPageQuery.graphql";
@@ -57,6 +55,7 @@ import type { StatementOfApplicabilityDetailPageUpdateMutation } from "#/__gener
 import { PeopleMultiSelectField } from "#/components/form/PeopleMultiSelectField";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 import { PublishStatementOfApplicabilityDialog } from "./dialogs/PublishStatementOfApplicabilityDialog";
 import StatementOfApplicabilityControlsTab from "./tabs/StatementOfApplicabilityControlsTab";
@@ -184,7 +183,7 @@ export default function StatementOfApplicabilityDetailPage(props: Props) {
           },
         })
           .then(() => {
-            void navigate(`/organizations/${organizationId}/statements-of-applicability`);
+            void navigate(`/organizations/${organizationId}/governance/statements-of-applicability`);
           })
           .catch((error) => {
             toast({
@@ -318,24 +317,8 @@ export default function StatementOfApplicabilityDetailPage(props: Props) {
     resetApprovers({ approverIds: defaultApproverIds });
   };
 
-  const listUrl = `/organizations/${organizationId}/statements-of-applicability`;
-
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          {
-            label: t("statementOfApplicabilityDetailPage.breadcrumb.statementsOfApplicability"),
-            to: listUrl,
-          },
-          {
-            label:
-                            statementOfApplicability.name
-                            || t("statementOfApplicabilityDetailPage.breadcrumb.detail"),
-          },
-        ]}
-      />
-
       <PageHeader
         title={
           isEditingName && canUpdate
@@ -385,7 +368,7 @@ export default function StatementOfApplicabilityDetailPage(props: Props) {
         {statementOfApplicability.document?.id && (
           <Button variant="secondary" asChild>
             <Link
-              to={`/organizations/${organizationId}/documents/${statementOfApplicability.document.id}`}
+              to={`/organizations/${organizationId}/governance/documents/${statementOfApplicability.document.id}`}
             >
               <IconPageTextLine size={16} />
               {t("statementOfApplicabilityDetailPage.actions.document")}
@@ -398,7 +381,7 @@ export default function StatementOfApplicabilityDetailPage(props: Props) {
             defaultApproverIds={defaultApproverIds}
             onPublished={(documentId) => {
               void navigate(
-                `/organizations/${organizationId}/documents/${documentId}`,
+                `/organizations/${organizationId}/governance/documents/${documentId}`,
               );
             }}
           >

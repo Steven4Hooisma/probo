@@ -1,3 +1,7 @@
+# Anonymized from a live recording against the probo.inc Asana workspace on
+# 2026-08-18, using an OAuth token carrying the `default` scope. Workspace,
+# membership and user GIDs, the display name and the email were replaced;
+# the response shape, headers and timing are as Asana sent them.
 ---
 version: 2
 interactions:
@@ -12,18 +16,18 @@ interactions:
             limit:
                 - "100"
             opt_fields:
-                - email,name
+                - user.gid,user.name,user.email,is_admin,is_guest,is_view_only,is_active,created_at
         headers:
             Accept:
                 - application/json
-        url: https://app.asana.com/api/1.0/workspaces/9999999/users?limit=100&opt_fields=email%2Cname
+        url: https://app.asana.com/api/1.0/workspaces/9999999/workspace_memberships?limit=100&opt_fields=user.gid%2Cuser.name%2Cuser.email%2Cis_admin%2Cis_guest%2Cis_view_only%2Cis_active%2Ccreated_at
         method: GET
       response:
         proto: HTTP/2.0
         proto_major: 2
         proto_minor: 0
-        content_length: 91
-        body: '{"data":[{"gid":"1000000000000001","email":"jane@example.com","name":"Jane Doe"}]}'
+        content_length: 246
+        body: '{"data":[{"gid":"1100000000000001","user":{"gid":"1000000000000001","email":"admin@example.com","name":"Ada Admin"},"is_active":true,"is_admin":true,"is_guest":false,"is_view_only":false,"created_at":"2026-05-15T13:12:35.328Z"}],"next_page":null}'
         headers:
             Asana-Change:
                 - name=new_user_task_lists;info=https://forum.asana.com/t/update-on-our-planned-api-changes-to-user-task-lists-a-k-a-my-tasks/103828
@@ -37,38 +41,38 @@ interactions:
                 - name=teamless_projects;info=https://forum.asana.com/t/change-teamless-projects/929205
                 - name=goal_sals_api;info=https://forum.asana.com/t/new-change-goal-access-levels-admin-editor-and-viewer/1089758
             Content-Length:
-                - "91"
+                - "246"
             Content-Security-Policy:
                 - report-uri https://app.asana.com/-/csp_report?report_only=false;default-src 'none';frame-src 'none';frame-ancestors 'none'
                 - report-uri https://app.asana.com/-/csp_report?report_only=false;default-src 'none';frame-src 'none';frame-ancestors 'none'
             Content-Type:
                 - application/json; charset=UTF-8
             Date:
-                - Fri, 08 May 2026 16:45:46 GMT
+                - Tue, 18 Aug 2026 09:38:45 GMT
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Server:
                 - istio-envoy
             Server-Timing:
-                - cdn-upstream-layer;desc="REC",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=0,cdn-upstream-fbl;dur=207,cdn-cache-miss,cdn-pop;desc="CDG52-P2",cdn-rid;desc="tZKhlkEkxoMLAs5yCUtyLzZxi7d-FrIkOB5TiRF5JC7gHSk9oBQFwQ==",cdn-downstream-fbl;dur=230
+                - cdn-upstream-layer;desc="REC",cdn-upstream-dns;dur=0,cdn-upstream-connect;dur=165,cdn-upstream-fbl;dur=492,cdn-cache-miss,cdn-pop;desc="CDG52-P2",cdn-rid;desc="j7kXwhtYso0RRhBdGTnxEaEMZad6oEwO5fgbWqUeWD1P8KMgQaLfoA==",cdn-downstream-fbl;dur=514
             Strict-Transport-Security:
                 - max-age=31536000; includeSubDomains; preload
             Via:
-                - 1.1 ef16cf332760e013a5fd2d10ab2b11ec.cloudfront.net (CloudFront)
+                - 1.1 e0720e45d2e7ea5da3d185114a45e51e.cloudfront.net (CloudFront)
             X-Amz-Cf-Id:
-                - tZKhlkEkxoMLAs5yCUtyLzZxi7d-FrIkOB5TiRF5JC7gHSk9oBQFwQ==
+                - j7kXwhtYso0RRhBdGTnxEaEMZad6oEwO5fgbWqUeWD1P8KMgQaLfoA==
             X-Amz-Cf-Pop:
                 - CDG52-P2
             X-Asana-Api-Version:
                 - "1.1"
             X-Asana-Cell:
-                - prod-us1-asana-cell15
+                - prod-us1-asana-cell10
             X-Cache:
                 - Miss from cloudfront
             X-Content-Type-Options:
                 - nosniff
             X-Envoy-Upstream-Service-Time:
-                - "121"
+                - "242"
             X-Frame-Options:
                 - DENY
                 - DENY
@@ -81,4 +85,4 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 268.294ms
+        duration: 627.923917ms

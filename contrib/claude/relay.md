@@ -23,7 +23,7 @@ Config lives in `relay.config.json` at the repo root with three projects (`core`
 make relay  # merge split schemas + clean + compile
 ```
 
-Custom scalar mappings: `Datetime → string`, `GID → string`, `CursorKey → string`, `Duration → string`, `BigInt → number`, `EmailAddr → string`.
+Custom scalar mappings: `Datetime → string`, `GID → string`, `CursorKey → string`, `TimeSpan → string`, `BigInt → number`, `EmailAddr → string`.
 
 ## Naming operations and fragments
 
@@ -397,7 +397,9 @@ The `@connection(key: "...", filters: [...])` directive on the fragment tells Re
 
 ## Mutations
 
-Every mutation **must** update the Relay store so the UI reflects changes immediately — never rely on a page reload. Use `@appendEdge`/`@prependEdge` for creates, `@deleteEdge` for deletes, node `id` returns for in-place updates, and `updater` functions for complex multi-connection operations.
+Every mutation **must** update the Relay store so the UI reflects changes immediately — never rely on a page reload. Use `@appendEdge`/`@prependEdge` for creates, `@deleteEdge` / `@deleteRecord` for deletes, node `id` returns for in-place updates, and `updater` functions only when the operation cannot be expressed via the payload.
+
+When a mutation creates, updates, or clears a **parameterized linked field** on a parent (e.g. `Document.compliancePortalDocument(compliancePortalId:)`), the payload must return that parent with the linked field selected under the same arguments. Prefer that over a manual `store.setLinkedRecord` / `setValue` updater. See also the Node checklist in [`graphql.md`](graphql.md#node-interface).
 
 ### `useMutation`
 

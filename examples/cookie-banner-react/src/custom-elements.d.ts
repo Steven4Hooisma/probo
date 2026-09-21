@@ -12,6 +12,7 @@ declare module "react" {
         "banner-id"?: string;
         "base-url"?: string;
         lang?: string;
+        "gcm-enabled"?: string;
       }>;
       "probo-banner": CE;
       "probo-preference-panel": CE;
@@ -21,13 +22,16 @@ declare module "react" {
       "probo-accept-button": CE;
       "probo-reject-button": CE;
       "probo-customize-button": CE;
+      "probo-acknowledge-button": CE;
       "probo-save-button": CE;
+      "probo-privacy-choices": CE;
       "probo-settings-link": CE;
       "probo-cookie-banner": CE<{
         "banner-id"?: string;
         "base-url"?: string;
         position?: string;
         lang?: string;
+        "gcm-enabled"?: string;
       }>;
     }
   }

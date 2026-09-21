@@ -76,7 +76,7 @@ func seedAccessReviewEntryFixture(t *testing.T, ctx context.Context, client *pg.
 			CreatedAt:      now,
 			UpdatedAt:      now,
 		}
-		if err := source.Insert(ctx, tx, scope); err != nil {
+		if _, err := source.Insert(ctx, tx, scope); err != nil {
 			return err
 		}
 
@@ -174,13 +174,12 @@ func TestAccessReviewEntry_Upsert_FreezesDecidedFields(t *testing.T) {
 		FullName:                     originalFullName,
 		Roles:                        originalRoles,
 		JobTitle:                     "",
-		IsAdmin:                      false,
+		IsAdmin:                      new(false),
 		MFAStatus:                    coredata.MFAStatusUnknown,
 		AuthMethod:                   coredata.AccessReviewEntryAuthMethodUnknown,
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-1",
 		AccountKey:                   fx.accountKey,
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagNew,
 		Flags:                        originalFlags,
 		FlagReasons:                  originalFlagReasons,
 		Decision:                     coredata.AccessReviewEntryDecisionPending,
@@ -231,13 +230,12 @@ func TestAccessReviewEntry_Upsert_FreezesDecidedFields(t *testing.T) {
 		FullName:                     secondFullName,
 		Roles:                        secondRoles,
 		JobTitle:                     "",
-		IsAdmin:                      true,
+		IsAdmin:                      new(true),
 		MFAStatus:                    coredata.MFAStatusEnabled,
 		AuthMethod:                   coredata.AccessReviewEntryAuthMethodSSO,
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-1",
 		AccountKey:                   fx.accountKey,
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagUnchanged,
 		Flags:                        []coredata.AccessReviewEntryFlag{coredata.AccessReviewEntryFlagInactive},
 		FlagReasons:                  []string{"refreshed-flag-reason"},
 		Decision:                     coredata.AccessReviewEntryDecisionPending,
@@ -279,7 +277,8 @@ func TestAccessReviewEntry_Upsert_FreezesDecidedFields(t *testing.T) {
 	assert.Equal(t, secondEmail, loaded.Email)
 	assert.Equal(t, secondFullName, loaded.FullName)
 	assert.Equal(t, secondRoles, loaded.Roles)
-	assert.True(t, loaded.IsAdmin)
+	require.NotNil(t, loaded.IsAdmin)
+	assert.True(t, *loaded.IsAdmin)
 	assert.Equal(t, coredata.MFAStatusEnabled, loaded.MFAStatus)
 	assert.Equal(t, coredata.AccessReviewEntryAuthMethodSSO, loaded.AuthMethod)
 	assert.WithinDuration(t, t2, loaded.UpdatedAt, time.Second)
@@ -316,7 +315,6 @@ func TestAccessReviewEntry_Upsert_RefreshesSourceTrackingFields(t *testing.T) {
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-2",
 		AccountKey:                   fx.accountKey,
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagNew,
 		Flags:                        []coredata.AccessReviewEntryFlag{},
 		FlagReasons:                  []string{},
 		Decision:                     coredata.AccessReviewEntryDecisionPending,
@@ -342,7 +340,6 @@ func TestAccessReviewEntry_Upsert_RefreshesSourceTrackingFields(t *testing.T) {
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-2",
 		AccountKey:                   fx.accountKey,
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagUnchanged,
 		Flags:                        []coredata.AccessReviewEntryFlag{},
 		FlagReasons:                  []string{},
 		Decision:                     coredata.AccessReviewEntryDecisionPending,
@@ -406,7 +403,6 @@ func TestAccessReviewEntry_Upsert_InsertsActiveAccount(t *testing.T) {
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-active",
 		AccountKey:                   fx.accountKey,
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagNew,
 		Flags:                        []coredata.AccessReviewEntryFlag{},
 		FlagReasons:                  []string{},
 		Decision:                     coredata.AccessReviewEntryDecisionPending,
@@ -456,7 +452,6 @@ func TestAccessReviewEntry_Upsert_NilRolesWritesEmptyArray(t *testing.T) {
 		AccountType:                  coredata.AccessReviewEntryAccountTypeUser,
 		ExternalID:                   "ext-nil-roles",
 		AccountKey:                   "nil-roles@example.com",
-		IncrementalTag:               coredata.AccessReviewEntryIncrementalTagNew,
 		Flags:                        []coredata.AccessReviewEntryFlag{},
 		FlagReasons:                  []string{},
 		Decision:                     coredata.AccessReviewEntryDecisionPending,

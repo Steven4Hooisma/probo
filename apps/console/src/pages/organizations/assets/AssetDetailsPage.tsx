@@ -22,7 +22,6 @@ import { getAssetTypeVariant } from "@probo/helpers";
 import {
   ActionDropdown,
   Badge,
-  Breadcrumb,
   Button,
   DropdownItem,
   Field,
@@ -35,7 +34,6 @@ import {
   type PreloadedQuery,
   usePreloadedQuery,
 } from "react-relay";
-import { z } from "zod";
 
 import type { AssetGraphNodeQuery } from "#/__generated__/core/AssetGraphNodeQuery.graphql";
 import { ControlledField } from "#/components/form/ControlledField";
@@ -43,6 +41,7 @@ import { PeopleSelectField } from "#/components/form/PeopleSelectField";
 import { ThirdPartiesMultiSelectField } from "#/components/form/ThirdPartiesMultiSelectField";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 import {
   assetNodeQuery,
@@ -106,20 +105,8 @@ export default function AssetDetailsPage(props: Props) {
     reset(formData);
   });
 
-  const breadcrumbItems = [
-    {
-      label: t("assetDetailsPage.breadcrumb.assets"),
-      to: `/organizations/${organizationId}/assets`,
-    },
-    {
-      label: assetEntry?.name ?? "",
-    },
-  ];
-
   return (
     <div className="space-y-6">
-      <Breadcrumb items={breadcrumbItems} />
-
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-4">
           <div className="text-2xl">{assetEntry?.name}</div>

@@ -23,6 +23,8 @@
     "years_other": "jaren",
     "session": "sessie",
     "persistent": "permanent",
+    "sec_one": "{{count}} Seconde",
+    "sec_other": "{{count}} Seconden",
     "min_one": "{{count}} Minuut",
     "min_other": "{{count}} Minuten",
     "hour_one": "{{count}} Uur",
@@ -48,9 +50,6 @@
     "none": "Geen"
   },
   "datumDetails": {
-    "breadcrumbs": {
-      "data": "Gegevens"
-    },
     "fields": {
       "name": "Naam",
       "classification": "Classificatie",
@@ -103,30 +102,14 @@
   },
   "publishDataListDialog": {
     "title": "Gegevenslijst publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "successTitle": "Succes",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Gegevenslijst succesvol gepubliceerd."
-    },
     "errors": {
-      "title": "Fout",
       "publish": "Publiceren van gegevenslijst mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Gegevenslijst succesvol gepubliceerd."
     }
   },
   "documentLayout": {
-    "breadcrumbs": {
-      "documents": "Documenten"
-    },
     "actions": {
       "publish": "Publiceren"
     },
@@ -278,6 +261,7 @@
   },
   "documentList": {
     "filters": {
+      "searchPlaceholder": "Documenten zoeken op titel...",
       "allSources": "Alle bronnen",
       "allTypes": "Alle typen",
       "allClassifications": "Alle classificaties"
@@ -514,44 +498,6 @@
       "review": "Beoordelen"
     }
   },
-  "documentApprovePage": {
-    "pageTitle": "Document beoordelen en goedkeuren",
-    "version": "v{{major}}.{{minor}}",
-    "versionWithDate": "v{{major}}.{{minor}} - {{date}}",
-    "status": {
-      "approved": "Goedgekeurd",
-      "rejected": "Afgewezen",
-      "voided": "Nietig verklaard",
-      "inReview": "In beoordeling",
-      "pending": "In behandeling"
-    },
-    "messages": {
-      "noLongerRequired": "Uw goedkeuring is niet langer vereist voor deze versie.",
-      "approved": "U heeft dit document goedgekeurd.",
-      "rejected": "U heeft dit document afgewezen.",
-      "successTitle": "Succes",
-      "approvalSuccess": "Document succesvol goedgekeurd",
-      "rejectionSuccess": "Document afgewezen"
-    },
-    "errors": {
-      "title": "Fout",
-      "approve": "Goedkeuren van document mislukt",
-      "reject": "Afwijzen van document mislukt",
-      "loadPdf": "Laden van PDF mislukt"
-    },
-    "actions": {
-      "back": "Terug naar documenten",
-      "approve": "Goedkeuren",
-      "reject": "Afwijzen"
-    },
-    "rejectDialog": {
-      "title": "Document afwijzen",
-      "description": "Geef een reden op voor het afwijzen van dit document. Het document wordt teruggezet naar de status Concept.",
-      "placeholder": "Reden voor afwijzing...",
-      "submit": "Document afwijzen"
-    },
-    "reviewHint": "Bekijk het document zorgvuldig voordat u uw beslissing neemt."
-  },
   "documentDescriptionPage": {
     "messages": {
       "successTitle": "Succes",
@@ -600,124 +546,7 @@
       "request": "Handtekening aanvragen"
     }
   },
-  "employeeApprovalsPage": {
-    "pageTitle": "Documenten",
-    "columns": {
-      "name": "Naam",
-      "type": "Type",
-      "classification": "Classificatie",
-      "lastUpdate": "Laatste update",
-      "approved": "Goedgekeurd"
-    },
-    "empty": {
-      "title": "Nog geen documenten",
-      "description": "Er zijn geen documenten ter goedkeuring aan u voorgelegd."
-    }
-  },
-  "employeeDocumentSignaturePage": {
-    "pageTitle": "Document ondertekenen",
-    "messages": {
-      "successTitle": "Succes",
-      "signed": "Document succesvol ondertekend"
-    },
-    "errors": {
-      "title": "Fout",
-      "sign": "Ondertekenen van document mislukt",
-      "loadPdf": "Laden van PDF mislukt"
-    },
-    "reviewHint": "Bekijk het document zorgvuldig voordat u het ondertekent."
-  },
-  "employeeDocumentsPage": {
-    "pageTitle": "Documenten",
-    "columns": {
-      "name": "Naam",
-      "type": "Type",
-      "classification": "Classificatie",
-      "lastUpdate": "Laatste update",
-      "signed": "Ondertekend"
-    },
-    "empty": {
-      "title": "Nog geen documenten",
-      "description": "Er zijn geen documenten ter ondertekening aan u voorgelegd."
-    }
-  },
-  "employeeTabsLayout": {
-    "title": "Documenten",
-    "tabs": {
-      "signatures": "Handtekeningen",
-      "approvals": "Goedkeuringen"
-    }
-  },
-  "approvableDocumentRow": {
-    "states": {
-      "approved": "Goedgekeurd",
-      "rejected": "Afgewezen",
-      "noLongerRequired": "Niet langer vereist",
-      "pending": "In behandeling"
-    },
-    "documentTypes": {
-      "other": "Overig",
-      "governance": "Governance",
-      "policy": "Beleid",
-      "procedure": "Procedure",
-      "plan": "Plan",
-      "register": "Register",
-      "record": "Registratie",
-      "report": "Rapport",
-      "template": "Sjabloon",
-      "statement_of_applicability": "Verklaring van toepasselijkheid"
-    },
-    "classifications": {
-      "public": "Openbaar",
-      "internal": "Intern",
-      "confidential": "Vertrouwelijk",
-      "secret": "Geheim"
-    }
-  },
-  "employeeDocumentRow": {
-    "documentTypes": {
-      "other": "Overig",
-      "governance": "Governance",
-      "policy": "Beleid",
-      "procedure": "Procedure",
-      "plan": "Plan",
-      "register": "Register",
-      "record": "Registratie",
-      "report": "Rapport",
-      "template": "Sjabloon",
-      "statement_of_applicability": "Verklaring van toepasselijkheid"
-    },
-    "classifications": {
-      "public": "Openbaar",
-      "internal": "Intern",
-      "confidential": "Vertrouwelijk",
-      "secret": "Geheim"
-    },
-    "signed": {
-      "yes": "Ja",
-      "no": "Nee"
-    }
-  },
-  "versionActions": {
-    "actions": {
-      "back": "Terug naar documenten",
-      "reviewAndSign": "Beoordelen en ondertekenen"
-    }
-  },
-  "versionRow": {
-    "version": "v{{major}}.{{minor}}",
-    "versionWithDate": "v{{major}}.{{minor}} - {{date}}",
-    "status": {
-      "signed": "Ondertekend",
-      "inReview": "In beoordeling",
-      "waitingSignature": "Wacht op handtekening"
-    }
-  },
   "findingDetails": {
-    "breadcrumbs": {
-      "findings": "Bevindingen"
-    },
-    "unknown": "Onbekende bevinding",
     "kinds": {
       "minor_nonconformity": "Kleine non-conformiteit",
       "major_nonconformity": "Grote non-conformiteit",
@@ -745,7 +574,9 @@
     "errors": {
       "title": "Fout",
       "delete": "Verwijderen van bevinding mislukt",
-      "update": "Bijwerken van bevinding mislukt"
+      "update": "Bijwerken van bevinding mislukt",
+      "linkAudit": "Koppelen van audit mislukt",
+      "unlinkAudit": "Ontkoppelen van audit mislukt"
     },
     "deleteConfirmation": "Hiermee wordt de bevinding {{referenceId}} permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "fields": {
@@ -772,6 +603,14 @@
       "delete": "Verwijderen",
       "updating": "Bijwerken...",
       "update": "Bijwerken"
+    },
+    "audits": {
+      "title": "Gekoppelde audits",
+      "referenceId": "Auditreferentie",
+      "link": "Audit koppelen",
+      "empty": "Geen audits gekoppeld",
+      "loadMore": "Meer audits laden",
+      "loading": "Laden..."
     }
   },
   "findingsPage": {
@@ -901,24 +740,11 @@
   },
   "publishFindingListDialog": {
     "title": "Bevindingenlijst publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "successTitle": "Succes",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Bevindingenlijst succesvol gepubliceerd."
-    },
     "errors": {
-      "title": "Fout",
       "publish": "Publiceren van bevindingenlijst mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Bevindingenlijst succesvol gepubliceerd."
     }
   },
   "tasks": {
@@ -935,6 +761,10 @@
     "notFound": {
       "title": "Pagina niet gevonden",
       "description": "De pagina die u zoekt, bestaat niet."
+    },
+    "forbidden": {
+      "title": "U heeft geen toegang tot deze pagina",
+      "description": "Uw rol staat niet toe om deze pagina te bekijken. Vraag een organisatiebeheerder om toegang als u die nodig heeft."
     },
     "unexpected": {
       "title": "Er is iets misgegaan",
@@ -1001,8 +831,14 @@
   "linkedAuditsDialog": {
     "title": "Audits koppelen",
     "searchPlaceholder": "Audits zoeken...",
+    "referenceIdLabel": "Auditreferentie",
+    "referenceIdDescription": "Voer de referentie in die voor deze bevinding in het auditrapport wordt gebruikt.",
+    "referenceIdPlaceholder": "Voer de rapportreferentie in",
+    "empty": "Geen audits gevonden voor uw zoekopdracht.",
     "actions": {
+      "back": "Terug",
       "close": "Sluiten",
+      "confirmLink": "Audit koppelen",
       "link": "Koppelen",
       "unlink": "Ontkoppelen"
     }
@@ -1034,9 +870,9 @@
     },
     "watermark": {
       "label": "Watermerk toevoegen",
-      "description": "Voeg een vertrouwelijk watermerk toe met e-mailadres en tijdstempel aan alle PDF's",
-      "emailLabel": "E-mailadres watermerk",
-      "emailPlaceholder": "Voer e-mailadres in"
+      "description": "Voeg aan alle PDF's een watermerk toe met de classificatie van elk document, aangepaste tekst en een tijdstempel",
+      "textLabel": "Watermerktekst",
+      "textPlaceholder": "Voer watermerktekst in"
     },
     "notice": "De documenten worden geëxporteerd als afzonderlijke PDF's in een ZIP-bestand. U ontvangt een e-mail zodra de export gereed is om te downloaden.",
     "actions": {
@@ -1075,18 +911,14 @@
     },
     "watermark": {
       "label": "Watermerk toevoegen",
-      "description": "Voeg een vertrouwelijk watermerk toe met e-mailadres en tijdstempel",
-      "emailLabel": "E-mailadres watermerk",
-      "emailPlaceholder": "Voer e-mailadres in"
+      "description": "Voeg een watermerk toe met de documentclassificatie, aangepaste tekst en een tijdstempel",
+      "textLabel": "Watermerktekst",
+      "textPlaceholder": "Voer watermerktekst in"
     },
     "actions": {
       "download": "PDF downloaden",
       "downloading": "Downloaden..."
     }
-  },
-  "auditSelectField": {
-    "placeholder": "Selecteer een audit",
-    "none": "Geen"
   },
   "controlMaturityLevelOptions": {
     "levels": {
@@ -1135,7 +967,8 @@
   },
   "peopleMultiSelectField": {
     "addPlaceholder": "Personen toevoegen...",
-    "empty": "Geen personen beschikbaar"
+    "empty": "Geen personen beschikbaar",
+    "remove": "{{name}} verwijderen"
   },
   "peopleSelectField": {
     "placeholder": "Selecteer een eigenaar",
@@ -1188,7 +1021,8 @@
   },
   "thirdPartiesMultiSelectField": {
     "addPlaceholder": "Derde partijen toevoegen...",
-    "empty": "Geen derde partijen beschikbaar"
+    "empty": "Geen derde partijen beschikbaar",
+    "remove": "{{name}} verwijderen"
   },
   "linkedMeasuresCard": {
     "title": "Maatregelen",
@@ -1255,6 +1089,7 @@
   },
   "linkedRisksCard": {
     "columns": {
+      "referenceId": "Referentie-ID",
       "name": "Naam",
       "initialRisk": "Initieel risico",
       "residualRisk": "Restrisico"
@@ -1294,107 +1129,15 @@
       "showMore": "Meer tonen"
     }
   },
-  "linkedStatementsOfApplicabilityCard": {
-    "title": "Verklaringen van toepasselijkheid",
-    "columns": {
-      "name": "Naam",
-      "applicability": "Toepasselijkheid",
-      "justification": "Rechtvaardiging"
-    },
-    "empty": "Geen verklaringen van toepasselijkheid gekoppeld",
-    "applicable": "Van toepassing",
-    "notApplicable": "Niet van toepassing",
-    "actions": {
-      "link": "Verklaring van toepasselijkheid koppelen",
-      "unlink": "Ontkoppelen",
-      "showMore": "{{count}} meer tonen"
-    }
-  },
-  "linkedStatementsOfApplicabilityDialog": {
-    "title": "Verklaring van toepasselijkheid koppelen",
-    "empty": {
-      "title": "Geen verklaringen van toepasselijkheid beschikbaar",
-      "description": "Maak eerst een verklaring van toepasselijkheid aan om deze aan deze control te koppelen"
-    },
-    "select": "Selecteer een verklaring van toepasselijkheid:",
-    "linked": "Gekoppeld",
-    "selected": "Geselecteerd:",
-    "applicable": "Van toepassing",
-    "justification": {
-      "label": "Rechtvaardiging (optioneel)",
-      "placeholder": "Voeg een rechtvaardiging toe..."
-    },
-    "actions": {
-      "back": "Terug",
-      "change": "Wijzigen",
-      "close": "Sluiten",
-      "link": "Koppelen",
-      "unlink": "Ontkoppelen"
-    }
-  },
-  "taskFormDialog": {
-    "breadcrumb": {
-      "tasks": "Taken",
-      "edit": "Taak bewerken",
-      "new": "Nieuwe taak"
-    },
-    "properties": "Eigenschappen",
-    "fields": {
-      "title": {
-        "placeholder": "Taaktitel"
-      },
-      "description": {
-        "placeholder": "Beschrijving toevoegen"
-      },
-      "state": {
-        "label": "Status"
-      },
-      "priority": {
-        "label": "Prioriteit"
-      },
-      "assignedTo": {
-        "label": "Toegewezen aan"
-      },
-      "measure": {
-        "label": "Maatregel"
-      },
-      "timeEstimate": {
-        "label": "Tijdsinschatting"
-      },
-      "deadline": {
-        "label": "Deadline"
-      }
-    },
-    "states": {
-      "todo": "Te doen",
-      "inProgress": "In uitvoering",
-      "done": "Voltooid"
-    },
-    "priorities": {
-      "urgent": "Urgent",
-      "high": "Hoog",
-      "medium": "Gemiddeld",
-      "low": "Laag"
-    },
-    "messages": {
-      "created": "Taak succesvol aangemaakt.",
-      "updated": "Taak succesvol bijgewerkt."
-    },
-    "errors": {
-      "create": "Aanmaken van taak mislukt",
-      "update": "Bijwerken van taak mislukt"
-    },
-    "actions": {
-      "create": "Taak aanmaken",
-      "update": "Taak bijwerken"
-    }
-  },
   "tasksCard": {
     "states": {
       "all": "Alle",
       "todo": "Te doen",
       "inProgress": "In uitvoering",
-      "done": "Voltooid"
+      "done": "Voltooid",
+      "backlog": "Backlog",
+      "canceled": "Geannuleerd",
+      "duplicate": "Duplicaat"
     },
     "empty": "Geen taken",
     "error": {
@@ -1405,22 +1148,16 @@
       "all": "Sleep om taken opnieuw te ordenen of te verplaatsen tussen statussen",
       "state": "Sleep om taken opnieuw te ordenen"
     },
-    "duration": {
-      "minutes_one": "{{count}} Minuut",
-      "minutes_other": "{{count}} Minuten",
-      "hours_one": "{{count}} Uur",
-      "hours_other": "{{count}} Uur",
-      "weeks_one": "{{count}} Week",
-      "weeks_other": "{{count}} Weken",
-      "days_one": "{{count}} Dag",
-      "days_other": "{{count}} Dagen"
-    },
     "deleteConfirmation": "Weet u zeker dat u deze taak wilt verwijderen?",
     "actions": {
+      "moveToTodo": "Verplaatsen naar Te doen",
       "moveToInProgress": "Verplaatsen naar In uitvoering",
       "moveToDone": "Verplaatsen naar Voltooid",
       "edit": "Bewerken",
       "delete": "Verwijderen"
+    },
+    "recurringBadge": {
+      "tooltip": "Herhaalt elke {{interval}}"
     }
   },
   "deleteTrustCenterReferenceDialog": {
@@ -1463,12 +1200,6 @@
       "add": "Referentie toevoegen",
       "edit": "Referentie bewerken",
       "update": "Referentie bijwerken"
-    }
-  },
-  "thirdPartyForm": {
-    "messages": {
-      "updated": "Derde partij succesvol bijgewerkt.",
-      "updateError": "Bijwerken van derde partij mislukt"
     }
   },
   "assetGraph": {
@@ -1592,6 +1323,8 @@
       "unknown": "Onbekend"
     },
     "auditState": {
+      "toBook": "Te boeken",
+      "auditBooked": "Audit geboekt",
       "notStarted": "Niet gestart",
       "inProgress": "In uitvoering",
       "completed": "Voltooid",
@@ -1606,10 +1339,10 @@
       "custom": "Aangepaste certificeringen"
     },
     "compliancePortalDocumentAccessStatus": {
-      "requested": "aangevraagd",
-      "granted": "toegekend",
-      "rejected": "afgewezen",
-      "revoked": "ingetrokken"
+      "requested": "Aangevraagd",
+      "granted": "Toegekend",
+      "rejected": "Afgewezen",
+      "revoked": "Ingetrokken"
     },
     "compliancePortalVisibility": {
       "none": "Geen",
@@ -1689,7 +1422,9 @@
       "admin": "Beheerder",
       "viewer": "Lezer",
       "auditor": "Auditor",
-      "employee": "Werknemer"
+      "employee": "Werknemer",
+      "compliancePortalManager": "Complianceportaalbeheerder",
+      "compliancePortalAccessManager": "Toegangsbeheerder complianceportaal"
     },
     "registryStatus": {
       "open": "Open",
@@ -1732,6 +1467,42 @@
       "occasional": "Incidenteel",
       "probable": "Waarschijnlijk",
       "frequent": "Frequent"
+    },
+    "riskScales": {
+      "impact": {
+        "2": {
+          "1": "Laag",
+          "2": "Hoog"
+        },
+        "3": {
+          "1": "Laag",
+          "2": "Gemiddeld",
+          "3": "Hoog"
+        },
+        "4": {
+          "1": "Laag",
+          "2": "Gemiddeld",
+          "3": "Hoog",
+          "4": "Kritiek"
+        }
+      },
+      "likelihood": {
+        "2": {
+          "1": "Onwaarschijnlijk",
+          "2": "Waarschijnlijk"
+        },
+        "3": {
+          "1": "Onwaarschijnlijk",
+          "2": "Mogelijk",
+          "3": "Waarschijnlijk"
+        },
+        "4": {
+          "1": "Onwaarschijnlijk",
+          "2": "Mogelijk",
+          "3": "Waarschijnlijk",
+          "4": "Bijna zeker"
+        }
+      }
     },
     "riskSeverity": {
       "critical": "Kritiek",
@@ -1834,6 +1605,7 @@
     },
     "risk": {
       "initial": "Initieel risico",
+      "net": "Netto risico",
       "residual": "Restrisico",
       "score": "Score",
       "numberOfRisks": "Aantal risico's",
@@ -1846,20 +1618,12 @@
         "critical": "Kritiek"
       },
       "impact": {
-        "label": "Impact",
-        "negligible": "Verwaarloosbaar",
-        "moderate": "Matig",
-        "significant": "Aanzienlijk",
-        "catastrophic": "Catastrofaal"
+        "label": "Impact"
       },
       "likelihood": {
-        "label": "Waarschijnlijkheid",
-        "improbable": "Onwaarschijnlijk",
-        "remote": "Gering",
-        "occasional": "Incidenteel",
-        "probable": "Waarschijnlijk",
-        "frequent": "Frequent"
-      }
+        "label": "Waarschijnlijkheid"
+      },
+      "cell": "{{count}} met waarschijnlijkheid {{likelihood}} en impact {{impact}}"
     }
   },
   "common": {
@@ -1886,95 +1650,20 @@
       "commit": "Doorvoeren van deze bewerking mislukt"
     }
   },
-  "apiKeys": {
-    "title": "API-sleutels"
-  },
-  "personalApiKeyList": {
-    "messages": {
-      "created": "API-sleutel succesvol aangemaakt."
-    },
-    "errors": {
-      "create": "Aanmaken van API-sleutel mislukt."
-    },
-    "empty": {
-      "title": "Geen API-sleutels",
-      "description": "Maak een API-sleutel aan om programmatische toegang te authenticeren."
-    },
-    "fields": {
-      "name": {
-        "label": "Naam",
-        "placeholder": "bijv. Productie-API-sleutel"
-      },
-      "expiresIn": {
-        "label": "Verloopt over"
-      }
-    },
-    "expirations": {
-      "month_one": "{{count}} Maand",
-      "month_other": "{{count}} Maanden",
-      "year_one": "{{count}} Jaar",
-      "year_other": "{{count}} Jaar"
-    },
-    "actions": {
-      "create": "API-sleutel aanmaken",
-      "creating": "Aanmaken..."
-    }
-  },
-  "personalApiKeyRow": {
-    "messages": {
-      "revoked": "API-sleutel succesvol ingetrokken."
-    },
-    "errors": {
-      "revoke": "Intrekken van API-sleutel mislukt."
-    },
-    "revoke": {
-      "title": "API-sleutel intrekken",
-      "confirmation": "Weet u zeker dat u de API-sleutel \"{{name}}\" wilt intrekken? Deze actie kan niet ongedaan worden gemaakt."
-    },
-    "status": {
-      "expired": "Verlopen",
-      "active": "Actief"
-    },
-    "never": "Nooit",
-    "actions": {
-      "revoke": "Intrekken"
-    }
-  },
-  "personalApiKeyTokenAction": {
-    "errors": {
-      "load": "Laden van API-sleuteltoken mislukt."
-    },
-    "actions": {
-      "show": "Tonen"
-    }
-  },
-  "personalApiKeyTokenDialog": {
-    "title": "Token",
-    "actions": {
-      "copy": "Kopiëren",
-      "copied": "Gekopieerd",
-      "done": "Voltooid"
-    }
-  },
-  "personalApiKeysTable": {
-    "columns": {
-      "name": "Naam",
-      "lastUsed": "Laatst gebruikt",
-      "created": "Aangemaakt",
-      "expires": "Verloopt"
-    }
-  },
   "activateAccountPage": {
     "pageTitle": "Account activeren",
     "title": "Accountactivering",
+    "description": "Klik op doorgaan om uw account te activeren.",
     "activating": "Uw account wordt geactiveerd…",
     "messages": {
       "activated": "Account succesvol geactiveerd."
     },
     "errors": {
-      "activationFailed": "Activering mislukt"
+      "activationFailed": "Activering mislukt",
+      "missingToken": "Gebruik de activeringslink uit uw e-mail"
     },
     "actions": {
+      "continue": "Doorgaan",
       "goBack": "Terug"
     }
   },
@@ -2013,6 +1702,54 @@
       "allow": "Toestaan"
     }
   },
+  "oauthScopes": {
+    "api": {
+      "v1:access-review:read": "Toegangsbeoordelingen bekijken",
+      "v1:access-review": "Toegangsbeoordelingen beheren",
+      "v1:agent:read": "Agents bekijken",
+      "v1:agent": "Agents beheren",
+      "v1:ai-system:read": "AI-systemen bekijken",
+      "v1:ai-system": "AI-systemen beheren",
+      "v1:asset:read": "Assets bekijken",
+      "v1:asset": "Assets beheren",
+      "v1:audit:read": "Audits bekijken",
+      "v1:audit": "Audits beheren",
+      "v1:business-function:read": "Bedrijfsfuncties bekijken",
+      "v1:business-function": "Bedrijfsfuncties beheren",
+      "v1:common-third-party:read": "Gemeenschappelijke derde partijen bekijken",
+      "v1:common-third-party": "Gemeenschappelijke derde partijen beheren",
+      "v1:compliance-page:read": "Compliancepagina's bekijken",
+      "v1:compliance-page": "Compliancepagina's beheren",
+      "v1:connector:read": "Connectors bekijken",
+      "v1:connector": "Connectors beheren",
+      "v1:control:read": "Controls bekijken",
+      "v1:control": "Controls beheren",
+      "v1:datum:read": "Gegevens bekijken",
+      "v1:datum": "Gegevens beheren",
+      "v1:document:read": "Documenten bekijken",
+      "v1:document": "Documenten beheren",
+      "v1:iam:read": "IAM-instellingen bekijken",
+      "v1:iam": "IAM-instellingen beheren",
+      "v1:itam:read": "Apparaten bekijken",
+      "v1:itam": "Apparaten beheren",
+      "v1:org:read": "Organisatie bekijken",
+      "v1:org": "Organisatie beheren",
+      "v1:privacy:read": "Privacy-instellingen bekijken",
+      "v1:privacy": "Privacy-instellingen beheren",
+      "v1:resource-alias:read": "Resource-aliassen bekijken",
+      "v1:resource-alias": "Resource-aliassen beheren",
+      "v1:risk:read": "Risico's bekijken",
+      "v1:risk": "Risico's beheren",
+      "v1:slack-connection:read": "Slack-verbindingen bekijken",
+      "v1:slack-connection": "Slack-verbindingen beheren",
+      "v1:task:read": "Taken bekijken",
+      "v1:task": "Taken beheren",
+      "v1:third-party:read": "Derde partijen bekijken",
+      "v1:third-party": "Derde partijen beheren",
+      "v1:webhook:read": "Webhooks bekijken",
+      "v1:webhook": "Webhooks beheren"
+    }
+  },
   "createPasswordPage": {
     "pageTitle": "Wachtwoord aanmaken",
     "title": "Maak een wachtwoord aan",
@@ -2022,7 +1759,8 @@
       "created": "Account succesvol aangemaakt"
     },
     "errors": {
-      "creationFailed": "Aanmaken van wachtwoord mislukt"
+      "creationFailed": "Aanmaken van wachtwoord mislukt",
+      "missingToken": "Gebruik de wachtwoordinstellink uit uw e-mail"
     },
     "fields": {
       "password": "Wachtwoord"
@@ -2118,7 +1856,7 @@
     },
     "errors": {
       "resetFailed": "Reset mislukt",
-      "invalidToken": "Ongeldige of ontbrekende resettoken",
+      "invalidToken": "Gebruik de resetlink uit uw e-mail",
       "reset": "Opnieuw instellen van wachtwoord mislukt"
     },
     "fields": {
@@ -2136,6 +1874,11 @@
     "title": "Registreren",
     "description": "Voer uw gegevens in om een account aan te maken",
     "alreadyHaveAccount": "Heeft u al een account?",
+    "checkEmail": {
+      "title": "Controleer uw e-mail",
+      "description": "We hebben een bevestigingslink gestuurd naar {{email}}.",
+      "resend": "Geen e-mail ontvangen?"
+    },
     "messages": {
       "created": "Account succesvol aangemaakt"
     },
@@ -2157,19 +1900,22 @@
       "backToLogin": "Terug naar inloggen",
       "creating": "Account aanmaken...",
       "signUpWithEmail": "Registreren met e-mail",
-      "logIn": "Hier inloggen"
+      "logIn": "Hier inloggen",
+      "resend": "Bevestigingsmail opnieuw versturen"
     }
   },
   "verifyEmailPage": {
     "pageTitle": "E-mail bevestigen",
     "title": "E-mailbevestiging",
     "description": "Bevestig uw e-mailadres om de registratie te voltooien",
+    "continueDescription": "Klik op doorgaan om uw e-mail te bevestigen en in te loggen.",
     "messages": {
       "confirmed": "Uw e-mail is succesvol bevestigd",
       "confirmedWithExclamation": "Uw e-mail is succesvol bevestigd!"
     },
     "errors": {
-      "confirm": "Bevestigen van e-mail mislukt"
+      "confirm": "Bevestigen van e-mail mislukt",
+      "tokenRequired": "Voer uw bevestigingstoken in"
     },
     "fields": {
       "token": "Bevestigingstoken",
@@ -2180,6 +1926,7 @@
       "proceedToLogin": "Doorgaan naar inloggen",
       "confirming": "Bevestigen...",
       "confirm": "E-mail bevestigen",
+      "continue": "Doorgaan",
       "backToLogin": "Terug naar inloggen"
     }
   },
@@ -2197,6 +1944,7 @@
     },
     "actions": {
       "back": "Terug",
+      "backToLogin": "Terug naar inloggen",
       "loggingIn": "Inloggen...",
       "login": "Inloggen",
       "register": "Register",
@@ -2215,6 +1963,7 @@
     },
     "actions": {
       "back": "Terug",
+      "backToLogin": "Terug naar inloggen",
       "checking": "Controleren...",
       "continue": "Doorgaan met SSO",
       "register": "Register"
@@ -2230,25 +1979,38 @@
     "or": "Of",
     "newToProbo": "Nieuw bij Probo?",
     "actions": {
-      "signInWithSso": "Inloggen met SSO",
-      "signInWithEmail": "Inloggen met e-mail",
+      "usePassword": "Een wachtwoord gebruiken",
       "createAccount": "Account aanmaken"
     }
   },
   "oidcButton": {
     "signInWith": "Inloggen met {{provider}}"
   },
+  "topBar": {
+    "tagline": "Console"
+  },
   "membershipsPage": {
-    "pageTitle": "Selecteer een organisatie",
-    "title": "Selecteer een organisatie",
+    "pageTitle": "Uw organisaties",
+    "title": "Uw organisaties",
     "pendingInvitations": "Openstaande uitnodigingen",
-    "yourOrganizations": "Uw organisaties",
-    "searchPlaceholder": "Organisaties zoeken...",
+    "searchPlaceholder": "Organisaties zoeken",
     "empty": "Geen organisaties gevonden",
+    "emptySearch": "Geen organisaties komen overeen met deze zoekopdracht.",
     "createOrganization": {
       "title": "Een organisatie aanmaken",
       "description": "Voeg een nieuwe organisatie toe aan uw account",
       "action": "Organisatie aanmaken"
+    }
+  },
+  "noOrganizationAccess": {
+    "title": "Geen toegang tot een organisatie",
+    "description": "Uw account is geen lid van een organisatie op deze instantie. Vraag een beheerder om u uit te nodigen.",
+    "errors": {
+      "requestFailed": "Verzoek mislukt",
+      "cannotSignOut": "Kan niet worden uitgelogd"
+    },
+    "actions": {
+      "signOut": "Uitloggen"
     }
   },
   "invitingOrganizationCard": {
@@ -2260,10 +2022,9 @@
       "sessionExpired": "Sessie verlopen",
       "authenticationRequired": "Authenticatie vereist"
     },
-    "accountDeactivated": "Account gedeactiveerd",
     "actions": {
-      "start": "Starten",
-      "login": "Inloggen"
+      "open": "Openen",
+      "continue": "Doorgaan"
     }
   },
   "viewerDropdown": {
@@ -2275,6 +2036,26 @@
       "oauthTokens": "OAuth-tokens",
       "help": "Help",
       "logout": "Uitloggen"
+    }
+  },
+  "editAvatar": {
+    "title": "Profielfoto",
+    "description": "Upload een openbare foto.",
+    "messages": {
+      "updated": "Profielfoto bijgewerkt.",
+      "removed": "Profielfoto verwijderd."
+    },
+    "errors": {
+      "update": "Profielfoto bijwerken mislukt",
+      "remove": "Profielfoto verwijderen mislukt",
+      "invalidFile": "Gebruik een JPEG of PNG kleiner dan 5 MB."
+    },
+    "actions": {
+      "upload": "Foto uploaden",
+      "replace": "Foto vervangen",
+      "remove": "Foto verwijderen",
+      "close": "Sluiten",
+      "change": "Profielfoto wijzigen"
     }
   },
   "newOAuthTokenPage": {
@@ -2387,28 +2168,110 @@
   "membershipsDropdownMenu": {
     "pendingInvitations": "Openstaande uitnodigingen"
   },
-  "sidebar": {
+  "organizationSwitcher": {
+    "empty": "Geen organisaties gevonden",
+    "sessionActive": "Aangemeld",
+    "sessionExpired": "Sessie verlopen",
+    "sessionLocked": "Niet aangemeld"
+  },
+  "nav": {
+    "products": "Producten",
+    "help": "Help",
+    "switchToDarkMode": "Overschakelen naar donkere modus",
+    "switchToLightMode": "Overschakelen naar lichte modus",
+    "groups": {
+      "governance": "Governance",
+      "privacy": "Privacy",
+      "tprm": "TPRM",
+      "itam": "IT-assetbeheer",
+      "riskManagement": "Risicobeheer",
+      "registries": "Registers",
+      "compliancePortal": "Compliancepagina",
+      "accessReview": "Toegangsbeoordeling",
+      "settings": "Instellingen"
+    },
+    "organization": "Organisatie",
     "context": "Context",
+    "webhooks": "Webhooks",
+    "slackBot": "SlackBot",
     "tasks": "Taken",
     "measures": "Maatregelen",
     "risks": "Risico's",
+    "allRisks": "Alle risico's",
+    "riskAnalyses": "Risicobeoordelingen",
     "frameworks": "Frameworks",
-    "people": "Personen",
+    "iam": "IAM",
+    "users": "Gebruikers",
+    "authProvisioning": "Auth & provisioning",
+    "auditLog": "Auditlogboek",
+    "allThirdParties": "Alle derde partijen",
     "thirdParties": "Derde partijen",
+    "thirdPartyCompliance": "Compliance",
+    "thirdPartyRisk": "Risico",
+    "thirdPartyProfile": "Profiel",
+    "thirdPartyStakeholders": "Belanghebbenden",
+    "thirdPartyAssurance": "Assurance",
+    "thirdPartyAgreements": "Overeenkomsten",
+    "thirdPartyServices": "Diensten",
+    "thirdPartySupplyChain": "Toeleveringsketen",
+    "thirdPartyRisks": "Risicobeoordelingen",
+    "thirdPartyMeasures": "Maatregelen",
     "documents": "Documenten",
     "assets": "Assets",
     "devices": "Apparaten",
     "data": "Gegevens",
     "audits": "Audits",
     "findings": "Bevindingen",
+    "businessFunctions": "Bedrijfsfuncties",
+    "aiSystems": "AI-systemen",
     "obligations": "Verplichtingen",
     "processingActivities": "Verwerkingsactiviteiten",
-    "statementsOfApplicability": "Verklaringen van toepasselijkheid",
+    "dataProtectionImpactAssessments": "DPIAs",
+    "transferImpactAssessments": "TIAs",
+    "statementsOfApplicability": "SoA",
     "rightsRequests": "Rechtenverzoeken",
-    "accessReviews": "Toegangsbeoordelingen",
+    "campaigns": "Campagnes",
+    "connections": "Verbindingen",
     "compliancePortals": "Compliancepagina's",
+    "compliancePortalsSettings": "Instellingen",
+    "compliancePortalsHosting": "Hosting",
+    "compliancePortalsVisitors": "Bezoekers",
+    "compliancePortalsIntegrations": "Integraties",
+    "compliancePortalsPages": "Pagina's",
+    "compliancePortalsLanding": "Startpagina",
+    "compliancePortalsDocuments": "Documenten",
+    "compliancePortalsSubprocessors": "Subverwerkers",
+    "compliancePortalsUpdates": "Updates",
+    "compliancePortalsRightRequests": "Rechtenverzoeken",
     "cookieBanners": "Cookiebanners",
-    "settings": "Instellingen"
+    "cookieBannersConfigure": "Configureren",
+    "cookieBannersDiscovery": "Ontdekking",
+    "cookieBannersTrail": "Logboek",
+    "cookieBannersTCF": "TCF",
+    "cookieBannerSwitcher": {
+      "label": "Cookiebanner",
+      "select": "Selecteer banner",
+      "new": "Nieuwe banner",
+      "create": "Nieuwe cookiebanner",
+      "empty": "Geen cookiebanners",
+      "loading": "Laden…",
+      "showMore": "Meer tonen"
+    },
+    "thirdPartySwitcher": {
+      "label": "Derde partij",
+      "select": "Selecteer derde partij",
+      "create": "Nieuwe derde partij",
+      "empty": "Geen derde partijen",
+      "loading": "Laden…"
+    },
+    "compliancePortalSwitcher": {
+      "label": "Complianceportaal",
+      "new": "Nieuw portaal",
+      "create": "Nieuw portaal",
+      "empty": "Geen complianceportalen",
+      "loading": "Laden…",
+      "open": "Portaal openen"
+    }
   },
   "viewerMembershipDropdown": {
     "errors": {
@@ -2416,24 +2279,20 @@
       "cannotSignOut": "Kan niet worden uitgelogd"
     },
     "actions": {
-      "apiKeys": "API-sleutels",
       "oauthTokens": "OAuth-tokens",
-      "mySignatures": "Mijn handtekeningen",
       "employeePortal": "Medewerkersportaal",
+      "switchToDarkMode": "Overschakelen naar donkere modus",
+      "switchToLightMode": "Overschakelen naar lichte modus",
       "help": "Help",
       "logout": "Uitloggen"
     }
   },
   "peoplePage": {
-    "title": "Personen",
     "actions": {
       "add": "Persoon toevoegen"
     }
   },
   "personPage": {
-    "breadcrumb": {
-      "people": "Personen"
-    },
     "messages": {
       "deactivated": "Persoon succesvol gedeactiveerd",
       "removed": "Persoon succesvol verwijderd"
@@ -2460,7 +2319,8 @@
       "status": "Status",
       "email": "E-mail",
       "role": "Rol",
-      "createdOn": "Aangemaakt op"
+      "createdOn": "Aangemaakt op",
+      "contractEndDate": "Einddatum contract"
     },
     "empty": "Geen personen",
     "searchPlaceholder": "Personen zoeken...",
@@ -2524,7 +2384,9 @@
       "admin": "Volledige toegang, behalve organisatie-instellingen en API-sleutels",
       "viewer": "Alleen-lezen toegang",
       "auditor": "Alleen-lezen toegang zonder instellingen en taken",
-      "employee": "Toegang tot de medewerkerspagina"
+      "employee": "Toegang tot de medewerkerspagina",
+      "compliancePortalManager": "Kan het compliance-portaal beheren",
+      "compliancePortalAccessManager": "Kan bezoekers toegang tot het compliance-portaal beheren"
     },
     "kinds": {
       "EMPLOYEE": "Werknemer",
@@ -2536,39 +2398,23 @@
       "create": "Aanmaken"
     }
   },
-  "auditLogSettingsPage": {
+  "auditLogPage": {
     "title": "Auditlogboek",
     "description": "Een overzicht van alle acties die in uw organisatie zijn uitgevoerd. Items zijn onveranderlijk en kunnen niet worden bewerkt of verwijderd.",
     "empty": "Nog geen auditlogitems.",
     "showing": "{{shown}} van {{total}} items weergegeven",
-    "columns": {
-      "date": "Datum",
-      "actor": "Actor",
-      "action": "Actie",
-      "resource": "Resource"
-    },
-    "actions": {
-      "showMore": "Meer tonen"
-    },
+    "columns": { "date": "Datum", "actor": "Actor", "action": "Actie", "resource": "Resource" },
+    "actions": { "showMore": "Meer tonen" },
     "export": {
       "title": "Auditlogboek exporteren",
       "description": "Selecteer een datumbereik om auditlogboekvermeldingen te exporteren als CSV. U ontvangt een e-mail met een downloadlink.",
-      "fields": {
-        "from": "Van",
-        "to": "Tot"
-      },
-      "actions": {
-        "export": "Exporteren",
-        "exporting": "Bezig met exporteren..."
-      },
+      "fields": { "from": "Van", "to": "Tot" },
+      "actions": { "export": "Exporteren", "exporting": "Bezig met exporteren..." },
       "messages": {
         "successTitle": "Succes",
         "success": "Export gestart. U ontvangt een e-mail met een downloadlink zodra deze gereed is."
       },
-      "errors": {
-        "title": "Fout",
-        "request": "Aanvragen van auditlogboekexport mislukt"
-      }
+      "errors": { "title": "Fout", "request": "Aanvragen van auditlogboekexport mislukt" }
     }
   },
   "generalSettingsPage": {
@@ -2588,18 +2434,16 @@
       }
     }
   },
-  "samlSettingsPage": {
+  "samlSsoPage": {
     "title": "SAML Single Sign-On",
-    "actions": {
-      "addConfiguration": "Configuratie toevoegen"
-    },
+    "actions": { "addConfiguration": "Configuratie toevoegen" },
     "breadcrumb": {
       "settings": "SAML-instellingen",
       "configure": "Configureren",
       "verifyDomain": "Domein verifiëren"
     }
   },
-  "scimSettingsPage": {
+  "scimPage": {
     "manualScim": {
       "title": "Handmatige SCIM",
       "description": "Configureer SCIM handmatig als uw identity provider niet hierboven vermeld staat. Hiervoor moet u de SCIM-eindpunt-URL en de bearer-token instellen in uw identity provider."
@@ -2608,32 +2452,36 @@
     "export": {
       "title": "SCIM-gebeurtenissen exporteren",
       "description": "Selecteer een datumbereik om SCIM-gebeurtenissen te exporteren als CSV. U ontvangt een e-mail met een downloadlink.",
-      "fields": {
-        "from": "Van",
-        "to": "Tot"
-      },
-      "actions": {
-        "export": "Exporteren",
-        "exporting": "Bezig met exporteren..."
-      },
+      "fields": { "from": "Van", "to": "Tot" },
+      "actions": { "export": "Exporteren", "exporting": "Bezig met exporteren..." },
       "messages": {
         "successTitle": "Succes",
         "success": "Export gestart. U ontvangt een e-mail met een downloadlink zodra deze gereed is."
       },
-      "errors": {
-        "title": "Fout",
-        "request": "Aanvragen van SCIM-gebeurtenisexport mislukt"
-      }
+      "errors": { "title": "Fout", "request": "Aanvragen van SCIM-gebeurtenisexport mislukt" }
     }
   },
-  "settingsLayout": {
-    "title": "Instellingen",
-    "tabs": {
-      "general": "Algemeen",
-      "samlSso": "SAML SSO",
-      "scim": "SCIM",
-      "webhooks": "Webhooks",
-      "auditLog": "Auditlogboek"
+  "authLayout": {
+    "title": "Auth & provisioning",
+    "tabs": { "samlSso": "SAML SSO", "scim": "SCIM" }
+  },
+  "slackBotSettingsPage": {
+    "title": "SlackBot",
+    "connectionTitle": "Slack",
+    "emptyDescription": "Installeer de Probo Slack-app om meldingen te ontvangen",
+    "installed": "De Probo Slack-app is geïnstalleerd",
+    "uninstallConfirmation": "De Probo Slack-app verwijderen? Probo ontvangt dan geen Slack-gebeurtenissen meer en stuurt geen meldingen meer naar deze werkruimte.",
+    "messages": {
+      "uninstalled": "De Probo Slack-app is verwijderd"
+    },
+    "errors": {
+      "uninstall": "De Probo Slack-app kon niet worden verwijderd"
+    },
+    "actions": {
+      "install": "Installeren",
+      "configure": "Configureren",
+      "uninstall": "Verwijderen",
+      "uninstalling": "Verwijderen..."
     }
   },
   "connectorList": {
@@ -2921,13 +2769,27 @@
     },
     "empty": "Nog geen SCIM-gebeurtenissen geregistreerd."
   },
-  "accessReviewLayout": {
-    "title": "Toegangsbeoordelingen",
+  "accessReviewCampaignsPage": {
+    "title": "Campagnes",
     "description": "Beoordeel en beheer gebruikerstoegang tot de systemen en applicaties van uw organisatie.",
-    "tabs": {
-      "campaigns": "Campagnes",
-      "sources": "Bronnen"
-    }
+    "errors": { "delete": "Verwijderen van campagne mislukt" },
+    "messages": { "error": "Fout", "success": "Succes", "deleted": "Campagne succesvol verwijderd." },
+    "deleteConfirmation": "Hiermee wordt \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "actions": {
+      "new": "Nieuwe campagne",
+      "delete": "Verwijderen",
+      "loading": "Laden...",
+      "loadMore": "Meer laden"
+    },
+    "columns": { "name": "Naam", "status": "Status", "createdAt": "Aangemaakt op" },
+    "status": {
+      "draft": "Concept",
+      "in_progress": "In uitvoering",
+      "pending_actions": "Acties in behandeling",
+      "completed": "Voltooid",
+      "cancelled": "Geannuleerd"
+    },
+    "empty": "Nog geen toegangsbeoordelingscampagnes. Maak uw eerste campagne aan om toegang te gaan beoordelen."
   },
   "createCsvAccessReviewSourcePage": {
     "pageTitle": "CSV-toegangsbron toevoegen",
@@ -2954,16 +2816,7 @@
     }
   },
   "accessReviewSourceRow": {
-    "sources": {
-      "csv": "CSV",
-      "googleWorkspace": "Google Workspace",
-      "microsoft365": "Microsoft 365",
-      "linear": "Linear",
-      "slack": "Slack",
-      "metabase": "Metabase",
-      "signoz": "SigNoz",
-      "cursor": "Cursor"
-    },
+    "sources": { "csv": "CSV" },
     "errors": {
       "delete": "Verwijderen van toegangsbron mislukt",
       "configure": "Configureren van bron mislukt"
@@ -2974,12 +2827,6 @@
       "organizationUpdated": "Organisatie bijgewerkt."
     },
     "deleteConfirmation": "Hiermee wordt \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
-    "status": {
-      "connected": "Verbonden",
-      "disconnected": "Niet verbonden",
-      "invalidCredentials": "Ongeldige gegevens",
-      "reconnectRequired": "Opnieuw verbinden vereist"
-    },
     "actions": {
       "reconnect": "Opnieuw verbinden",
       "delete": "Verwijderen"
@@ -2995,8 +2842,12 @@
         "manualLabel": "Voer de organisatieslug handmatig in"
       },
       "unavailable": {
-        "title": "Organisaties konden niet worden geladen",
-        "description": "Probo kon de organisatielijst niet laden vanuit {{provider}}. De verbinding is mogelijk verlopen of mist rechten."
+        "reconnectTitle": "{{provider}} is niet verbonden",
+        "credentialsTitle": "De inloggegevens van {{provider}} zijn ongeldig",
+        "reconnectDescription": "Verbind deze bron opnieuw om de toegang tot organisaties te herstellen.",
+        "credentialsDescription": "Probo kan deze bron niet lezen met de huidige inloggegevens. Controleer de inloggegevens en de rechten die ze bij {{provider}} hebben.",
+        "notAuthorizedTitle": "{{provider}} heeft dit verzoek geweigerd",
+        "notAuthorizedDescription": "{{provider}} accepteert de inloggegevens, maar weigerde het verzoek van Probo. Controleer de rechten die ze bij {{provider}} hebben en of uw abonnement de API bevat die Probo gebruikt."
       }
     }
   },
@@ -3007,15 +2858,7 @@
     "messages": {
       "error": "Fout"
     },
-    "decisions": {
-      "pending": "In behandeling",
-      "approved": "Goedgekeurd",
-      "revoke": "Ingetrokken",
-      "defer": "Aangepast",
-      "escalate": "Geëscaleerd"
-    },
     "actions": {
-      "change": "Beslissing wijzigen",
       "approve": "Goedkeuren",
       "revoke": "Intrekken",
       "modify": "Aanpassen",
@@ -3059,42 +2902,13 @@
       "none": "Geen"
     }
   },
-  "accessReviewCampaignsTab": {
-    "errors": {
-      "delete": "Verwijderen van campagne mislukt"
-    },
-    "messages": {
-      "error": "Fout",
-      "success": "Succes",
-      "deleted": "Campagne succesvol verwijderd."
-    },
-    "deleteConfirmation": "Hiermee wordt \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
-    "actions": {
-      "new": "Nieuwe campagne",
-      "delete": "Verwijderen",
-      "loading": "Laden...",
-      "loadMore": "Meer laden"
-    },
-    "columns": {
-      "name": "Naam",
-      "status": "Status",
-      "createdAt": "Aangemaakt op"
-    },
-    "status": {
-      "draft": "Concept",
-      "in_progress": "In uitvoering",
-      "pending_actions": "Acties in behandeling",
-      "completed": "Voltooid",
-      "cancelled": "Geannuleerd"
-    },
-    "empty": "Nog geen toegangsbeoordelingscampagnes. Maak uw eerste campagne aan om toegang te gaan beoordelen."
-  },
   "campaignDetailPage": {
     "errors": {
       "start": "Starten van campagne mislukt",
       "delete": "Verwijderen van campagne mislukt",
       "complete": "Afronden van campagne mislukt",
-      "recordDecisions": "Vastleggen van beslissingen mislukt",
+      "recordDecisions_one": "Vastleggen van beslissingen voor {{count}} item mislukt.",
+      "recordDecisions_other": "Vastleggen van beslissingen voor {{count}} items mislukt.",
       "updateFlags_one": "Bijwerken van vlaggen voor {{count}} item mislukt.",
       "updateFlags_other": "Bijwerken van vlaggen voor {{count}} items mislukt."
     },
@@ -3109,7 +2923,6 @@
     },
     "deleteConfirmation": "Hiermee wordt \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "completeConfirmation": "Weet u zeker dat u deze campagne wilt afronden? Deze actie kan niet ongedaan worden gemaakt. Alle beslissingen worden definitief.",
-    "breadcrumb": "Toegangsbeoordelingen",
     "status": {
       "draft": "Concept",
       "in_progress": "In uitvoering",
@@ -3127,7 +2940,22 @@
     },
     "mfaStatus": {
       "enabled": "Ingeschakeld",
-      "disabled": "Uitgeschakeld"
+      "disabled": "Uitgeschakeld",
+      "unknown": "Onbekend"
+    },
+    "accountStatus": {
+      "active": "Actief",
+      "disabled": "Uitgeschakeld",
+      "unknown": "Onbekend"
+    },
+    "authMethod": {
+      "sso": "SSO",
+      "password": "Wachtwoord",
+      "api_key": "API-sleutel",
+      "oauth2": "OAuth2",
+      "ssh": "SSH",
+      "service_account": "Serviceaccount",
+      "unknown": "Onbekend"
     },
     "decisions": {
       "pending": "In behandeling",
@@ -3150,12 +2978,8 @@
       "shared_account": "Gedeeld account",
       "inactive": "Inactief",
       "role_mismatch": "Rolmismatch",
-      "new": "Nieuw"
-    },
-    "flagGroups": {
-      "account": "Account",
-      "privileges": "Rechten",
-      "anomaly": "Anomalie"
+      "new": "Nieuw",
+      "none": "Geen"
     },
     "actions": {
       "delete": "Verwijderen",
@@ -3166,65 +2990,67 @@
       "addSource": "Bron toevoegen",
       "starting": "Starten...",
       "startCampaign": "Campagne starten",
-      "clear": "Wissen",
+      "clearSelection": "Wissen",
+      "selectAll": "Alles selecteren",
+      "selectAllLoaded": "Alle geladen selecteren ({{loaded}})",
       "approve": "Goedkeuren",
       "revoke": "Intrekken",
       "modify": "Aanpassen",
       "escalate": "Escaleren",
-      "confirm": "Bevestigen"
+      "noDecision": "Geen beslissing",
+      "confirm": "Bevestigen",
+      "submit": "Indienen"
     },
     "emptySources": "Geen bronnen geconfigureerd voor deze campagne.",
-    "accounts_one": "{{count}} account",
-    "accounts_other": "{{count}} accounts",
+    "emptyFiltered": "Geen items komen overeen met de huidige filters.",
     "fetchFailed": "Ophalen mislukt",
     "emptyEntries": "Geen items gevonden voor deze bron.",
+    "filters": {
+      "searchEmail": "Zoek e-mail...",
+      "allConnectors": "Alle connectoren",
+      "allMfa": "Alle MFA",
+      "allAuthMethods": "Alle authenticatiemethoden",
+      "allAdmin": "Alle beheerders",
+      "allAccountStatuses": "Alle statussen"
+    },
     "columns": {
-      "name": "Naam",
-      "email": "E-mail",
-      "role": "Rol",
       "admin": "Beheerder",
-      "status": "Status",
       "mfa": "MFA",
-      "lastLogin": "Laatste keer ingelogd",
-      "flag": "Markering",
-      "decision": "Beslissing"
+      "authMethod": "Auth",
+      "lastLogin": "Laatste keer ingelogd"
     },
     "values": {
       "yes": "Ja",
-      "no": "Nee"
+      "no": "Nee",
+      "unknown": "Onbekend"
     },
     "selected_one": "{{count}} geselecteerd",
     "selected_other": "{{count}} geselecteerd",
+    "selectionLoadedOnly": "Alleen de tot nu toe geladen items kunnen worden geselecteerd. Scroll om er meer te laden.",
     "decisionPlaceholder": "Beslissing instellen...",
-    "flagsSelected_one": "{{count}} markering",
-    "flagsSelected_other": "{{count}} markeringen",
+    "selectEntry": "Selecteer {{name}}",
+    "showAdditionalRoles_one": "Toon {{count}} extra rol",
+    "showAdditionalRoles_other": "Toon {{count}} extra rollen",
+    "additionalRoles_one": "{{count}} extra rol",
+    "additionalRoles_other": "{{count}} extra rollen",
     "flagsPlaceholder": "Markeringen instellen...",
     "note": {
       "title": "Opmerking bij beslissing",
       "description": "Geef een reden op voor deze beslissing.",
       "label": "Opmerking"
-    },
-    "showingFirst_one": "Eerste {{count}} item wordt getoond. Gebruik de CLI voor de volledige lijst.",
-    "showingFirst_other": "Eerste {{count}} items worden getoond. Gebruik de CLI voor de volledige lijst."
+    }
   },
   "addAccessReviewSourceDialog": {
     "actions": {
-      "connect": "Verbinden",
-      "apiKey": "API-sleutel",
-      "clientCredentials": "Clientreferenties",
-      "connectWithApiKey": "Verbinden met API-sleutel",
-      "connectWithClientCredentials": "Verbinden met clientreferenties",
-      "open": "Open",
-      "close": "Sluiten"
+      "connectWithOAuth": "OAuth",
+      "connectWithGitHubApp": "GitHub-app",
+      "connectWithApiKey": "API-sleutel",
+      "connectWithClientCredentials": "Clientreferenties",
+      "connectWithWorkloadIdentity": "Workload-identiteit",
+      "connectWithAppInstall": "App-installatie",
+      "chooseAnotherMethod": "Kies een andere verbindingsmethode",
+      "open": "Open"
     },
-    "status": {
-      "connected": "Verbonden"
-    },
-    "breadcrumb": {
-      "accessReviews": "Toegangsbeoordelingen",
-      "addSource": "Bron toevoegen"
-    },
-    "searchPlaceholder": "Providers zoeken...",
     "csv": {
       "title": "CSV",
       "description": "Upload CSV-gegevens direct als toegangsbron."
@@ -3260,7 +3086,7 @@
       "created": "Campagne succesvol aangemaakt."
     },
     "breadcrumb": {
-      "accessReviews": "Toegangsbeoordelingen",
+      "accessReviews": "Campagnes",
       "newCampaign": "Nieuwe campagne"
     },
     "fields": {
@@ -3272,7 +3098,7 @@
     "actions": {
       "create": "Aanmaken"
     },
-    "emptySources": "Geen bronnen beschikbaar. Voeg eerst bronnen toe op het tabblad Bronnen."
+    "emptySources": "Geen verbindingen beschikbaar. Voeg eerst verbindingen toe op de pagina Verbindingen."
   },
   "postHogDeploymentField": {
     "deployment": {
@@ -3291,25 +3117,14 @@
     "apiKeyDescription": "Voer de API-sleutel voor {{provider}} in om deze te verbinden als toegangsbron.",
     "apiKey": "API-sleutel",
     "messages": {
-      "connectionFailed": "Verbinding mislukt",
-      "copyFailed": "Kopiëren mislukt",
-      "copied": "Gekopieerd naar klembord"
+      "connectionFailed": "Verbinding mislukt"
     },
     "errors": {
-      "managedConnect": "Verbinden met provider mislukt. Controleer uw instellingen en verificatiecode en probeer het opnieuw.",
+      "managedConnect": "Verbinden met provider mislukt. Controleer uw instellingen en probeer het opnieuw.",
       "apiKeyConnect": "Verbinden met provider mislukt. Controleer uw API-sleutel en probeer het opnieuw.",
-      "copy": "Kopieer de verificatiecode handmatig.",
-      "generateCode": "Kan geen verificatiecode genereren. Controleer de Website-ID en probeer het opnieuw."
-    },
-    "verificationCode": {
-      "label": "Verificatiecode",
-      "description": "Plak deze code in de Probo-pluginsinstellingen voor deze website in uw Crisp-dashboard en klik vervolgens op Verbinden. Dit bewijst dat u zeggenschap heeft over deze website.",
-      "enterWebsiteId": "Voer hierboven uw Website-ID in om uw verificatiecode te krijgen.",
-      "generating": "Code genereren..."
+      "apiKeyFormat": "Dit lijkt niet op de verwachte sleutel. Verwachte vorm: {{example}}"
     },
     "actions": {
-      "copy": "Kopiëren",
-      "retry": "Opnieuw proberen",
       "connect": "Verbinden",
       "connecting": "Verbinden..."
     }
@@ -3341,6 +3156,46 @@
       "connecting": "Verbinden..."
     }
   },
+  "createAwsAccessReviewSourcePage": {
+    "pageTitle": "AWS verbinden",
+    "title": "AWS verbinden",
+    "description": "Implementeer de auditrol. Voer daarna de ARN in.",
+    "permissionDenied": "U heeft geen rechten om toegangsbronnen aan te maken.",
+    "fields": {
+      "roleArn": "Rol-ARN",
+      "issuer": "Uitgever",
+      "audience": "Audience",
+      "subject": "Subject",
+      "roleArnPlaceholder": "arn:aws:iam::123456789012:role/ProboAudit"
+    },
+    "messages": {
+      "copyFailed": "Kopiëren mislukt",
+      "copied": "Gekopieerd naar klembord",
+      "copiedIssuer": "Uitgever gekopieerd.",
+      "copiedAudience": "Audience gekopieerd.",
+      "copiedSubject": "Subject gekopieerd.",
+      "copiedTerraform": "Terraform-fragment gekopieerd.",
+      "error": "Fout",
+      "success": "Succes",
+      "created": "Toegangsbron succesvol aangemaakt."
+    },
+    "errors": {
+      "roleArn": "Voer een geldige IAM-rol-ARN in.",
+      "create": "Aanmaken van de connector mislukt. Controleer de rol-ARN en probeer het opnieuw.",
+      "disconnected": "Probo kon de auditrol niet aannemen. Controleer of de stack in dit account is uitgerold en of de issuer en het subject overeenkomen met de waarden die tijdens de installatie zijn getoond.",
+      "delete": "Kan de connector niet verwijderen. Probeer het opnieuw.",
+      "source": "Aanmaken van toegangsbron mislukt",
+      "copy": "Kopieer de waarde handmatig."
+    },
+    "actions": {
+      "copy": "Kopiëren",
+      "connect": "Verbinden",
+      "back": "Terug",
+      "installViaCloudFormation": "Installeren via CloudFormation",
+      "installViaTerraform": "Installeren via Terraform",
+      "chooseAnotherInstallMethod": "Kies een andere installatiemethode"
+    }
+  },
   "oauthExtraDialog": {
     "actions": {
       "continue": "Doorgaan"
@@ -3369,33 +3224,21 @@
       "created": "Toegangsbron succesvol aangemaakt."
     }
   },
-  "accessReviewSourcesTab": {
-    "errors": {
-      "create": "Aanmaken van toegangsbron mislukt"
-    },
-    "messages": {
-      "error": "Fout",
-      "success": "Succes",
-      "created": "Toegangsbron succesvol aangemaakt."
-    },
-    "actions": {
-      "addSource": "Bron toevoegen",
-      "loading": "Laden...",
-      "loadMore": "Meer laden"
-    },
-    "columns": {
-      "name": "Naam",
-      "source": "Bron",
-      "status": "Status",
-      "organization": "Organisatie",
-      "createdAt": "Aangemaakt op"
-    },
-    "empty": "Nog geen toegangsbronnen geconfigureerd. Voeg uw eerste bron toe om toegang te gaan beoordelen."
+  "accessReviewConnectionsPage": {
+    "title": "Verbindingen",
+    "description": "Verbind de systemen waarvan u de toegang wilt beoordelen.",
+    "errors": { "create": "Aanmaken van toegangsbron mislukt" },
+    "messages": { "error": "Fout", "success": "Succes", "created": "Toegangsbron succesvol aangemaakt." },
+    "actions": { "loading": "Laden...", "loadMore": "Meer laden", "retry": "Opnieuw proberen" },
+    "sections": { "connected": "Verbonden", "available": "Beschikbaar" },
+    "searchPlaceholder": "Bronnen en providers zoeken...",
+    "emptyConnected": "Er zijn nog geen toegangsbronnen verbonden.",
+    "emptyConnectedSearch": "Geen verbonden bronnen komen overeen met uw zoekopdracht.",
+    "searchLoadFailed": "Sommige bronnen konden niet worden geladen, dus de zoekopdracht is onvolledig. Probeer opnieuw om alle bronnen te doorzoeken.",
+    "emptyAvailableSearch": "Geen beschikbare providers komen overeen met uw zoekopdracht.",
+    "comingSoon": "Binnenkort beschikbaar"
   },
   "assetDetailsPage": {
-    "breadcrumb": {
-      "assets": "Assets"
-    },
     "validation": {
       "nameRequired": "Naam is verplicht",
       "amountRequired": "Aantal is verplicht",
@@ -3429,6 +3272,185 @@
       "addAsset": "Asset toevoegen"
     }
   },
+  "assetsMultiSelectField": {
+    "addPlaceholder": "Assets toevoegen...",
+    "empty": "Geen assets beschikbaar",
+    "remove": "{{name}} verwijderen"
+  },
+  "businessFunctionsPage": {
+    "title": "Bedrijfsfuncties",
+    "description": "Beheer het register van bedrijfsfuncties van uw organisatie.",
+    "actions": { "document": "Document", "publish": "Publiceren", "add": "Bedrijfsfunctie toevoegen", "loadMore": "Meer laden", "loading": "Laden..." },
+    "filters": { "allClassifications": "Alle classificaties" },
+    "classifications": { "critical": "Kritiek", "important": "Belangrijk", "secondary": "Secundair", "standard": "Standaard" },
+    "columns": { "referenceId": "Referentie-ID", "name": "Naam", "classification": "Classificatie", "mtd": "MTD", "rto": "RTO", "rpo": "RPO", "owner": "Eigenaar", "assets": "Assets", "thirdParties": "Derde partijen", "actions": "Acties" },
+    "none": "Geen",
+    "empty": {
+      "title": "Nog geen bedrijfsfuncties",
+      "description": "Maak uw eerste bedrijfsfunctie aan om te beginnen.",
+      "filteredTitle": "Geen overeenkomende bedrijfsfuncties",
+      "filteredDescription": "Geen bedrijfsfuncties komen overeen met de geselecteerde classificatie."
+    }
+  },
+  "businessFunctionListItem": {
+    "actions": { "delete": "Verwijderen" },
+    "messages": { "success": "Geslaagd", "deleted": "Bedrijfsfunctie succesvol verwijderd" },
+    "errors": { "delete": "Verwijderen van bedrijfsfunctie mislukt" },
+    "deleteConfirmation": "Dit verwijdert de bedrijfsfunctie {{referenceId}} permanent. Deze actie kan niet ongedaan worden gemaakt."
+  },
+  "businessFunctionDetailsPage": {
+    "validation": { "nameRequired": "Naam is verplicht" },
+    "fields": { "name": "Naam", "namePlaceholder": "Voer een naam in", "classification": "Classificatie", "classificationPlaceholder": "Selecteer classificatie", "mtd": "MTD (minuten)", "rto": "RTO (minuten)", "rpo": "RPO (minuten)", "durationHelper": "Veelgebruikte waarden: 1u = 60, 12u = 720, 24u = 1440, 3d = 4320 minuten", "impactTolerance": "Impacttolerantie", "impactTolerancePlaceholder": "Beschrijf acceptabele impact tijdens verstoring", "notes": "Notities", "notesPlaceholder": "Afhankelijkheden en andere notities", "owner": "Eigenaar", "assets": "Assets", "thirdParties": "Derde partijen" },
+    "classifications": { "critical": "Kritiek", "important": "Belangrijk", "secondary": "Secundair", "standard": "Standaard" },
+    "actions": { "delete": "Verwijderen", "update": "Bijwerken", "updating": "Bijwerken..." },
+    "messages": { "success": "Geslaagd", "updated": "Bedrijfsfunctie succesvol bijgewerkt", "deleted": "Bedrijfsfunctie succesvol verwijderd" },
+    "errors": { "update": "Bijwerken van bedrijfsfunctie mislukt", "delete": "Verwijderen van bedrijfsfunctie mislukt" },
+    "dependenciesTruncated": "Deze bedrijfsfunctie heeft meer dan 100 gekoppelde assets of derde partijen. Bewerken van afhankelijkheden is uitgeschakeld zodat opslaan niet stilzwijgend relaties kan verwijderen die niet zijn geladen.",
+    "deleteConfirmation": "Dit verwijdert de bedrijfsfunctie {{referenceId}} permanent. Deze actie kan niet ongedaan worden gemaakt."
+  },
+  "createBusinessFunctionDialog": {
+    "breadcrumb": { "businessFunctions": "Bedrijfsfuncties", "create": "Aanmaken" },
+    "validation": { "nameRequired": "Naam is verplicht" },
+    "fields": { "name": "Naam", "namePlaceholder": "Voer een naam in", "classification": "Classificatie", "classificationPlaceholder": "Selecteer classificatie", "mtd": "MTD (minuten)", "rto": "RTO (minuten)", "rpo": "RPO (minuten)", "durationHelper": "Veelgebruikte waarden: 1u = 60, 12u = 720, 24u = 1440, 3d = 4320 minuten", "impactTolerance": "Impacttolerantie", "impactTolerancePlaceholder": "Beschrijf de impacttolerantie", "notes": "Notities", "notesPlaceholder": "Afhankelijkheden en andere notities", "owner": "Eigenaar", "assets": "Assets", "thirdParties": "Derde partijen" },
+    "classifications": { "critical": "Kritiek", "important": "Belangrijk", "secondary": "Secundair", "standard": "Standaard" },
+    "actions": { "create": "Bedrijfsfunctie aanmaken", "creating": "Aanmaken..." },
+    "messages": { "success": "Geslaagd", "created": "Bedrijfsfunctie succesvol aangemaakt" },
+    "errors": { "create": "Aanmaken van bedrijfsfunctie mislukt" }
+  },
+  "publishBusinessFunctionListDialog": {
+    "title": "Bedrijfsfunctielijst publiceren",
+    "errors": { "publish": "Publiceren van bedrijfsfunctielijst mislukt" },
+    "messages": { "published": "Bedrijfsfunctielijst succesvol gepubliceerd." }
+  },
+  "aiSystemsPage": {
+    "pageTitle": "AI-systemen",
+    "title": "AI-systemen",
+    "description": "Volg AI-systemen die binnen uw organisatie worden gebruikt, inclusief rollen, risicoclassificatie en reviewplanning.",
+    "actions": { "document": "Document", "publish": "Publiceren", "add": "AI-systeem toevoegen", "loadMore": "Meer laden", "loading": "Laden…" },
+    "filters": { "allStatuses": "Alle statussen", "allRiskClassifications": "Alle risicoclassificaties" },
+    "status": { "active": "Actief", "inDevelopment": "In ontwikkeling", "decommissioned": "Buiten gebruik" },
+    "riskClassification": { "highRisk": "Hoog risico", "limited": "Beperkt", "minimal": "Minimaal", "gpai": "GPAI" },
+    "companyRoles": { "provider": "Aanbieder", "deployer": "Implementeerder", "user": "Gebruiker", "developer": "Ontwikkelaar" },
+    "columns": { "name": "Naam", "version": "Versie", "status": "Status", "riskClassification": "Risicoclassificatie", "owner": "Systeemeigenaar", "nextReviewDate": "Volgende review", "actions": "Acties" },
+    "empty": {
+      "title": "Nog geen AI-systemen",
+      "description": "Maak uw eerste AI-systeem aan om te beginnen.",
+      "filteredTitle": "Geen overeenkomende AI-systemen",
+      "filteredDescription": "Geen AI-systemen komen overeen met de geselecteerde filters."
+    }
+  },
+  "aiSystemListItem": {
+    "actions": { "delete": "Verwijderen" },
+    "messages": { "success": "Gelukt", "deleted": "AI-systeem succesvol verwijderd" },
+    "errors": { "delete": "Verwijderen van AI-systeem mislukt" },
+    "deleteConfirmation": "Dit verwijdert het AI-systeem \"{{name}}\" permanent. Deze actie kan niet ongedaan worden gemaakt."
+  },
+  "aiSystemDetailsPage": {
+    "validation": { "nameRequired": "Naam is verplicht" },
+    "fields": {
+      "name": "Naam",
+      "namePlaceholder": "Voer systeemnaam in",
+      "version": "Versie",
+      "versionPlaceholder": "bijv. 1.0",
+      "companyRoles": "Bedrijfsrollen",
+      "status": "Status",
+      "owner": "Systeemeigenaar",
+      "source": "Bron",
+      "sourcePlaceholder": "Wie het systeem heeft ontwikkeld of levert",
+      "purpose": "Doel / bedrijfsdoelen",
+      "purposePlaceholder": "Waarom dit systeem bestaat en wat het wil bereiken",
+      "intendedUseCases": "Beoogde use cases",
+      "intendedUseCasesPlaceholder": "Specifieke manieren waarop het systeem bedoeld is te worden gebruikt",
+      "autonomyLevel": "Autonomieniveau",
+      "autonomyLevelPlaceholder": "Beschrijf het autonomieniveau",
+      "humanOversightMechanism": "Mechanisme voor menselijk toezicht",
+      "humanOversightMechanismPlaceholder": "Hoe mensen dit systeem bewaken",
+      "riskClassification": "Risicoclassificatie",
+      "keyStakeholders": "Belangrijke betrokken stakeholders",
+      "keyStakeholdersPlaceholder": "Wie mogelijk wordt beïnvloed door dit systeem",
+      "dataSourcesAndType": "Gegevensbronnen en type",
+      "dataSourcesAndTypePlaceholder": "Welke gegevens het systeem verwerkt en het type",
+      "deploymentDate": "Implementatiedatum",
+      "lastReviewDate": "Laatste review",
+      "nextReviewDate": "Volgende review",
+      "notes": "Notities / observaties",
+      "notesPlaceholder": "Aanvullende notities of observaties",
+      "notSet": "Niet ingesteld"
+    },
+    "status": { "active": "Actief", "inDevelopment": "In ontwikkeling", "decommissioned": "Buiten gebruik" },
+    "riskClassification": { "highRisk": "Hoog risico", "limited": "Beperkt", "minimal": "Minimaal", "gpai": "GPAI" },
+    "companyRoles": { "provider": "Aanbieder", "deployer": "Implementeerder", "user": "Gebruiker", "developer": "Ontwikkelaar" },
+    "actions": { "delete": "Verwijderen", "update": "Bijwerken", "updating": "Bezig met bijwerken…" },
+    "messages": { "success": "Gelukt", "updated": "AI-systeem succesvol bijgewerkt", "deleted": "AI-systeem succesvol verwijderd" },
+    "errors": { "update": "Bijwerken van AI-systeem mislukt", "delete": "Verwijderen van AI-systeem mislukt" },
+    "deleteConfirmation": "Dit verwijdert het AI-systeem \"{{name}}\" permanent. Deze actie kan niet ongedaan worden gemaakt."
+  },
+  "createAiSystemDialog": {
+    "breadcrumb": { "aiSystems": "AI-systemen", "create": "Aanmaken" },
+    "validation": { "nameRequired": "Naam is verplicht" },
+    "fields": {
+      "name": "Naam",
+      "namePlaceholder": "Voer systeemnaam in",
+      "version": "Versie",
+      "versionPlaceholder": "bijv. 1.0",
+      "companyRoles": "Bedrijfsrollen",
+      "status": "Status",
+      "owner": "Systeemeigenaar",
+      "source": "Bron",
+      "sourcePlaceholder": "Wie het systeem heeft ontwikkeld of levert",
+      "purpose": "Doel / bedrijfsdoelen",
+      "purposePlaceholder": "Waarom dit systeem bestaat en wat het wil bereiken",
+      "intendedUseCases": "Beoogde use cases",
+      "intendedUseCasesPlaceholder": "Specifieke manieren waarop het systeem bedoeld is te worden gebruikt",
+      "autonomyLevel": "Autonomieniveau",
+      "autonomyLevelPlaceholder": "Beschrijf het autonomieniveau",
+      "humanOversightMechanism": "Mechanisme voor menselijk toezicht",
+      "humanOversightMechanismPlaceholder": "Hoe mensen dit systeem bewaken",
+      "riskClassification": "Risicoclassificatie",
+      "keyStakeholders": "Belangrijke betrokken stakeholders",
+      "keyStakeholdersPlaceholder": "Wie mogelijk wordt beïnvloed door dit systeem",
+      "dataSourcesAndType": "Gegevensbronnen en type",
+      "dataSourcesAndTypePlaceholder": "Welke gegevens het systeem verwerkt en het type",
+      "deploymentDate": "Implementatiedatum",
+      "lastReviewDate": "Laatste review",
+      "nextReviewDate": "Volgende review",
+      "notes": "Notities / observaties",
+      "notesPlaceholder": "Aanvullende notities of observaties",
+      "notSet": "Niet ingesteld"
+    },
+    "status": { "active": "Actief", "inDevelopment": "In ontwikkeling", "decommissioned": "Buiten gebruik" },
+    "riskClassification": { "highRisk": "Hoog risico", "limited": "Beperkt", "minimal": "Minimaal", "gpai": "GPAI" },
+    "companyRoles": { "provider": "Aanbieder", "deployer": "Implementeerder", "user": "Gebruiker", "developer": "Ontwikkelaar" },
+    "actions": { "create": "AI-systeem aanmaken", "creating": "Bezig met aanmaken…" },
+    "messages": { "success": "Gelukt", "created": "AI-systeem succesvol aangemaakt" },
+    "errors": { "create": "Aanmaken van AI-systeem mislukt" }
+  },
+  "publishListDialog": {
+    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
+    "fields": {
+      "approvers": "Goedkeurders",
+      "approversPlaceholder": "Goedkeurders toevoegen..."
+    },
+    "actions": {
+      "publishMinor": "Publiceren als subversie",
+      "requestApproval": "Goedkeuring aanvragen",
+      "publish": "Publiceren"
+    },
+    "messages": {
+      "success": "Succes",
+      "error": "Fout",
+      "approvalRequested": "Goedkeuring succesvol aangevraagd."
+    }
+  },
+  "publishAiSystemListDialog": {
+    "title": "AI-systemen publiceren",
+    "errors": {
+      "publish": "Publiceren van AI-systemenlijst mislukt"
+    },
+    "messages": {
+      "published": "AI-systemenlijst succesvol gepubliceerd."
+    }
+  },
   "createAssetDialog": {
     "breadcrumb": {
       "assets": "Assets",
@@ -3458,31 +3480,14 @@
   },
   "publishAssetListDialog": {
     "title": "Assetlijst publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
     "errors": {
       "publish": "Publiceren van assetlijst mislukt"
     },
     "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
       "published": "Assetlijst succesvol gepubliceerd."
-    },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
     }
   },
   "auditDetailsPage": {
-    "breadcrumb": {
-      "audits": "Audits"
-    },
-    "unknownAudit": "Onbekende audit",
     "errors": {
       "update": "Bijwerken van audit mislukt"
     },
@@ -3493,6 +3498,8 @@
     },
     "deleteReportConfirmation": "Hiermee wordt het auditrapport \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "states": {
+      "to_book": "Te boeken",
+      "audit_booked": "Audit geboekt",
       "not_started": "Niet gestart",
       "in_progress": "In uitvoering",
       "completed": "Voltooid",
@@ -3502,6 +3509,8 @@
     "fields": {
       "name": "Naam",
       "namePlaceholder": "Auditnaam",
+      "firm": "Auditkantoor",
+      "firmPlaceholder": "Auditkantoor",
       "state": "Status",
       "validFrom": "Geldig vanaf",
       "validUntil": "Geldig tot",
@@ -3539,11 +3548,13 @@
       "name": "Naam",
       "framework": "Framework",
       "state": "Status",
-      "validFrom": "Geldig vanaf",
-      "validUntil": "Geldig tot",
+      "auditPeriod": "Auditperiode",
+      "validityPeriod": "Geldigheidsperiode",
       "report": "Rapport"
     },
     "states": {
+      "to_book": "Te boeken",
+      "audit_booked": "Audit geboekt",
       "not_started": "Niet gestart",
       "in_progress": "In uitvoering",
       "completed": "Voltooid",
@@ -3555,7 +3566,11 @@
       "unknownFramework": "Onbekend framework",
       "notSet": "Niet ingesteld",
       "uploaded": "Geüpload",
-      "notUploaded": "Niet geüpload"
+      "notUploaded": "Niet geüpload",
+      "period": {
+        "from": "Vanaf {{date}}",
+        "until": "Tot {{date}}"
+      }
     }
   },
   "createAuditDialog": {
@@ -3582,6 +3597,8 @@
       "frameworkPlaceholder": "Selecteer een framework",
       "name": "Naam",
       "namePlaceholder": "Auditnaam",
+      "firm": "Auditkantoor",
+      "firmPlaceholder": "Auditkantoor",
       "state": "Status",
       "validFrom": "Geldig vanaf",
       "validUntil": "Geldig tot",
@@ -3589,6 +3606,8 @@
       "auditEndDate": "Einddatum audit"
     },
     "states": {
+      "to_book": "Te boeken",
+      "audit_booked": "Audit geboekt",
       "not_started": "Niet gestart",
       "in_progress": "In uitvoering",
       "completed": "Voltooid",
@@ -3759,10 +3778,6 @@
     }
   },
   "measureDetailPage": {
-    "breadcrumb": {
-      "measures": "Maatregelen",
-      "detail": "Maatregeldetail"
-    },
     "deleteConfirmation": "Hiermee wordt de maatregel \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "fields": {
       "selectState": "Selecteer status"
@@ -3895,6 +3910,19 @@
     "errors": {
       "extractUrl": "URL uit URI-bestand extraheren mislukt"
     },
+    "csv": {
+      "column": "Kolom",
+      "empty": "Dit CSV-bestand is leeg.",
+      "error": "Het CSV-voorbeeld kan niet worden geladen.",
+      "retry": "Opnieuw proberen",
+      "truncated": "De eerste 100 gegevensrijen worden weergegeven."
+    },
+    "text": {
+      "empty": "Dit tekstbestand is leeg.",
+      "error": "Het tekstvoorbeeld kan niet worden geladen.",
+      "retry": "Opnieuw proberen",
+      "truncated": "De eerste 512 KB wordt weergegeven."
+    },
     "previewUnavailable": "Voorbeeld niet beschikbaar voor dit bestandstype: {{mimeType}}",
     "actions": {
       "download": "Bestand downloaden"
@@ -3943,6 +3971,7 @@
   "measureEvidencesTab": {
     "pageTitle": "{{name}} - Bewijsstukken",
     "columns": {
+      "name": "Naam",
       "description": "Beschrijving",
       "fileType": "Bestandstype",
       "fileSize": "Bestandsgrootte",
@@ -3968,10 +3997,6 @@
     }
   },
   "obligationDetailsPage": {
-    "breadcrumb": {
-      "obligations": "Verplichtingen",
-      "details": "Verplichtingdetails"
-    },
     "title": "Verplichting",
     "messages": {
       "success": "Succes",
@@ -4103,34 +4128,16 @@
   },
   "publishObligationListDialog": {
     "title": "Verplichtingenlijst publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Verplichtingenlijst succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van verplichtingenlijst mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Verplichtingenlijst succesvol gepubliceerd."
     }
   },
   "processingActivitiesPage": {
     "title": "Verwerkingsactiviteiten",
     "description": "Beheer uw verwerkingsactiviteiten onder de GDPR",
-    "tabs": {
-      "activities": "Verwerkingsactiviteiten",
-      "dpia": "Gegevensbeschermingseffectbeoordelingen",
-      "tia": "Transferimpactbeoordelingen"
-    },
     "actions": {
       "add": "Verwerkingsactiviteit toevoegen",
       "document": "Document",
@@ -4146,22 +4153,11 @@
       "lawfulBasis": "Rechtsgrondslag",
       "location": "Locatie",
       "internationalTransfers": "Internationale overdrachten",
-      "actions": "Acties",
-      "processingActivity": "Verwerkingsactiviteit",
-      "description": "Beschrijving",
-      "potentialRisk": "Potentieel risico",
-      "residualRisk": "Restrisico",
-      "dataSubjects": "Betrokkenen",
-      "transfer": "Overdragen",
-      "localLawRisk": "Risico lokale wetgeving"
+      "actions": "Acties"
     },
     "empty": {
-      "activitiesTitle": "Nog geen verwerkingsactiviteiten",
-      "activitiesDescription": "Maak uw eerste verwerkingsactiviteit aan om te beginnen met GDPR-compliance.",
-      "dpiaTitle": "Nog geen gegevensbeschermingseffectbeoordelingen",
-      "dpiaDescription": "DPIA's worden aangemaakt binnen individuele verwerkingsactiviteiten.",
-      "tiaTitle": "Nog geen transferimpactbeoordelingen",
-      "tiaDescription": "TIA's worden aangemaakt binnen individuele verwerkingsactiviteiten."
+      "title": "Nog geen verwerkingsactiviteiten",
+      "description": "Maak uw eerste verwerkingsactiviteit aan om te beginnen met GDPR-compliance."
     },
     "deleteConfirmation": "Hiermee wordt de verwerkingsactiviteit {{name}} permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "answers": {
@@ -4169,10 +4165,35 @@
       "no": "Nee"
     }
   },
-  "processingActivityDetailsPage": {
-    "breadcrumb": {
-      "activities": "Verwerkingsactiviteiten"
+  "dataProtectionImpactAssessmentsPage": {
+    "description": "Bekijk gegevensbeschermingseffectbeoordelingen van uw verwerkingsactiviteiten",
+    "actions": { "document": "Document", "publish": "Publiceren", "loading": "Laden...", "loadMore": "Meer laden" },
+    "columns": {
+      "processingActivity": "Verwerkingsactiviteit",
+      "description": "Beschrijving",
+      "potentialRisk": "Potentieel risico",
+      "residualRisk": "Restrisico"
     },
+    "empty": {
+      "title": "Nog geen gegevensbeschermingseffectbeoordelingen",
+      "description": "DPIA's worden aangemaakt binnen individuele verwerkingsactiviteiten."
+    }
+  },
+  "transferImpactAssessmentsPage": {
+    "description": "Bekijk transferimpactbeoordelingen van uw verwerkingsactiviteiten",
+    "actions": { "document": "Document", "publish": "Publiceren", "loading": "Laden...", "loadMore": "Meer laden" },
+    "columns": {
+      "processingActivity": "Verwerkingsactiviteit",
+      "dataSubjects": "Betrokkenen",
+      "transfer": "Overdragen",
+      "localLawRisk": "Risico lokale wetgeving"
+    },
+    "empty": {
+      "title": "Nog geen transferimpactbeoordelingen",
+      "description": "TIA's worden aangemaakt binnen individuele verwerkingsactiviteiten."
+    }
+  },
+  "processingActivityDetailsPage": {
     "tabs": {
       "overview": "Overzicht",
       "dpia": "Gegevensbeschermingseffectbeoordeling",
@@ -4298,74 +4319,32 @@
   },
   "publishDpiaListDialog": {
     "title": "Gegevensbeschermingseffectbeoordelingen publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Gegevensbeschermingseffectbeoordelingen succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van gegevensbeschermingseffectbeoordelingen mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Gegevensbeschermingseffectbeoordelingen succesvol gepubliceerd."
     }
   },
   "publishProcessingActivityListDialog": {
     "title": "Verwerkingsactiviteiten publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Verwerkingsactiviteiten succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van verwerkingsactiviteiten mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Verwerkingsactiviteiten succesvol gepubliceerd."
     }
   },
   "publishTiaListDialog": {
     "title": "Transferimpactbeoordelingen publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Transferimpactbeoordelingen succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van transferimpactbeoordelingen mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Transferimpactbeoordelingen succesvol gepubliceerd."
     }
   },
   "rightsRequestDetailsPage": {
-    "breadcrumb": {
-      "requests": "Rechtenverzoeken"
-    },
     "messages": {
       "success": "Succes",
       "error": "Fout",
@@ -4468,11 +4447,7 @@
     }
   },
   "riskDetailLayout": {
-    "breadcrumb": {
-      "risks": "Risico's",
-      "detail": "Risicodetail"
-    },
-    "deleteConfirmation": "Hiermee wordt het risico \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "deleteConfirmation": "Hiermee wordt het risico {{referenceId}} \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "actions": {
       "edit": "Bewerken",
       "delete": "Verwijderen"
@@ -4483,13 +4458,34 @@
       "documents": "Documenten",
       "controls": "Controls",
       "obligations": "Verplichtingen",
-      "scenarios": "Scenario's"
+      "scenarios": "Scenario's",
+      "treatmentPlans": "Behandelplannen"
+    }
+  },
+  "risksPage": {
+    "description": "Risico's zijn potentiële bedreigingen voor uw organisatie. Beheer ze door risico's te identificeren, te beoordelen en beperkende maatregelen te implementeren.",
+    "actions": {
+      "document": "Document",
+      "publish": "Publiceren",
+      "newRisk": "Nieuw risico"
     },
+    "columns": {
+      "referenceId": "Referentie-ID",
+      "name": "Risiconaam",
+      "category": "Categorie",
+      "treatment": "Behandeling",
+      "initialRisk": "Initieel risico",
+      "residualRisk": "Restrisico",
+      "owner": "Eigenaar"
+    }
+  },
+  "riskOverviewPage": {
+    "emptyScores": "Scores worden ingesteld op een behandelplan in een risicoanalyse.",
     "fields": {
       "owner": "Eigenaar",
       "treatment": "Behandeling",
-      "initialRiskScore": "Initiële risicoscore",
-      "residualRiskScore": "Restrisicoscore",
+      "initialRiskScore": "Initiële score",
+      "residualRiskScore": "Restscore",
       "note": "Opmerking"
     },
     "treatments": {
@@ -4499,27 +4495,6 @@
       "avoided": "Vermijden",
       "unknown": "Onbekend"
     }
-  },
-  "risksPage": {
-    "title": "Risico's",
-    "description": "Risico's zijn potentiële bedreigingen voor uw organisatie. Beheer ze door risico's te identificeren, te beoordelen en beperkende maatregelen te implementeren.",
-    "actions": {
-      "document": "Document",
-      "publish": "Publiceren",
-      "newRisk": "Nieuw risico"
-    },
-    "columns": {
-      "name": "Risiconaam",
-      "category": "Categorie",
-      "treatment": "Behandeling",
-      "initialRisk": "Initieel risico",
-      "residualRisk": "Restrisico",
-      "owner": "Eigenaar"
-    }
-  },
-  "risksTabs": {
-    "risks": "Risico's",
-    "riskAssessments": "Risicobeoordelingen"
   },
   "formRiskDialog": {
     "breadcrumb": {
@@ -4598,24 +4573,11 @@
   },
   "publishRiskListDialog": {
     "title": "Risico's publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Risico's succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van risico's mislukt"
     },
-    "fields": {
-      "approvers": "Goedkeurders",
-      "approversPlaceholder": "Goedkeurders toevoegen..."
-    },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Risico's succesvol gepubliceerd."
     }
   },
   "riskRow": {
@@ -4625,7 +4587,7 @@
     "errors": {
       "delete": "Verwijderen van risico mislukt"
     },
-    "deleteConfirmation": "Hiermee wordt het risico \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "deleteConfirmation": "Hiermee wordt het risico {{referenceId}} \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "treatments": {
       "mitigated": "Beperken",
       "accepted": "Accepteren",
@@ -4646,39 +4608,55 @@
     },
     "empty": "Geen controls gekoppeld"
   },
-  "riskAssessmentDetailPage": {
+  "riskAnalysisDetailPage": {
     "title": "Risicobeoordeling",
-    "breadcrumb": {
-      "assessments": "Risicobeoordelingen"
-    },
     "messages": {
       "error": "Fout"
     },
     "errors": {
-      "delete": "Verwijderen van risicobeoordeling mislukt"
+      "delete": "Verwijderen van risicobeoordeling mislukt",
+      "update": "Bijwerken van risicobeoordeling mislukt",
+      "content": "Deze beschrijving kon niet worden weergegeven"
     },
-    "deleteConfirmation": "Hiermee worden deze risicobeoordeling en alle bijbehorende scopes, nodes, processen en dreigingen permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
+    "deleteConfirmation": "Hiermee worden deze risicobeoordeling en alle bijbehorende diagrammen, nodes, processen en dreigingen permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "actions": {
-      "delete": "Verwijderen"
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "fork": "Forken",
+      "showMore": "Meer tonen"
     },
     "details": "Details",
+    "noDescription": "Geen beschrijving",
     "fields": {
+      "period": "Periode",
+      "matrixSize": "Matrixgrootte",
       "createdAt": "Aangemaakt op",
-      "updatedAt": "Bijgewerkt op"
+      "description": "Beschrijving"
     },
-    "scopes": "Scopes",
-    "emptyScopes": "Nog geen scopes. Maak een scope aan om nodes, processen en dreigingen te definiëren."
+    "diagrams": "Diagrammen",
+    "treatmentPlans": "Risico's en behandelplannen",
+    "emptyDiagrams": "Nog geen diagrammen. Maak een diagram aan om nodes, processen en dreigingen te definiëren.",
+    "tabs": {
+      "diagrams": "Diagrammen",
+      "treatmentPlans": "Risico's en behandelplannen"
+    }
   },
-  "riskAssessmentsPage": {
+  "riskAnalysesPage": {
     "title": "Risicobeoordelingen",
-    "description": "Beheer risicobeoordelingen met scopes, nodes, processen, dreigingen en scenario's.",
+    "description": "Beheer risicoanalyses met diagrammen, nodes, processen, dreigingen en scenario's.",
     "columns": {
       "name": "Naam",
       "description": "Beschrijving",
+      "period": "Periode",
+      "matrixSize": "Matrix",
       "created": "Aangemaakt"
+    },
+    "empty": "Nog geen risicobeoordelingen.",
+    "actions": {
+      "fork": "Forken"
     }
   },
-  "riskAssessmentBoundaryActions": {
+  "riskAnalysisBoundaryActions": {
     "breadcrumb": {
       "boundaries": "Grenzen"
     },
@@ -4697,7 +4675,7 @@
       "save": "Opslaan"
     }
   },
-  "createRiskAssessmentBoundaryDialog": {
+  "createRiskAnalysisBoundaryDialog": {
     "breadcrumb": {
       "boundaries": "Grenzen",
       "addBoundary": "Grens toevoegen"
@@ -4714,7 +4692,7 @@
       "add": "Toevoegen"
     }
   },
-  "createRiskAssessmentNodeDialog": {
+  "createRiskAnalysisNodeDialog": {
     "breadcrumb": {
       "nodes": "Nodes",
       "addNode": "Node toevoegen"
@@ -4737,7 +4715,7 @@
       "add": "Toevoegen"
     }
   },
-  "createRiskAssessmentProcessDialog": {
+  "createRiskAnalysisProcessDialog": {
     "breadcrumb": {
       "processes": "Processen",
       "addProcess": "Proces toevoegen"
@@ -4759,17 +4737,27 @@
       "add": "Toevoegen"
     }
   },
-  "createRiskAssessmentDialog": {
+  "createRiskAnalysisDialog": {
     "title": "Nieuwe risicobeoordeling",
     "breadcrumb": {
-      "riskAssessments": "Risicobeoordelingen"
+      "riskAnalyses": "Risicobeoordelingen"
     },
     "fields": {
       "name": "Naam",
-      "description": "Beschrijving"
+      "description": "Beschrijving",
+      "matrixSize": "Matrixgrootte",
+      "periodStart": "Periode start",
+      "periodEnd": "Periode eind"
+    },
+    "matrixSizes": {
+      "3x3": "3×3",
+      "4x4": "4×4",
+      "5x5": "5×5"
     },
     "validation": {
-      "nameRequired": "Dit veld is verplicht"
+      "nameRequired": "Dit veld is verplicht",
+      "periodEndBeforeStart": "Periode eind moet op of na periode start liggen",
+      "matrixSizeRequired": "Matrixgrootte is verplicht"
     },
     "placeholders": {
       "name": "bijv. Platform Dreigingsmodel 2026",
@@ -4779,7 +4767,60 @@
       "create": "Aanmaken"
     }
   },
-  "createScenarioInScopeDialog": {
+  "forkRiskAnalysisDialog": {
+    "title": "Risicobeoordeling forken",
+    "breadcrumb": {
+      "riskAnalyses": "Risicobeoordelingen"
+    },
+    "fields": {
+      "name": "Naam",
+      "description": "Beschrijving",
+      "matrixSize": "Matrixgrootte",
+      "periodStart": "Periode start",
+      "periodEnd": "Periode eind"
+    },
+    "validation": {
+      "nameRequired": "Dit veld is verplicht",
+      "periodEndBeforeStart": "Periode eind moet op of na periode start liggen"
+    },
+    "placeholders": {
+      "name": "bijv. Platform Dreigingsmodel 2026",
+      "description": "Beschrijf de reikwijdte en het doel van deze beoordeling..."
+    },
+    "actions": {
+      "fork": "Forken"
+    }
+  },
+  "updateRiskAnalysisDialog": {
+    "title": "Risicobeoordeling bewerken",
+    "breadcrumb": {
+      "riskAnalyses": "Risicobeoordelingen"
+    },
+    "fields": {
+      "name": "Naam",
+      "description": "Beschrijving",
+      "matrixSize": "Matrixgrootte",
+      "periodStart": "Periode start",
+      "periodEnd": "Periode eind"
+    },
+    "matrixSizes": {
+      "3x3": "3×3",
+      "4x4": "4×4",
+      "5x5": "5×5"
+    },
+    "validation": {
+      "nameRequired": "Dit veld is verplicht",
+      "periodEndBeforeStart": "Periode eind moet op of na periode start liggen"
+    },
+    "placeholders": {
+      "name": "bijv. Platform Dreigingsmodel 2026",
+      "description": "Beschrijf de reikwijdte en het doel van deze beoordeling..."
+    },
+    "actions": {
+      "save": "Opslaan"
+    }
+  },
+  "createScenarioInDiagramDialog": {
     "breadcrumb": {
       "scenarios": "Scenario's",
       "addScenario": "Scenario toevoegen"
@@ -4804,10 +4845,10 @@
       "add": "Toevoegen"
     }
   },
-  "createRiskAssessmentScopeDialog": {
+  "createRiskAnalysisDiagramDialog": {
     "breadcrumb": {
-      "scopes": "Scopes",
-      "newScope": "Nieuwe scope"
+      "diagrams": "Diagrammen",
+      "newDiagram": "Nieuw diagram"
     },
     "fields": {
       "name": "Naam"
@@ -4819,11 +4860,11 @@
       "name": "bijv. API-laag"
     },
     "actions": {
-      "addScope": "Scope toevoegen",
+      "addDiagram": "Diagram toevoegen",
       "create": "Aanmaken"
     }
   },
-  "createRiskAssessmentThreatDialog": {
+  "createRiskAnalysisThreatDialog": {
     "breadcrumb": {
       "threats": "Dreigingen",
       "addThreat": "Dreiging toevoegen"
@@ -4845,7 +4886,152 @@
       "add": "Toevoegen"
     }
   },
-  "riskAssessmentNodeActions": {
+  "createTreatmentPlanDialog": {
+    "breadcrumb": {
+      "treatmentPlans": "Risico's en behandelplannen",
+      "new": "Nieuw behandelplan"
+    },
+    "fields": {
+      "risk": "Risico",
+      "treatment": "Behandeling",
+      "owner": "Eigenaar",
+      "inherentRisk": "Inherent risico",
+      "residualRisk": "Restrisico",
+      "inherentLikelihood": "Inherente waarschijnlijkheid",
+      "inherentImpact": "Inherente impact",
+      "residualLikelihood": "Residuele waarschijnlijkheid",
+      "residualImpact": "Residuele impact"
+    },
+    "placeholders": {
+      "treatment": "Selecteer een behandeling",
+      "risk": "Selecteer een risico"
+    },
+    "validation": {
+      "riskRequired": "Selecteer een risico",
+      "ownerRequired": "Selecteer een eigenaar"
+    },
+    "properties": "Eigenschappen",
+    "hint": "Alleen risico’s die aan een scenario van deze analyse zijn gekoppeld.",
+    "emptyEligible": "Koppel eerst een risico aan een scenario op een diagram.",
+    "actions": {
+      "add": "Behandelplan toevoegen",
+      "create": "Behandelplan aanmaken"
+    }
+  },
+  "updateTreatmentPlanDialog": {
+    "breadcrumb": {
+      "treatmentPlans": "Risico's en behandelplannen",
+      "edit": "Behandelplan bewerken"
+    },
+    "fields": {
+      "risk": "Risico",
+      "treatment": "Behandeling",
+      "owner": "Eigenaar",
+      "inherentRisk": "Inherent risico",
+      "residualRisk": "Restrisico",
+      "inherentLikelihood": "Inherente waarschijnlijkheid",
+      "inherentImpact": "Inherente impact",
+      "residualLikelihood": "Residuele waarschijnlijkheid",
+      "residualImpact": "Residuele impact"
+    },
+    "placeholders": {
+      "treatment": "Selecteer een behandeling"
+    },
+    "validation": {
+      "ownerRequired": "Selecteer een eigenaar"
+    },
+    "properties": "Eigenschappen",
+    "actions": {
+      "update": "Behandelplan bijwerken"
+    }
+  },
+  "riskAnalysisTreatmentPlansPage": {
+    "columns": {
+      "risk": "Risico",
+      "category": "Categorie",
+      "treatment": "Behandeling",
+      "owner": "Eigenaar",
+      "scores": "Inherent / Residueel",
+      "progress": "Voortgang"
+    },
+    "empty": "Er zijn nog geen risico’s gekoppeld aan een scenario van deze analyse.",
+    "emptyFilter": "Geen gekoppelde risico’s komen overeen met deze cel.",
+    "unplannedWarning_one": "{{count}} gekoppeld risico heeft nog geen behandelplan.",
+    "unplannedWarning_other": "{{count}} gekoppelde risico’s hebben nog geen behandelplan.",
+    "filter": "{{state}} · L{{likelihood}} × I{{impact}}",
+    "asOf": "Per",
+    "search": "Zoek risico's",
+    "states": {
+      "inherent": "Inherent",
+      "net": "Netto",
+      "residual": "Residueel"
+    },
+    "axes": {
+      "likelihood": "Waarschijnlijkheid",
+      "impact": "Impact"
+    },
+    "legend": {
+      "impact": "Impact: {{levels}}",
+      "likelihood": "Waarschijnlijkheid: {{levels}}",
+      "level": "{{value}} {{label}}"
+    },
+    "cell": "{{count}} met waarschijnlijkheid {{likelihood}} en impact {{impact}}"
+  },
+  "linkedRiskListItem": {
+    "empty": "Nog geen behandelplan",
+    "actions": {
+      "create": "Plan toevoegen"
+    }
+  },
+  "treatmentPlanListItem": {
+    "deleteConfirmation": "Dit verwijdert het behandelplan voor \"{{name}}\" permanent. Deze actie kan niet ongedaan worden gemaakt.",
+    "scoreProgress": "{{inherent}} → {{net}} → {{residual}}",
+    "progress": "{{done}}/{{total}}",
+    "progressEmpty": "Geen maatregelen",
+    "actions": {
+      "tasks": "Taken",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "expand": "Maatregelen tonen",
+      "collapse": "Maatregelen verbergen"
+    }
+  },
+  "riskTreatmentPlansPage": {
+    "columns": {
+      "analysis": "Risicoanalyse",
+      "treatment": "Behandeling",
+      "owner": "Eigenaar",
+      "scores": "Inherent / Residueel"
+    },
+    "empty": "Dit risico heeft nog geen behandelplannen."
+  },
+  "riskTreatmentPlanListItem": {
+    "deleteConfirmation": "Dit verwijdert het behandelplan voor \"{{name}}\" permanent. Deze actie kan niet ongedaan worden gemaakt.",
+    "scoreProgress": "{{inherent}} → {{net}} → {{residual}}",
+    "actions": {
+      "measures": "Maatregelen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen"
+    }
+  },
+  "treatmentPlanMeasureList": {
+    "title": "Maatregelen",
+    "empty": "Nog geen maatregelen gekoppeld.",
+    "deleted": "Verwijderde maatregel",
+    "acceptedEmpty": "Geaccepteerde risico's kunnen geen maatregelen hebben.",
+    "actions": {
+      "create": "Nieuwe maatregel",
+      "link": "Maatregel koppelen",
+      "unlink": "Ontkoppelen",
+      "showMore": "Meer tonen"
+    }
+  },
+  "treatmentPlanMeasuresDialog": {
+    "title": "Maatregelen van het behandelplan",
+    "loading": "Maatregelen laden…",
+    "netScore": "Netto {{score}} ({{likelihood}} × {{impact}})"
+  },
+  "riskAnalysisNodeActions": {
     "breadcrumb": {
       "nodes": "Nodes"
     },
@@ -4870,7 +5056,7 @@
       "save": "Opslaan"
     }
   },
-  "riskAssessmentProcessActions": {
+  "riskAnalysisProcessActions": {
     "breadcrumb": {
       "processes": "Processen"
     },
@@ -4893,7 +5079,7 @@
       "save": "Opslaan"
     }
   },
-  "riskAssessmentScenarioActions": {
+  "riskAnalysisScenarioActions": {
     "breadcrumb": {
       "scenarios": "Scenario's"
     },
@@ -4919,12 +5105,12 @@
       "save": "Opslaan"
     }
   },
-  "riskAssessmentScopeActions": {
+  "riskAnalysisDiagramActions": {
     "breadcrumb": {
-      "scopes": "Scopes",
-      "editScope": "Scope bewerken"
+      "diagrams": "Diagrammen",
+      "editDiagram": "Diagram bewerken"
     },
-    "deleteConfirmation": "Deze scope en alle bijbehorende nodes, processen en dreigingen verwijderen?",
+    "deleteConfirmation": "Dit diagram en alle bijbehorende nodes, processen en dreigingen verwijderen?",
     "fields": {
       "name": "Naam"
     },
@@ -4937,12 +5123,8 @@
       "save": "Opslaan"
     }
   },
-  "scopeCard": {
+  "diagramCard": {
     "summary": "{{nodes}} nodes · {{processes}} processen · {{threats}} dreigingen · {{scenarios}} scenario's",
-    "diagram": {
-      "title": "Diagram",
-      "description": "Visualisatie van nodes, processen en dreigingen in deze scope."
-    },
     "sectionTitle": {
       "nodes_one": "Nodes ({{count}})",
       "nodes_other": "Nodes ({{count}})",
@@ -4982,9 +5164,13 @@
       "boundaries": "Geen grenzen",
       "threats": "Geen dreigingen",
       "scenarios": "Geen scenario's"
+    },
+    "schema": {
+      "title": "Diagramstructuur",
+      "hint": "Nodes, processen, grenzen en dreigingen om het diagram bij te werken."
     }
   },
-  "scopeDiagram": {
+  "diagramChart": {
     "empty": "Voeg nodes en processen toe om het diagram te zien.",
     "errorTitle": "Fout",
     "copyError": "Kopiëren naar klembord mislukt",
@@ -4997,7 +5183,7 @@
       "threat": "Dreiging"
     }
   },
-  "riskAssessmentThreatActions": {
+  "riskAnalysisThreatActions": {
     "breadcrumb": {
       "threats": "Dreigingen"
     },
@@ -5030,7 +5216,6 @@
     }
   },
   "webhooksSettingsPage": {
-    "title": "Webhookabonnementen",
     "description": "Configureer webhooks om meldingen te ontvangen wanneer er gebeurtenissen plaatsvinden in uw organisatie.",
     "fields": {
       "endpointUrl": "Eindpunt-URL",
@@ -5097,10 +5282,6 @@
   },
   "statementOfApplicabilityDetailPage": {
     "title": "Verklaring van toepasselijkheid",
-    "breadcrumb": {
-      "statementsOfApplicability": "Verklaringen van toepasselijkheid",
-      "detail": "Detail verklaring van toepasselijkheid"
-    },
     "sections": {
       "details": "Details",
       "statements": "Verklaringen"
@@ -5137,7 +5318,6 @@
     }
   },
   "statementsOfApplicabilityPage": {
-    "title": "Verklaringen van toepasselijkheid",
     "description": "Beheer verklaringen van toepasselijkheid voor de frameworks van uw organisatie.",
     "columns": {
       "name": "Naam",
@@ -5232,36 +5412,6 @@
       "save": "Opslaan"
     }
   },
-  "linkControlDialog": {
-    "breadcrumb": {
-      "statementsOfApplicability": "Verklaringen van toepasselijkheid",
-      "addControls": "Controls toevoegen"
-    },
-    "applicability": {
-      "notLinked": "Niet gekoppeld",
-      "applicable": "Van toepassing",
-      "notApplicable": "Niet van toepassing"
-    },
-    "placeholders": {
-      "justification": "Reden voor niet-toepasselijkheid",
-      "search": "Controls zoeken..."
-    },
-    "messages": {
-      "updated": "Control succesvol bijgewerkt.",
-      "removed": "Control succesvol verwijderd."
-    },
-    "errors": {
-      "update": "Bijwerken van control mislukt",
-      "remove": "Verwijderen van control mislukt"
-    },
-    "empty": "Geen controls gevonden",
-    "actions": {
-      "save": "Opslaan",
-      "expand": "Uitklappen",
-      "collapse": "Inklappen",
-      "close": "Sluiten"
-    }
-  },
   "publishStatementOfApplicabilityDialog": {
     "title": "Verklaring van toepasselijkheid publiceren",
     "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
@@ -5323,7 +5473,6 @@
     }
   },
   "thirdPartiesPage": {
-    "title": "Derde partijen",
     "description": "Derde partijen zijn externe diensten en leveranciers die uw bedrijf gebruikt. Voeg ze toe om hun risico- en compliancestatus bij te houden.",
     "actions": {
       "document": "Document",
@@ -5339,9 +5488,6 @@
   },
   "thirdPartyDetailLayout": {
     "title": "Derde partij",
-    "breadcrumb": {
-      "thirdParties": "Derde partijen"
-    },
     "messages": {
       "error": "Fout"
     },
@@ -5356,16 +5502,6 @@
     "actions": {
       "startVetting": "Screening starten",
       "delete": "Verwijderen"
-    },
-    "tabs": {
-      "overview": "Overzicht",
-      "certifications": "Certificeringen",
-      "complianceReports": "Compliancerapporten",
-      "riskAssessment": "Risicobeoordeling",
-      "contacts": "Contactpersonen",
-      "services": "Diensten",
-      "thirdParties": "Derde partijen",
-      "measures": "Maatregelen"
     }
   },
   "addChildThirdPartyDialog": {
@@ -5496,26 +5632,11 @@
   },
   "publishThirdPartyListDialog": {
     "title": "Derde partijen publiceren",
-    "description": "Selecteer goedkeurders om goedkeuring aan te vragen voordat u publiceert, of publiceer direct zonder goedkeurders.",
-    "fields": {
-      "approvers": "Goedkeurders"
-    },
-    "placeholders": {
-      "approvers": "Goedkeurders toevoegen..."
-    },
-    "messages": {
-      "success": "Succes",
-      "error": "Fout",
-      "approvalRequested": "Goedkeuring succesvol aangevraagd.",
-      "published": "Derde partijen succesvol gepubliceerd."
-    },
     "errors": {
       "publish": "Publiceren van derde partijen mislukt"
     },
-    "actions": {
-      "publishMinor": "Publiceren als subversie",
-      "requestApproval": "Goedkeuring aanvragen",
-      "publish": "Publiceren"
+    "messages": {
+      "published": "Derde partijen succesvol gepubliceerd."
     }
   },
   "thirdPartyRow": {
@@ -5710,88 +5831,20 @@
       "start": "Screening starten"
     }
   },
-  "thirdPartyCertificationsPage": {
-    "pageTitle": "{{name}} - Certificeringen",
-    "categories": {
-      "securityStandards": "Beveiligingsstandaarden",
-      "regulatoryLegal": "Regelgeving en juridisch",
-      "industrySpecific": "Branchespecifiek",
-      "internationalGov": "Internationaal en overheid",
-      "custom": "Aangepaste certificeringen"
-    },
-    "placeholders": {
-      "add": "Nieuwe certificering toevoegen"
-    },
-    "addCustom": "Aangepaste certificering toevoegen: {{name}}",
-    "actions": {
-      "update": "Derde partij bijwerken"
-    }
-  },
-  "thirdPartyCompliancePage": {
-    "pageTitle": "{{name}} - Compliancerapporten",
-    "title": "Compliancerapporten",
-    "description": "Houd compliancecertificeringen en -rapporten van derde partijen bij.",
-    "actions": {
-      "addReport": "Rapport toevoegen"
-    },
-    "columns": {
-      "reportName": "Rapportnaam",
-      "reportDate": "Rapportdatum",
-      "validUntil": "Geldig tot",
-      "fileSize": "Bestandsgrootte",
-      "actions": "Acties"
-    }
-  },
-  "thirdPartyComplianceReportRow": {
-    "messages": {
-      "error": "Fout"
-    },
-    "errors": {
-      "delete": "Verwijderen van rapport mislukt"
-    },
-    "deleteConfirmation": "Hiermee wordt het rapport \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
-    "actions": {
-      "download": "Downloaden",
-      "delete": "Verwijderen"
-    }
-  },
-  "thirdPartyContactsPage": {
-    "pageTitle": "{{name}} - Contactpersonen",
-    "title": "Contactpersonen",
-    "description": "Beheer contactpersonen van derde partijen en hun gegevens.",
-    "actions": {
-      "add": "Contactpersoon toevoegen"
-    },
-    "columns": {
-      "name": "Naam",
-      "email": "E-mail",
-      "phone": "Telefoon",
-      "role": "Rol",
-      "actions": "Acties"
-    }
-  },
-  "thirdPartyOverviewPage": {
-    "pageTitle": "{{name}} - Overzicht",
-    "sections": {
-      "details": "Gegevens derde partij",
-      "countries": "Landen",
-      "administrators": "Beheerders",
-      "links": "Links",
-      "dataAgreements": "Gegevensovereenkomsten"
-    },
+  "thirdPartyProfilePage": {
+    "pageTitle": "{{name}} - Profiel",
+    "title": "Profiel",
+    "description": "Identiteit en vestigingslanden van deze derde partij.",
+    "sections": { "details": "Gegevens derde partij", "countries": "Landen" },
     "fields": {
       "name": "Naam",
       "description": "Beschrijving",
       "category": "Categorie",
       "legalName": "Wettelijke naam",
       "headquarterAddress": "Adres hoofdkantoor",
-      "websiteUrl": "Website-URL",
-      "administrators": "Beheerders"
+      "websiteUrl": "Website-URL"
     },
-    "placeholders": {
-      "category": "Selecteer een categorie",
-      "administrators": "Beheerders toevoegen..."
-    },
+    "placeholders": { "category": "Selecteer een categorie" },
     "categories": {
       "analytics": "Analytics",
       "cloudMonitoring": "Cloud Monitoring",
@@ -5816,6 +5869,36 @@
       "security": "Beveiliging",
       "versionControl": "Versiebeheer"
     },
+    "actions": { "update": "Derde partij bijwerken" },
+    "messages": {
+      "updated": "Derde partij succesvol bijgewerkt.",
+      "updateError": "Bijwerken van derde partij mislukt"
+    }
+  },
+  "thirdPartyStakeholdersPage": {
+    "pageTitle": "{{name}} - Belanghebbenden",
+    "title": "Belanghebbenden",
+    "description": "Personen die verantwoordelijk zijn voor deze relatie — uw beheerders en hun contactpersonen.",
+    "sections": { "administrators": "Beheerders", "contacts": "Contactpersonen" },
+    "fields": { "administrators": "Beheerders" },
+    "placeholders": { "administrators": "Beheerders toevoegen..." },
+    "actions": { "addContact": "Contactpersoon toevoegen" },
+    "columns": { "name": "Naam", "email": "E-mail", "phone": "Telefoon", "role": "Rol", "actions": "Acties" }
+  },
+  "thirdPartyAssurancePage": {
+    "pageTitle": "{{name}} - Assurance",
+    "title": "Assurance",
+    "description": "Bewijs van de beveiligings- en privacyhouding van deze derde partij.",
+    "sections": { "certifications": "Certificeringen", "links": "Links", "reports": "Compliancerapporten" },
+    "categories": {
+      "securityStandards": "Beveiligingsstandaarden",
+      "regulatoryLegal": "Regelgeving en juridisch",
+      "industrySpecific": "Branchespecifiek",
+      "internationalGov": "Internationaal en overheid",
+      "custom": "Aangepaste certificeringen"
+    },
+    "placeholders": { "add": "Nieuwe certificering toevoegen" },
+    "addCustom": "Aangepaste certificering toevoegen: {{name}}",
     "urlLabels": {
       "statusPage": "URL statuspagina",
       "termsOfService": "URL algemene voorwaarden",
@@ -5825,6 +5908,19 @@
       "securityPage": "URL beveiligingspagina",
       "trustPage": "URL trustpagina"
     },
+    "actions": { "addReport": "Rapport toevoegen" },
+    "columns": {
+      "reportName": "Rapportnaam",
+      "reportDate": "Rapportdatum",
+      "validUntil": "Geldig tot",
+      "fileSize": "Bestandsgrootte",
+      "actions": "Acties"
+    }
+  },
+  "thirdPartyAgreementsPage": {
+    "pageTitle": "{{name}} - Overeenkomsten",
+    "title": "Overeenkomsten",
+    "description": "Ondertekende gegevensverwerkingsovereenkomsten met deze derde partij.",
     "agreements": {
       "businessAssociate": "Business Associate Agreement",
       "dataPrivacy": "Data Privacy Agreement",
@@ -5836,10 +5932,19 @@
         "until": "Geldig tot {{date}}"
       }
     },
+    "actions": { "downloadPdf": "PDF downloaden", "upload": "Uploaden" }
+  },
+  "thirdPartyComplianceReportRow": {
+    "messages": {
+      "error": "Fout"
+    },
+    "errors": {
+      "delete": "Verwijderen van rapport mislukt"
+    },
+    "deleteConfirmation": "Hiermee wordt het rapport \"{{name}}\" permanent verwijderd. Deze actie kan niet ongedaan worden gemaakt.",
     "actions": {
-      "downloadPdf": "PDF downloaden",
-      "upload": "Uploaden",
-      "update": "Derde partij bijwerken"
+      "download": "Downloaden",
+      "delete": "Verwijderen"
     }
   },
   "thirdPartyRiskAssessmentPage": {
@@ -5882,15 +5987,13 @@
       "delete": "Verwijderen"
     }
   },
-  "thirdPartyThirdPartiesPage": {
-    "pageTitle": "{{name}} - Derde partijen",
-    "title": "Derde partijen",
-    "description": "Beheer derde partijen die aan deze derde partij zijn gekoppeld.",
+  "thirdPartySupplyChainPage": {
+    "pageTitle": "{{name}} - Toeleveringsketen",
+    "title": "Toeleveringsketen",
+    "description": "Derde partijen waarop deze leverancier steunt.",
     "deleteConfirmation": "\"{{name}}\" verwijderen?",
     "notAssessed": "Niet beoordeeld",
-    "actions": {
-      "add": "Derde partij toevoegen"
-    },
+    "actions": { "add": "Derde partij toevoegen" },
     "columns": {
       "thirdParty": "Derde partij",
       "assessedAt": "Beoordeeld op",
@@ -5913,13 +6016,12 @@
       "delete": "Verwijderen"
     }
   },
-  "magicLinkAlreadyUsed": {
-    "title": "Link al gebruikt",
-    "description": "Deze magic link is al gebruikt. Vraag een nieuwe aan."
-  },
-  "magicLinkExpired": {
-    "title": "Link verlopen",
-    "description": "Deze magic link is verlopen. Magic links zijn slechts 15 minuten geldig. Vraag een nieuwe aan."
+  "magicLinkPage": {
+    "pageTitle": "Doorgaan met inloggen",
+    "title": "Doorgaan met inloggen",
+    "description": "Klik op doorgaan om het inloggen te voltooien.",
+    "errors": { "continue": "Kan het inloggen niet voltooien" },
+    "actions": { "continue": "Doorgaan" }
   },
   "magicLinkForm": {
     "errors": {
@@ -5935,7 +6037,7 @@
     "actions": {
       "resend": "Link opnieuw verzenden",
       "resendIn": "Link opnieuw verzenden over {{count}}s",
-      "send": "Magic link verzenden"
+      "send": "Doorgaan"
     }
   },
   "auth": {
@@ -6095,68 +6197,7 @@
       }
     }
   },
-  "employeeDevices": {
-    "title": "Uw apparaten"
-  },
   "deviceEnrollment": {
-    "pageTitle": "Apparaat registreren",
-    "title": "Apparaatregistratie",
-    "setup": "Installatie",
-    "stepProgress": "Stap {{current}} van {{total}}",
-    "steps": {
-      "privacy": {
-        "title": "Privacy",
-        "description": "Verzamelde gegevens bekijken"
-      },
-      "organization": {
-        "title": "Organisatie",
-        "description": "Kies bestemmingswerkruimte"
-      },
-      "enroll": {
-        "title": "Openen en wachten",
-        "description": "Rond de installatie af in de desktopagent"
-      }
-    },
-    "unavailable": {
-      "title": "Registratie niet beschikbaar",
-      "description": "U heeft geen rechten om apparaten te registreren in enige organisatie."
-    },
-    "intro": {
-      "title": "Voordat u begint",
-      "description": "Probo verzamelt de volgende apparaatmetadata voor inventarisatie- en postuurrapportage:"
-    },
-    "privacy": {
-      "identity": "Apparaatidentiteit: hardware-UUID, hostnaam en serienummer (indien beschikbaar).",
-      "systemDetails": "Systeemdetails: platform, OS-versie en versie van de Probo agent.",
-      "activitySignals": "Activiteitssignalen: registratietijd, heartbeats en resultaten van postuurcontroles."
-    },
-    "organization": {
-      "title": "Organisatie kiezen",
-      "description": "Kies welke organisatie dit apparaat zal beheren."
-    },
-    "openAgent": {
-      "title": "Open de Probo agent",
-      "description": "Open de desktopagent om de installatie af te ronden en houd deze pagina open totdat de registratie is bevestigd."
-    },
-    "actions": {
-      "backToOrganizations": "Terug naar organisaties",
-      "enrollNew": "Nieuw apparaat registreren",
-      "openAgent": "Probo agent openen",
-      "preparing": "Voorbereiden…"
-    },
-    "status": {
-      "enrolledWithHostname": "{{hostname}} is geregistreerd.",
-      "enrolled": "Dit apparaat is geregistreerd.",
-      "closeWindow": "U kunt dit venster sluiten.",
-      "waitingForCheckIn": "Wachten op de eerste check-in van de agent…",
-      "timedOut": "We hebben nog niets van de agent gehoord. Zorg ervoor dat de desktopagent is geïnstalleerd en actief, en probeer het opnieuw."
-    },
-    "manual": {
-      "cannotEnroll": "Kunt u geen nieuw apparaat registreren?",
-      "tryCreating": "Probeer het handmatig aan te maken",
-      "title": "Handmatige registratie",
-      "creating": "Apparaat aanmaken…"
-    },
     "token": {
       "title": "Registratietoken gegenereerd",
       "description": "Deel deze registratietoken alleen met de apparaateigenaar via een beveiligd kanaal. Deze kan één keer worden gebruikt en verloopt na zeven dagen.",

@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { usePageTitle } from "@probo/hooks";
 import { dateFormat, humanizeSeconds } from "@probo/i18n";
-import { Badge, Breadcrumb, Card, PageHeader, PropertyRow } from "@probo/ui";
+import { Badge, Card, PageHeader, PropertyRow } from "@probo/ui";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { graphql, type PreloadedQuery, usePreloadedQuery } from "react-relay";
 
 import type { CookieBannerConsentRecordPageQuery } from "#/__generated__/core/CookieBannerConsentRecordPageQuery.graphql";
-import { useOrganizationId } from "#/hooks/useOrganizationId";
 
 import {
   formatAnonymizedIp,
@@ -40,10 +40,6 @@ export const cookieBannerConsentRecordPageQuery = graphql`
         id
         visitorId
         action
-        cookieBanner @required(action: THROW) {
-          id
-          name
-        }
         cookieBannerVersion @required(action: THROW) {
           id
           version
@@ -66,6 +62,7 @@ export const cookieBannerConsentRecordPageQuery = graphql`
         regulation
         regulationSource
         countryCode
+        subdivisionCode
         consentData
         createdAt
       }
@@ -87,7 +84,7 @@ export default function CookieBannerConsentRecordPage({
   queryRef,
 }: CookieBannerConsentRecordPageProps) {
   const { t, i18n } = useTranslation("organizations/cookie-banners");
-  const organizationId = useOrganizationId();
+  usePageTitle(t("consentRecordPage.title"));
   const data = usePreloadedQuery<CookieBannerConsentRecordPageQuery>(cookieBannerConsentRecordPageQuery, queryRef);
 
   if (data.node.__typename !== "CookieConsentRecord") {
@@ -95,8 +92,6 @@ export default function CookieBannerConsentRecordPage({
   }
 
   const record = data.node;
-  const bannerId = record.cookieBanner.id;
-  const bannerName = record.cookieBanner.name;
 
   const consentMap = useMemo(() => {
     try {
@@ -118,26 +113,6 @@ export default function CookieBannerConsentRecordPage({
 
   return (
     <div className="space-y-6">
-      <Breadcrumb
-        items={[
-          {
-            label: t("consentRecordPage.breadcrumbs.index"),
-            to: `/organizations/${organizationId}/cookie-banners`,
-          },
-          {
-            label: bannerName,
-            to: `/organizations/${organizationId}/cookie-banners/${bannerId}`,
-          },
-          {
-            label: t("consentRecordPage.breadcrumbs.records"),
-            to: `/organizations/${organizationId}/cookie-banners/${bannerId}/consent-records`,
-          },
-          {
-            label: record.id,
-          },
-        ]}
-      />
-
       <PageHeader title={t("consentRecordPage.title")} />
 
       <Card padded>
@@ -188,6 +163,11 @@ export default function CookieBannerConsentRecordPage({
         <PropertyRow label={t("consentRecordPage.properties.country")}>
           <span className="font-mono text-sm">
             {record.countryCode || "-"}
+          </span>
+        </PropertyRow>
+        <PropertyRow label={t("consentRecordPage.properties.subdivision")}>
+          <span className="font-mono text-sm">
+            {record.subdivisionCode || "-"}
           </span>
         </PropertyRow>
         <PropertyRow label={t("consentRecordPage.properties.date")}>

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vikstrous/dataloadgen"
 	"go.gearno.de/kit/log"
+	"go.probo.inc/probo/pkg/complianceportal/management"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/iam"
@@ -91,6 +92,66 @@ func (r *auditResolver) ReportFile(ctx context.Context, obj *types.Audit) (*type
 	}
 
 	return types.NewFile(file, r.fileManager), nil
+}
+
+// CompliancePortalAudit is the resolver for the compliancePortalAudit field.
+func (r *auditResolver) CompliancePortalAudit(ctx context.Context, obj *types.Audit, compliancePortalID gid.GID) (*types.CompliancePortalAudit, error) {
+	scope, err := r.authorize(ctx, compliancePortalID, management.ActionCompliancePortalGet)
+	if err != nil {
+		return nil, err
+	}
+
+	link, err := dataloader.FromContext(ctx).CompliancePortalAudit.Load(
+		ctx,
+		dataloader.CompliancePortalAuditKey{
+			TenantID:           scope.GetTenantID(),
+			CompliancePortalID: compliancePortalID,
+			AuditID:            obj.ID,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, dataloadgen.ErrNotFound) {
+			return nil, nil
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot load compliance portal audit", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewCompliancePortalAudit(link), nil
+}
+
+// CompliancePortalDocumentAccess is the resolver for the compliancePortalDocumentAccess field.
+func (r *auditResolver) CompliancePortalDocumentAccess(ctx context.Context, obj *types.Audit, compliancePortalAccessID gid.GID) (*types.CompliancePortalDocumentAccess, error) {
+	if obj.ReportFile == nil {
+		return nil, nil
+	}
+
+	scope, err := r.authorize(ctx, compliancePortalAccessID, management.ActionCompliancePortalAccessGet)
+	if err != nil {
+		return nil, err
+	}
+
+	access, err := dataloader.FromContext(ctx).CompliancePortalDocumentAccessByReportFile.Load(
+		ctx,
+		dataloader.CompliancePortalDocumentAccessByReportFileKey{
+			TenantID:                 scope.GetTenantID(),
+			CompliancePortalAccessID: compliancePortalAccessID,
+			ReportFileID:             obj.ReportFile.ID,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, dataloadgen.ErrNotFound) {
+			return nil, nil
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot load compliance portal document access", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewCompliancePortalDocumentAccess(access), nil
 }
 
 // Controls is the resolver for the controls field.
@@ -265,7 +326,23 @@ func (r *findingResolver) Audits(ctx context.Context, obj *types.Finding, first 
 		return nil, gqlutils.Internal(ctx)
 	}
 
-	return types.NewAuditConnection(p, r, obj.ID), nil
+	auditIDs := make([]gid.GID, len(p.Data))
+	for i, audit := range p.Data {
+		auditIDs[i] = audit.ID
+	}
+
+	findingAudits, err := r.probo.Findings.ListAuditMappings(
+		ctx,
+		scope,
+		obj.ID,
+		auditIDs,
+	)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot list finding audit mappings", log.Error(err))
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewFindingAuditConnection(p, findingAudits, r, obj.ID), nil
 }
 
 // Owner is the resolver for the owner field.
@@ -382,12 +459,11 @@ func (r *mutationResolver) CreateAudit(ctx context.Context, input types.CreateAu
 		OrganizationID: input.OrganizationID,
 		FrameworkID:    input.FrameworkID,
 		Name:           input.Name,
-		ValidFrom:      input.ValidFrom,
-		ValidUntil:     input.ValidUntil,
-		AuditStartDate: input.AuditStartDate,
-		AuditEndDate:   input.AuditEndDate,
+		Firm:           input.Firm,
 		State:          input.State,
 	}
+	req.ValidFrom, req.ValidUntil = types.PeriodInputDates(input.Validity)
+	req.AuditStartDate, req.AuditEndDate = types.PeriodInputDates(input.AuditDates)
 
 	audit, err := r.probo.Audits.Create(ctx, scope, &req)
 	if err != nil {
@@ -436,14 +512,13 @@ func (r *mutationResolver) UpdateAudit(ctx context.Context, input types.UpdateAu
 	}
 
 	req := probo.UpdateAuditRequest{
-		ID:             input.ID,
-		Name:           gqlutils.UnwrapOmittable(input.Name),
-		ValidFrom:      input.ValidFrom,
-		ValidUntil:     input.ValidUntil,
-		AuditStartDate: input.AuditStartDate,
-		AuditEndDate:   input.AuditEndDate,
-		State:          input.State,
+		ID:    input.ID,
+		Name:  gqlutils.UnwrapOmittable(input.Name),
+		Firm:  gqlutils.UnwrapOmittable(input.Firm),
+		State: input.State,
 	}
+	req.ValidFrom, req.ValidUntil = types.PeriodInputDates(input.Validity)
+	req.AuditStartDate, req.AuditEndDate = types.PeriodInputDates(input.AuditDates)
 
 	audit, err := r.probo.Audits.Update(ctx, scope, &req)
 	if err != nil {
@@ -630,7 +705,13 @@ func (r *mutationResolver) CreateFindingAuditMapping(ctx context.Context, input 
 		return nil, err
 	}
 
-	finding, audit, err := r.probo.Findings.CreateAuditMapping(ctx, scope, input.FindingID, input.AuditID, input.ReferenceID)
+	finding, audit, findingAudit, err := r.probo.Findings.CreateAuditMapping(
+		ctx,
+		scope,
+		input.FindingID,
+		input.AuditID,
+		input.ReferenceID,
+	)
 	if err != nil {
 		r.logger.ErrorCtx(ctx, "cannot create finding audit mapping", log.Error(err))
 		return nil, gqlutils.Internal(ctx)
@@ -638,7 +719,11 @@ func (r *mutationResolver) CreateFindingAuditMapping(ctx context.Context, input 
 
 	return &types.CreateFindingAuditMappingPayload{
 		FindingEdge: types.NewFindingEdge(finding, coredata.FindingOrderFieldCreatedAt),
-		AuditEdge:   types.NewAuditEdge(audit, coredata.AuditOrderFieldCreatedAt),
+		AuditEdge: types.NewFindingAuditEdge(
+			audit,
+			coredata.AuditOrderFieldCreatedAt,
+			&findingAudit.ReferenceID,
+		),
 	}, nil
 }
 

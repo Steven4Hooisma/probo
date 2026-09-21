@@ -51,6 +51,17 @@ type TestEnv struct {
 	outputWriter   *switchableWriter
 }
 
+// configOptions tunes the generated probod config. Zero values keep the
+// default shared e2e suite settings.
+type configOptions struct {
+	DisableSignup  bool
+	APIAddr        string
+	BaseURL        string
+	MetricsAddr    string
+	TrustHTTPAddr  string
+	TrustHTTPSAddr string
+}
+
 type switchableWriter struct {
 	mu sync.Mutex
 	w  io.Writer
@@ -88,7 +99,15 @@ func Setup() {
 			}
 		}
 
-		configPath, err := generateConfig()
+		opts := configOptions{
+			APIAddr:        os.Getenv("PROBO_E2E_API_ADDR"),
+			BaseURL:        os.Getenv("PROBO_E2E_BASE_URL"),
+			MetricsAddr:    os.Getenv("PROBO_E2E_METRICS_ADDR"),
+			TrustHTTPAddr:  os.Getenv("PROBO_E2E_TRUST_HTTP_ADDR"),
+			TrustHTTPSAddr: os.Getenv("PROBO_E2E_TRUST_HTTPS_ADDR"),
+		}
+
+		configPath, err := generateConfig(opts)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "e2etest: cannot generate config: %v\n", err)
 			os.Exit(1)
@@ -131,20 +150,29 @@ func Setup() {
 			testEnv.done <- err
 		}()
 
-		testEnv.BaseURL = "http://localhost:18080"
+		testEnv.BaseURL = opts.BaseURL
+		if testEnv.BaseURL == "" {
+			apiAddr := opts.APIAddr
+			if apiAddr == "" {
+				apiAddr = "localhost:18080"
+			}
+
+			testEnv.BaseURL = "http://" + apiAddr
+		}
+
 		testEnv.MailpitBaseURL = "http://localhost:8025"
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		if err := waitForServer(ctx, testEnv.BaseURL+"/api/console/v1/graphql", 30*time.Second); err != nil {
+		if err := waitForServer(ctx, testEnv.done, testEnv.BaseURL+"/api/console/v1/graphql", 30*time.Second); err != nil {
 			testEnv.dumpOutputOnFailure("API server failed to start", err)
 			_ = testEnv.cmd.Process.Kill()
 
 			os.Exit(1)
 		}
 
-		if err := waitForServer(ctx, testEnv.MailpitBaseURL+"/api/v1/messages", 30*time.Second); err != nil {
+		if err := waitForServer(ctx, testEnv.done, testEnv.MailpitBaseURL+"/api/v1/messages", 30*time.Second); err != nil {
 			testEnv.dumpOutputOnFailure("MailPit server failed to start", err)
 			_ = testEnv.cmd.Process.Kill()
 
@@ -186,7 +214,7 @@ func (e *TestEnv) dumpOutputOnFailure(context string, err error) {
 	}
 }
 
-func waitForServer(ctx context.Context, url string, timeout time.Duration) error {
+func waitForServer(ctx context.Context, done chan error, url string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 2 * time.Second}
 
@@ -194,8 +222,8 @@ func waitForServer(ctx context.Context, url string, timeout time.Duration) error
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case err := <-testEnv.done:
-			testEnv.done <- err
+		case err := <-done:
+			done <- err
 			return fmt.Errorf("process exited before becoming ready: %v", err)
 		default:
 		}
@@ -254,10 +282,45 @@ func GetMailpitBaseURL() string {
 // bootstrap package (which auto-generates SAML credentials) and
 // writes it to a temp file. A fresh OAuth2 signing key is minted
 // here and injected via env. Returns the path.
-func generateConfig() (string, error) {
+func generateConfig(opts configOptions) (string, error) {
 	oauth2SigningKey, err := bootstrap.GenerateOAuth2SigningKey()
 	if err != nil {
 		return "", fmt.Errorf("generate oauth2 signing key: %w", err)
+	}
+
+	identityFederationSigningKey, err := bootstrap.GenerateOAuth2SigningKey()
+	if err != nil {
+		return "", fmt.Errorf("generate identity federation signing key: %w", err)
+	}
+
+	apiAddr := opts.APIAddr
+	if apiAddr == "" {
+		apiAddr = "localhost:18080"
+	}
+
+	baseURL := opts.BaseURL
+	if baseURL == "" {
+		baseURL = "http://" + apiAddr
+	}
+
+	metricsAddr := opts.MetricsAddr
+	if metricsAddr == "" {
+		metricsAddr = "localhost:19081"
+	}
+
+	trustHTTPAddr := opts.TrustHTTPAddr
+	if trustHTTPAddr == "" {
+		trustHTTPAddr = ":10080"
+	}
+
+	trustHTTPSAddr := opts.TrustHTTPSAddr
+	if trustHTTPSAddr == "" {
+		trustHTTPSAddr = ":8443"
+	}
+
+	disableSignup := "false"
+	if opts.DisableSignup {
+		disableSignup = "true"
 	}
 
 	env := map[string]string{
@@ -267,25 +330,31 @@ func generateConfig() (string, error) {
 		"PROBOD_AUTH_PASSWORD_PEPPER":      "this-is-a-secure-pepper-for-password-hashing-at-least-32-bytes",
 		"PROBOD_OAUTH2_SERVER_SIGNING_KEY": oauth2SigningKey,
 
+		// Identity federation issuer. No issuer base URL is set, so the issuer is derived
+		// as {base-url}/federation.
+		"PROBOD_IDENTITY_FEDERATION_ENABLED":     "true",
+		"PROBOD_IDENTITY_FEDERATION_SIGNING_KEY": identityFederationSigningKey,
+
 		// Unit.
-		"PROBOD_METRICS_ADDR": "localhost:19081",
+		"PROBOD_METRICS_ADDR": metricsAddr,
 		"PROBOD_TRACING_ADDR": "localhost:14317",
 
 		// Probod base.
-		"PROBOD_BASE_URL": "http://localhost:18080",
+		"PROBOD_BASE_URL": baseURL,
 
 		// API.
-		"PROBOD_API_ADDR":                 "localhost:18080",
-		"PROBOD_API_CORS_ALLOWED_ORIGINS": "http://localhost:18080",
+		"PROBOD_API_ADDR":                 apiAddr,
+		"PROBOD_API_CORS_ALLOWED_ORIGINS": baseURL,
 
 		// PG.
 		"PROBOD_PG_DATABASE":      "probod_test",
-		"PROBOD_PG_POOL_SIZE":     "10",
-		"PROBOD_PG_MIN_POOL_SIZE": "1",
+		"PROBOD_PG_POOL_SIZE":     "20",
+		"PROBOD_PG_MIN_POOL_SIZE": "2",
 
 		// Auth.
 		"PROBOD_AUTH_COOKIE_SECURE":       "false",
 		"PROBOD_AUTH_PASSWORD_ITERATIONS": "600000",
+		"PROBOD_AUTH_DISABLE_SIGNUP":      disableSignup,
 
 		// OAuth2 server durations kept small for faster e2e flows.
 		"PROBOD_OAUTH2_SERVER_ACCESS_TOKEN_DURATION":       "10",
@@ -293,13 +362,27 @@ func generateConfig() (string, error) {
 		"PROBOD_OAUTH2_SERVER_AUTHORIZATION_CODE_DURATION": "5",
 		"PROBOD_OAUTH2_SERVER_DEVICE_CODE_DURATION":        "15",
 
+		// Connector catalog. No test completes this external OAuth flow, but
+		// one deterministic configured protocol lets catalog tests assert the
+		// configuredProtocols migration rather than ambient deployment state.
+		"PROBOD_CONNECTOR_GITHUB_CLIENT_ID":     "e2e-github-client-id",
+		"PROBOD_CONNECTOR_GITHUB_CLIENT_SECRET": "e2e-github-client-secret",
+
+		// Crisp is the only app-install provider, and it stays out of the
+		// catalog entirely until BOTH of these are set. Configuring it here is
+		// what lets the catalog test assert installSupported rather than
+		// asserting that an unconfigured provider is absent.
+		"PROBOD_CONNECTOR_CRISP_PLUGIN_TOKEN": "e2e-plugin-identifier:e2e-plugin-key",
+		"PROBOD_CONNECTOR_CRISP_PLUGIN_ID":    "e2e-crisp-plugin-id",
+
 		// Trust center. Compliance pages are served exclusively over this
 		// dedicated listener, addressed by Host/SNI. The managed base domain
 		// yields {slug}.probopage.localhost subdomains for pages without a
 		// customer custom domain.
-		"PROBOD_TRUST_CENTER_HTTP_ADDR":   ":10080",
-		"PROBOD_TRUST_CENTER_HTTPS_ADDR":  ":8443",
+		"PROBOD_TRUST_CENTER_HTTP_ADDR":   trustHTTPAddr,
+		"PROBOD_TRUST_CENTER_HTTPS_ADDR":  trustHTTPSAddr,
 		"PROBOD_TRUST_CENTER_BASE_DOMAIN": "probopage.localhost",
+		"PROBOD_TRUST_CENTER_TLS_MODE":    "direct",
 
 		// Keep certificate provisioning snappy so trust-center e2e flows do not
 		// wait on the default 30s poll (step-ca validates HTTP-01 via port 80).
@@ -315,6 +398,10 @@ func generateConfig() (string, error) {
 		"PROBOD_MAILER_SENDER_NAME":  "Probo Test",
 		"PROBOD_MAILER_SENDER_EMAIL": "no-reply@test.getprobo.com",
 		"PROBOD_MAILER_INTERVAL":     "1",
+
+		// Drain webhook data promptly so event-persistence assertions do not
+		// queue behind the rest of the parallel E2E suite.
+		"PROBOD_WEBHOOK_SENDER_INTERVAL": "1",
 
 		// LLM.
 		"PROBOD_OPENAI_API_KEY": "thisisnotasecret",

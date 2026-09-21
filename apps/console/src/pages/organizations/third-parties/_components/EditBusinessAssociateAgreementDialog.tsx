@@ -32,10 +32,10 @@ import {
 } from "@probo/ui";
 import { useTranslation } from "react-i18next";
 import { graphql, useMutation } from "react-relay";
-import { z } from "zod";
 
 import type { EditBusinessAssociateAgreementDialogMutation } from "#/__generated__/core/EditBusinessAssociateAgreementDialogMutation.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
+import { z } from "#/lib/zod";
 
 const updateBusinessAssociateAgreementMutation = graphql`
   mutation EditBusinessAssociateAgreementDialogMutation(
@@ -47,8 +47,10 @@ const updateBusinessAssociateAgreementMutation = graphql`
         file {
           downloadUrl
         }
-        validFrom
-        validUntil
+        validity {
+          start
+          end
+        }
         createdAt
       }
     }
@@ -111,8 +113,10 @@ export function EditBusinessAssociateAgreementDialog({
       variables: {
         input: {
           thirdPartyId,
-          validFrom: formatDatetime(data.validFrom),
-          validUntil: formatDatetime(data.validUntil),
+          validity: {
+            start: formatDatetime(data.validFrom),
+            end: formatDatetime(data.validUntil),
+          },
         },
       },
       onCompleted(_response, errors) {

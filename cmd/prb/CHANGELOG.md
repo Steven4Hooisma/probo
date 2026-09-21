@@ -4,6 +4,191 @@ All notable changes to the `prb` CLI will be documented in this file.
 
 ## Unreleased
 
+## [0.231.0] - 2026-09-18
+
+### Changed
+
+- `risk-analysis create`/`fork`/`update` send `--description` as
+  ProseMirror JSON, and `view`/`list` render stored rich text as
+  plaintext, matching tasks
+
+## [0.230.0] - 2026-09-16
+
+### Added
+
+- `cookie-banner list-gvl-catalog`, `list-gvl-vendors`, `get-gvl-catalog`,
+  `add-gvl-vendor`, and `remove-gvl-vendor` manage which IAB Global Vendor
+  List vendors a TCF-capable banner discloses
+- `cookie-banner published-version` shows a banner's published version,
+  including its GVL vendor count
+- `risk list`/`view`/`create`/`update` show the org-scoped `RSK-001`
+  reference ID; `risk list` gains a `REFERENCE` column and accepts
+  `--order-by REFERENCE_ID`
+
+### Removed
+
+- `soa create --owner` and `soa update --owner`: statements of
+  applicability no longer carry an owner
+
+## [0.229.0] - 2026-09-15
+
+### Added
+
+- `compliance-portal access create` (alias `visitor`) adds a portal visitor by member or email; `compliance-portal access deactivate`/`activate` toggle access without revoking grants
+- `access-review source create` accepts `--azure-tenant-id`, `--azure-client-id`, `--azure-subscription-id`, and `--azure-environment` to connect an Azure workload-identity subscription
+- `task create`/`update` accept `--recurrence-interval` (an ISO-8601 duration, requires `--deadline`); completing a recurring task clones the next occurrence
+
+## [0.228.0] - 2026-09-14
+
+### Added
+
+- `task activity list` and `task activity view`, listing a task's
+  field-level changes newest-first
+
+## [0.227.0] - 2026-09-10
+
+### Added
+
+- `device view` and `device list` show each posture's schema version and observing agent version
+
+## [0.226.0] - 2026-09-07
+
+### Added
+
+- `access-review source setup-gcp` returns the GCP connector setup values (issuer, audience, subject, suggested service account name, and Terraform snippet) needed to create the workload-identity role
+
+### Changed
+
+- `task comment create`/`update` and `task create`/`update` use `--content` instead of `--description`, accepting the same rich text formatting as documents
+- `access-review source create --gcp-service-account-email` and `--gcp-workload-identity-provider` accept Sovereign Cloud de Confiance (S3NS) service accounts and dial `*.s3nsapis.fr` instead of public GCP
+
+## [0.225.0] - 2026-09-04
+
+### Added
+
+- `audit create` and `audit update` accept `--firm` to record the firm running the engagement; an empty value on update clears it
+- `audit` accepts the new `TO_BOOK` and `AUDIT_BOOKED` states, which sort ahead of `NOT_STARTED`
+
+## [0.224.1] - 2026-09-03
+
+### Fixed
+
+- `access-review entry list` no longer supports `--incremental-tag` filtering (campaigns are independent snapshots now)
+
+## [0.224.0] - 2026-09-02
+
+### Added
+
+- `task comment create`, `list`, `view`, `update`, and `delete` manage description-only comments on a task, owned by a membership profile (the author by default)
+
+## [0.223.0] - 2026-09-01
+
+### Added
+
+- `access-review source setup-aws` returns the AWS connector setup values (issuer, audience, subject, suggested role name, Terraform snippet, and CloudFormation quick-create URL) needed to create the audit role
+- `--aws-role-arn` on `access-review source create` creates an AWS workload-identity connector and the access source in one call, deleting the connector again if source creation fails
+
+### Changed
+
+- `access-review source view` shows the connector's connection status
+
+## [0.222.0] - 2026-09-01
+
+### Added
+
+- `--as-of` on `risk-analysis view` and `treatment-plan list` reconstructs matrix cells and plans as of an RFC3339 instant; on `treatment-plan list` it requires `--risk-analysis`, and omitting it keeps reading live tables
+- `--state` on `task create`, and `task create` / `task update` now validate the state against the server enum, which gained `BACKLOG`, `CANCELED`, and `DUPLICATE`
+
+### Changed
+
+- `treatment-plan list` and `treatment-plan view` report the plan's own category, falling back to the risk category when the plan has none
+
+## [0.221.0] - 2026-08-31
+
+### Added
+
+- `risk-analysis fork <id>` copies a risk analysis's diagrams, treatment plans, and their relations into a new analysis for a later period
+
+### Changed
+
+- `access-review source create` reports when the source already exists for the connector instead of always claiming a fresh creation
+
+## [0.220.0] - 2026-08-26
+
+### Added
+
+- `treatment-plan` command group (`create`, `list`, `view`, `update`, `delete`) for plans that hold scores, treatment, and owner per (risk, analysis)
+- `measure link-treatment-plan` / `unlink-treatment-plan` to attach measures that drive plan progress
+- `prb risk list --risk-analysis` lists unplanned scenario-linked risks on an analysis
+
+### Changed
+
+- `prb risk-analysis update` no longer accepts `--matrix-rows` / `--matrix-cols`; matrix size is fixed at create
+
+## [0.219.0] - 2026-08-25
+
+### Added
+
+- `tracker-pattern list` / `view` show the catalog attribution (vendor name, first-party, or still-identifying) inherited from the linked catalog entry, for patterns with no vendor of their own
+
+## [0.218.0] - 2026-08-24
+
+### Changed
+
+- `prb access-review entry list --auth-method` now accepts `OAUTH2` and `SSH`, matching GitHub credential rows (OAuth app tokens and deploy keys) that were previously indistinguishable from API keys or service accounts
+
+## [0.217.0] - 2026-08-14
+
+### Added
+
+- `--matrix-rows` / `--matrix-cols` flags (required, 3, 4, or 5) on `prb risk-analysis create` and `update`, shown as a column on `list` and `view`, so the likelihood/impact matrix size is explicit per analysis
+
+## [0.216.0] - 2026-08-13
+
+### Added
+
+- `COMPLIANCE_PORTAL_MANAGER` and `COMPLIANCE_PORTAL_ACCESS_MANAGER` membership roles, filterable via `prb user list --role`, for delegating full compliance portal management or just visitor access approval without broader admin access
+- `prb aisystem` command group (`create`, `list`, `view`, `update`, `delete`, `publish`), for managing an organization's AI Systems register
+- `--period-start` and `--period-end` flags on `prb risk-analysis create` and `update`, shown as columns on `list` and `view`
+- `--resource-reporting-enabled` flag on `prb cookie-banner update`, to enable or disable resource detection on the banner
+
+## [0.215.0] - 2026-08-11
+
+### Changed
+
+- `prb access-review entry list` prints the admin column as `yes`, `no`, or `unknown`, so an account the source does not report on is no longer indistinguishable from a confirmed non-admin
+
+## [0.214.0] - 2026-08-10
+
+### Changed
+
+- Risk analysis scopes are now referred to as diagrams across the CLI
+
+## [0.213.0] - 2026-08-07
+
+### Changed
+
+- Compliance portal document, audit, and subprocessor selection is reversed: the console now lists the organization's own documents, audits, and subprocessors with checkboxes for inline portal membership, replacing the portal-only rows plus separate add dialogs
+- Risk assessments are now named risk analyses across the CLI and MCP API
+
+## [0.212.0] - 2026-08-06
+
+### Added
+
+- `--rights-requests-enabled` flag on `prb compliance-portal update`, to enable or disable the public Requests surface on the compliance portal
+
+## [0.211.0] - 2026-08-05
+
+### Added
+
+- `SUBDIVISION` column on `prb consent-record list` and the subdivision code on `prb consent-record view`, showing the ISO 3166-2 state or province detected for each consent record
+
+## [0.210.0] - 2026-08-05
+
+### Added
+
+- `prb businessfunction` commands: `create`, `update`, `delete`, `list`, `view`, and `publish`, for tracking DORA Critical ICT Functions
+
 ## [0.209.0] - 2026-08-03
 
 ### Added

@@ -22,12 +22,14 @@ package cookiebanner
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
+	"go.probo.inc/probo/pkg/validator"
 )
 
 func TestSnapshotsEqual(t *testing.T) {
@@ -260,8 +262,8 @@ func TestBuildSnapshot_RankInvariant(t *testing.T) {
 	t.Run("snapshot is identical regardless of rank values", func(t *testing.T) {
 		t.Parallel()
 
-		original := buildSnapshot(banner, mkCategories(0, 1, 2, 3), nil)
-		shuffled := buildSnapshot(banner, mkCategories(99, 50, 25, 10), nil)
+		original := buildSnapshot(banner, mkCategories(0, 1, 2, 3), nil, nil)
+		shuffled := buildSnapshot(banner, mkCategories(99, 50, 25, 10), nil, nil)
 
 		assert.True(t, snapshotsEqual(original, shuffled), "rank changes must not affect the snapshot")
 	})
@@ -272,8 +274,8 @@ func TestBuildSnapshot_RankInvariant(t *testing.T) {
 		ordered := mkCategories(0, 1, 2, 3)
 		reversed := coredata.CookieCategories{ordered[3], ordered[2], ordered[1], ordered[0]}
 
-		a := buildSnapshot(banner, ordered, nil)
-		b := buildSnapshot(banner, reversed, nil)
+		a := buildSnapshot(banner, ordered, nil, nil)
+		b := buildSnapshot(banner, reversed, nil, nil)
 
 		assert.True(t, snapshotsEqual(a, b))
 	})
@@ -282,9 +284,97 @@ func TestBuildSnapshot_RankInvariant(t *testing.T) {
 		t.Parallel()
 
 		consentOnly := mkCategories(0, 1, 2, 3)[:3]
-		snap := buildSnapshot(banner, consentOnly, nil)
+		snap := buildSnapshot(banner, consentOnly, nil, nil)
 
 		require.Len(t, snap.Categories, 3)
 		assert.Equal(t, coredata.CookieCategoryKindNecessary, snap.Categories[0].Kind)
+	})
+
+	t.Run("sorts iab vendor ids so selection order does not matter", func(t *testing.T) {
+		t.Parallel()
+
+		a := buildSnapshot(banner, mkCategories(0, 1, 2, 3), nil, []int{755, 52})
+		b := buildSnapshot(banner, mkCategories(0, 1, 2, 3), nil, []int{52, 755})
+
+		assert.True(t, snapshotsEqual(a, b))
+		assert.Equal(t, []int{52, 755}, a.IABVendorIDs)
+	})
+}
+
+func TestRecordConsentRequest_Validate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("rejects empty visitor id", func(t *testing.T) {
+		t.Parallel()
+
+		req := RecordConsentRequest{
+			Version:   1,
+			VisitorID: "",
+			Action:    coredata.CookieConsentActionAcceptAll,
+		}
+
+		err := req.Validate()
+		require.Error(t, err)
+
+		validationErrors, ok := errors.AsType[validator.ValidationErrors](err)
+		require.True(t, ok)
+		assert.NotEmpty(t, validationErrors.ByField("visitor_id"))
+	})
+
+	t.Run("rejects invalid action", func(t *testing.T) {
+		t.Parallel()
+
+		req := RecordConsentRequest{
+			Version:   1,
+			VisitorID: "visitor-1",
+			Action:    coredata.CookieConsentAction("NOT_A_REAL_ACTION"),
+		}
+
+		err := req.Validate()
+		require.Error(t, err)
+
+		validationErrors, ok := errors.AsType[validator.ValidationErrors](err)
+		require.True(t, ok)
+		assert.NotEmpty(t, validationErrors.ByField("action"))
+	})
+}
+
+func TestBuildBannerConfig_TCFEnabled(t *testing.T) {
+	t.Parallel()
+
+	tenant := gid.NewTenantID()
+	bannerID := gid.New(tenant, coredata.CookieBannerEntityType)
+	snapshot := coredata.CookieBannerVersionSnapshot{
+		CookiePolicyURL:   "https://example.com/cookies",
+		ConsentExpiryDays: 365,
+		DefaultLanguage:   "en",
+	}
+	version := &coredata.CookieBannerVersion{Version: 1}
+
+	t.Run("follows the banner capability when enabled", func(t *testing.T) {
+		t.Parallel()
+
+		banner := &coredata.CookieBanner{
+			ID: bannerID,
+			Capabilities: coredata.CookieBannerCapabilities{
+				ResourceReporting: true,
+				TCF:               true,
+			},
+		}
+
+		config := buildBannerConfig(banner, version, &snapshot, nil, "en")
+		assert.True(t, config.TCFEnabled)
+	})
+
+	t.Run("defaults to disabled", func(t *testing.T) {
+		t.Parallel()
+
+		banner := &coredata.CookieBanner{
+			ID:           bannerID,
+			Capabilities: coredata.DefaultCookieBannerCapabilities(),
+		}
+
+		config := buildBannerConfig(banner, version, &snapshot, nil, "en")
+		assert.False(t, config.TCFEnabled)
 	})
 }

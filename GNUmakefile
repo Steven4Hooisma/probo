@@ -37,6 +37,8 @@ SHELL_SCRIPTS := \
 	cmd/probo-agent/installer/macos/reinstall.sh \
 	cmd/probo-agent/installer/macos/uninstall.sh \
 	compose/postgres/01_probod.sh \
+	contrib/ci/classify-changes.sh \
+	contrib/ci/go-package-affected.sh \
 	contrib/lima/provision.sh \
 	contrib/lima/sandbox.sh \
 	contrib/merge-graphql-schema.sh \
@@ -59,6 +61,7 @@ PROBOD_LDFLAGS=          -ldflags "-X 'main.version=$(PROBOD_VERSION)' -X 'main.
 PROBOD_BOOTSTRAP_LDFLAGS=-ldflags "-X 'main.version=$(PROBOD_BOOTSTRAP_VERSION)'"
 PROBOCTL_LDFLAGS=        -ldflags "-X 'main.version=$(PROBOCTL_VERSION)'"
 PROBO_AGENT_LDFLAGS=     -ldflags "-X 'main.version=$(PROBO_AGENT_VERSION)'"
+PROBO_AGENT_GUI_LDFLAGS= -ldflags "-H windowsgui -X 'main.version=$(PROBO_AGENT_VERSION)'"
 
 GCFLAGS=	-gcflags="-e"
 
@@ -73,9 +76,13 @@ GO_VET=	$(GO_BASE) vet
 GO_TOOL=	$(GO_BASE) tool
 
 TEST_FLAGS?=	-race -cover -coverprofile=coverage.out
+E2E_TEST_FLAGS?=
 
 E2E_CONFIG ?= $(CURDIR)/e2e/console/testdata/config.yaml
 E2E_COVER_DIR ?= $(CURDIR)/coverage/e2e
+E2E_BINARY ?=
+E2E_COVERAGE_BINARY ?= $(CURDIR)/bin/probod-coverage
+E2E_CORE_COVER_PKGS ?= go.probo.inc/probo/pkg/coredata,go.probo.inc/probo/pkg/probo,go.probo.inc/probo/pkg/server/api/console/v1,go.probo.inc/probo/pkg/server/api/connect/v1,go.probo.inc/probo/pkg/server/api/complianceportal/v1,go.probo.inc/probo/pkg/server/api/mcp/v1,go.probo.inc/probo/pkg/accessreview,go.probo.inc/probo/pkg/agentexecution,go.probo.inc/probo/pkg/complianceportal/management,go.probo.inc/probo/pkg/complianceportal/visitor,go.probo.inc/probo/pkg/cookiebanner,go.probo.inc/probo/pkg/riskmanagement,go.probo.inc/probo/pkg/thirdparty,go.probo.inc/probo/pkg/webhook
 
 DOCKER_REGISTRY=	artifact.probo.inc
 DOCKER_PROXY=		$(DOCKER_REGISTRY)/dockerhub
@@ -98,6 +105,7 @@ GENERATED= pkg/server/api/connect/v1/schema/schema.go \
 
 EMBEDDED= apps/console/dist/index.html \
 	apps/compliance-portal/dist/index.html \
+	apps/employee-portal/dist/index.html \
 	@probo/emails
 
 PROBOD_BIN_EXTRA_DEPS=
@@ -117,16 +125,22 @@ PROBO_AGENT_BIN=	bin/probo-agent
 PROBO_AGENT_SRC=	./cmd/probo-agent
 # Menu bar / tray enrollment is macOS and Windows; only macOS needs CGO.
 PROBO_AGENT_TARGET_OS=	$(if $(GOOS),$(GOOS),$(shell $(GO) env GOOS))
+PROBO_AGENT_BINS=	$(PROBO_AGENT_BIN)
 PROBO_AGENT_CGO=	0
 ifeq ($(PROBO_AGENT_TARGET_OS),darwin)
 PROBO_AGENT_CGO=	1
+endif
+ifeq ($(PROBO_AGENT_TARGET_OS),windows)
+PROBO_AGENT_GUI_BIN=	bin/probo-agentw
+PROBO_AGENT_BINS+=	$(PROBO_AGENT_GUI_BIN)
 endif
 
 ifdef WITH_APPS
 GENERATED += relay
 EMBEDDED += \
 	@probo/console \
-	@probo/compliance-portal
+	@probo/compliance-portal \
+	@probo/employee-portal
 endif
 
 .PHONY: all
@@ -194,7 +208,7 @@ go-lint: generate
 test: generate
 test: CGO_ENABLED=1
 test: ## Run tests with race detection and coverage (usage: make test [MODULE=./pkg/some/module])
-	$(GO_TEST) $(if $(MODULE),$(MODULE),$(shell $(GO) list ./... | grep -v /e2e/))
+	$(GO_TEST) $(if $(MODULE),$(MODULE),$(shell $(GO) list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | awk 'NF && !/\/e2e\//'))
 
 .PHONY: test-verbose
 test-verbose: TEST_FLAGS+=-v
@@ -214,24 +228,42 @@ test-bench: TEST_FLAGS+=-bench=.
 test-bench: test ## Run benchmark tests
 
 .PHONY: test-e2e
-test-e2e: CGO_ENABLED=1
 test-e2e: $(PROBOD_BIN) ## Run console e2e tests
-	PROBO_E2E_BINARY=$(CURDIR)/$(PROBOD_BIN) \
-	PROBO_E2E_CONFIG=$(E2E_CONFIG) \
-	GOTESTSUM_FORMAT=testname $(GO_TEST) -count=1 ./e2e/console/...
+	$(MAKE) test-e2e-run E2E_BINARY=$(E2E_BINARY)
 
-bin/probod-coverage:
-	CGO_ENABLED=0 $(GO_BUILD) $(PROBOD_LDFLAGS) -cover -o $@ $(PROBOD_SRC)
+.PHONY: test-e2e-run
+test-e2e-run: CGO_ENABLED=1
+test-e2e-run:
+	PROBO_E2E_BINARY=$(or $(E2E_BINARY),$(CURDIR)/$(PROBOD_BIN)) \
+	PROBO_E2E_CONFIG=$(E2E_CONFIG) \
+	GOTESTSUM_FORMAT=testname $(GO_BASE) tool gotestsum -- $(E2E_TEST_FLAGS) -count=1 ./e2e/internal/... ./e2e/console/...
+
+.PHONY: bin/probod-coverage
+bin/probod-coverage: CGO_ENABLED=0
+bin/probod-coverage: generate embed
+	$(GO_BUILD) $(PROBOD_LDFLAGS) -cover -covermode=atomic -o $@ $(PROBOD_SRC)
 
 .PHONY: test-e2e-coverage
 test-e2e-coverage: bin/probod-coverage ## Run e2e tests with coverage
+	$(MAKE) test-e2e-coverage-run E2E_BINARY=$(E2E_BINARY)
+
+.PHONY: test-e2e-coverage-run
+test-e2e-coverage-run: CGO_ENABLED=1
+test-e2e-coverage-run:
 	@$(RM) -rf $(E2E_COVER_DIR) && $(MKDIR) -p $(E2E_COVER_DIR)
-	PROBO_E2E_BINARY=$(CURDIR)/bin/probod-coverage \
+	PROBO_E2E_BINARY=$(or $(E2E_BINARY),$(E2E_COVERAGE_BINARY)) \
 	PROBO_E2E_COVERDIR=$(E2E_COVER_DIR) \
 	PROBO_E2E_CONFIG=$(E2E_CONFIG) \
-	CGO_ENABLED=1 $(GO) test -count=1 -v ./e2e/console/...
+	GOTESTSUM_FORMAT=testname $(GO_BASE) tool gotestsum -- $(E2E_TEST_FLAGS) -p=1 -count=1 ./e2e/internal/... ./e2e/console/... ./e2e/mcp/...
 	$(GO) tool covdata textfmt -i=$(E2E_COVER_DIR) -o=coverage-e2e.out
+	$(GO) tool covdata textfmt -i=$(E2E_COVER_DIR) -pkg=$(E2E_CORE_COVER_PKGS) -o=coverage-e2e-core.out
+	$(GO) tool covdata percent -i=$(E2E_COVER_DIR) > coverage-e2e-packages.txt
+	$(GO) tool cover -func=coverage-e2e.out > coverage-e2e.txt
+	$(GO) tool cover -func=coverage-e2e-core.out > coverage-e2e-core.txt
 	$(GO) tool cover -html=coverage-e2e.out -o=coverage-e2e.html
+	$(GO) tool cover -html=coverage-e2e-core.out -o=coverage-e2e-core.html
+	$(CAT) coverage-e2e.txt
+	$(CAT) coverage-e2e-core.txt
 
 .PHONY: coverage-combined
 coverage-combined: coverage-report test-e2e-coverage ## Generate combined coverage report (unit + e2e)
@@ -240,10 +272,12 @@ coverage-combined: coverage-report test-e2e-coverage ## Generate combined covera
 	$(GO) tool cover -html=coverage-combined.out -o=coverage-combined.html
 
 .PHONY: build
-build: $(PROBOD_BIN) bin/prb bin/probod-bootstrap bin/proboctl $(PROBO_AGENT_BIN)
+build: $(PROBOD_BIN) bin/prb bin/probod-bootstrap bin/proboctl $(PROBO_AGENT_BINS)
 
-CFG_DEV_OAUTH2_KEY = cfg/.dev-oauth2-signing-key.pem
-DEV_ENV            = .env
+CFG_DEV_OAUTH2_KEY       = cfg/.dev-oauth2-signing-key.pem
+CFG_DEV_IDENTITY_FEDERATION_KEY   = cfg/.dev-identity-federation-signing-key.pem
+CFG_DEV_ACME_ACCOUNT_KEY = cfg/.dev-acme-account-key.pem
+DEV_ENV                  = .env
 
 .PHONY: dev-config
 dev-config: cfg/dev.yaml ## Generate cfg/dev.yaml via probod-bootstrap (picks up edits to .env)
@@ -252,7 +286,19 @@ $(CFG_DEV_OAUTH2_KEY):
 	@$(MKDIR) $(@D)
 	$(OPENSSL) genrsa -out $@ 2048
 
-cfg/dev.yaml: bin/probod-bootstrap $(CFG_DEV_OAUTH2_KEY) compose/step-ca/certs/root_ca.crt $(wildcard $(DEV_ENV))
+# The identity federation issuer signs with its own key so that rotating the OAuth2 key
+# cannot break customer cloud access.
+$(CFG_DEV_IDENTITY_FEDERATION_KEY):
+	@$(MKDIR) $(@D)
+	$(OPENSSL) genrsa -out $@ 2048
+
+# Stable ACME account key for local step-ca. Without this, each probod restart
+# registers a new account and orphaned in-flight orders return 401 unauthorized.
+$(CFG_DEV_ACME_ACCOUNT_KEY):
+	@$(MKDIR) $(@D)
+	$(OPENSSL) ecparam -name prime256v1 -genkey -noout -out $@
+
+cfg/dev.yaml: bin/probod-bootstrap $(CFG_DEV_OAUTH2_KEY) $(CFG_DEV_IDENTITY_FEDERATION_KEY) $(CFG_DEV_ACME_ACCOUNT_KEY) compose/step-ca/certs/root_ca.crt $(wildcard $(DEV_ENV))
 	@$(MKDIR) $(@D)
 	set -a; \
 	PROBOD_BASE_URL=http://localhost:8080; \
@@ -264,7 +310,9 @@ cfg/dev.yaml: bin/probod-bootstrap $(CFG_DEV_OAUTH2_KEY) compose/step-ca/certs/r
 	PROBOD_AUTH_PASSWORD_PEPPER="this-is-a-secure-pepper-for-password-hashing-at-least-32-bytes"; \
 	PROBOD_AUTH_COOKIE_SECURE=false; \
 	PROBOD_OAUTH2_SERVER_SIGNING_KEY="$$($(CAT) $(CFG_DEV_OAUTH2_KEY))"; \
-	PROBOD_API_CORS_ALLOWED_ORIGINS="http://localhost:8080,http://localhost:5173,http://localhost:5174"; \
+	PROBOD_IDENTITY_FEDERATION_ENABLED=true; \
+	PROBOD_IDENTITY_FEDERATION_SIGNING_KEY="$$($(CAT) $(CFG_DEV_IDENTITY_FEDERATION_KEY))"; \
+	PROBOD_API_CORS_ALLOWED_ORIGINS="http://localhost:8080,http://localhost:5173,http://localhost:5174,http://localhost:5175"; \
 	PROBOD_PG_ADDR=localhost:5432; \
 	PROBOD_PG_USERNAME=postgres; \
 	PROBOD_PG_PASSWORD=postgres; \
@@ -272,6 +320,7 @@ cfg/dev.yaml: bin/probod-bootstrap $(CFG_DEV_OAUTH2_KEY) compose/step-ca/certs/r
 	PROBOD_TRUST_CENTER_HTTP_ADDR=:10080; \
 	PROBOD_TRUST_CENTER_HTTPS_ADDR=:443; \
 	PROBOD_TRUST_CENTER_BASE_DOMAIN=probopage.localhost; \
+	PROBOD_TRUST_CENTER_TLS_MODE=direct; \
 	PROBOD_AWS_REGION=us-east-1; \
 	PROBOD_AWS_BUCKET=probod; \
 	PROBOD_AWS_ACCESS_KEY_ID=probod; \
@@ -286,6 +335,8 @@ cfg/dev.yaml: bin/probod-bootstrap $(CFG_DEV_OAUTH2_KEY) compose/step-ca/certs/r
 	PROBOD_CHROME_DP_ADDR=localhost:9222; \
 	PROBOD_ACME_DIRECTORY=https://localhost:9000/acme/acme/directory; \
 	PROBOD_ACME_EMAIL=admin@probo.com; \
+	PROBOD_ACME_KEY_TYPE=EC256; \
+	PROBOD_ACME_ACCOUNT_KEY="$$($(CAT) $(CFG_DEV_ACME_ACCOUNT_KEY))"; \
 	PROBOD_ACME_ROOT_CA="$$($(CAT) compose/step-ca/certs/root_ca.crt)"; \
 	if [ -f $(DEV_ENV) ]; then . $(DEV_ENV); fi; \
 	set +a; \
@@ -349,6 +400,13 @@ $(PROBO_AGENT_BIN): CGO_ENABLED=$(PROBO_AGENT_CGO)
 $(PROBO_AGENT_BIN):
 	$(GO_BUILD) $(PROBO_AGENT_LDFLAGS) -o $(PROBO_AGENT_BIN) $(PROBO_AGENT_SRC)
 
+ifneq ($(PROBO_AGENT_GUI_BIN),)
+.PHONY: $(PROBO_AGENT_GUI_BIN)
+$(PROBO_AGENT_GUI_BIN): CGO_ENABLED=0
+$(PROBO_AGENT_GUI_BIN):
+	$(GO_BUILD) $(PROBO_AGENT_GUI_LDFLAGS) -o $(PROBO_AGENT_GUI_BIN) $(PROBO_AGENT_SRC)
+endif
+
 .PHONY: @probo/emails
 @probo/emails:
 	$(NPM) --workspace $@ run build
@@ -386,6 +444,12 @@ pkg/server/api/complianceportal/v1/schema.graphql: pkg/server/api/complianceport
 .PHONY: @probo/compliance-portal
 @probo/compliance-portal: NODE_ENV=production
 @probo/compliance-portal: relay
+	$(NPM) --workspace $@ run check
+	$(NPM) --workspace $@ run build
+
+.PHONY: @probo/employee-portal
+@probo/employee-portal: NODE_ENV=production
+@probo/employee-portal: relay
 	$(NPM) --workspace $@ run check
 	$(NPM) --workspace $@ run build
 
@@ -457,10 +521,10 @@ fmt-shell: ## Format first-party shell scripts with shfmt
 clean: ## Clean the project (node_modules and build artifacts)
 	$(RM) -rf bin/*
 	$(RM) -rf node_modules
-	$(RM) -rf apps/{console,compliance-portal}/{dist,node_modules}
+	$(RM) -rf apps/{console,compliance-portal,employee-portal}/{dist,node_modules}
 	$(RM) -rf packages/emails/{dist,node_modules}
 	$(RM) -rf sbom-docker.json sbom.json
-	$(RM) -rf coverage.out coverage.html coverage-e2e.out coverage-e2e.html coverage-combined.out coverage-combined.html
+	$(RM) -rf coverage.out coverage.html coverage-e2e.out coverage-e2e.txt coverage-e2e.html coverage-e2e-core.out coverage-e2e-core.txt coverage-e2e-core.html coverage-e2e-packages.txt coverage-combined.out coverage-combined.html
 	$(RM) -rf coverage/
 	$(RM) -rf compose/keycloak/certs/cert.pem compose/keycloak/certs/private-key.pem compose/keycloak/probo-realm.json
 	$(RM) -f pkg/server/api/connect/v1/schema/schema.go pkg/server/api/connect/v1/types/types.go
@@ -513,7 +577,7 @@ compose/keycloak/probo-realm.json: compose/keycloak/probo-realm.json.tmpl compos
 	-e "s|PRIVATE_KEY_PLACEHOLDER|$$(awk 'NR==1 {printf "%s", $$0; next} {printf "\\\\n%s", $$0}' compose/keycloak/certs/private-key.pem)|g" \
 	$@.tmpl > $@
 
-apps/console/dist/index.html apps/compliance-portal/dist/index.html:
+apps/console/dist/index.html apps/compliance-portal/dist/index.html apps/employee-portal/dist/index.html:
 	$(MKDIR) $(dir $@)
 	$(ECHO) dev-server > $@
 

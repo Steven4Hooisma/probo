@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { usePageTitle } from "@probo/hooks";
 import { dateTimeFormat } from "@probo/i18n";
 import {
   Badge,
@@ -34,6 +35,7 @@ import {
   IconTrashCan,
   Input,
   Label,
+  PageHeader,
   Spinner,
   useDialogRef,
   useToast,
@@ -43,7 +45,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type PreloadedQuery, usePreloadedQuery, useRelayEnvironment } from "react-relay";
 import { ConnectionHandler, fetchQuery, graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { WebhooksSettingsPage_createMutation } from "#/__generated__/core/WebhooksSettingsPage_createMutation.graphql";
 import type { WebhooksSettingsPage_deleteMutation } from "#/__generated__/core/WebhooksSettingsPage_deleteMutation.graphql";
@@ -53,6 +54,7 @@ import type { WebhooksSettingsPage_updateMutation } from "#/__generated__/core/W
 import type { WebhooksSettingsPageQuery } from "#/__generated__/core/WebhooksSettingsPageQuery.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useMutationWithToasts } from "#/hooks/useMutationWithToasts";
+import { z } from "#/lib/zod";
 
 export const webhooksSettingsPageQuery = graphql`
   query WebhooksSettingsPageQuery($organizationId: ID!) {
@@ -487,6 +489,7 @@ export function WebhooksSettingsPage(props: {
 }) {
   const { queryRef } = props;
   const { t } = useTranslation();
+  usePageTitle(t("nav.webhooks"));
   const { toast } = useToast();
   const environment = useRelayEnvironment();
   const deleteDialogRef = useDialogRef();
@@ -645,14 +648,8 @@ export function WebhooksSettingsPage(props: {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-medium">{t("webhooksSettingsPage.title")}</h2>
-          <p className="text-sm text-txt-tertiary">
-            {t("webhooksSettingsPage.description")}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader title={t("nav.webhooks")}>
         <WebhookFormDialog
           mode="create"
           onSubmit={handleCreate}
@@ -663,7 +660,10 @@ export function WebhooksSettingsPage(props: {
             </Button>
           )}
         />
-      </div>
+      </PageHeader>
+      <p className="text-sm text-txt-tertiary">
+        {t("webhooksSettingsPage.description")}
+      </p>
 
       {webhooks.length === 0
         ? (

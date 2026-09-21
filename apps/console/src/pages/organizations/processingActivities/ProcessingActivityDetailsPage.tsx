@@ -25,7 +25,6 @@ import {
 } from "@probo/helpers";
 import {
   ActionDropdown,
-  Breadcrumb,
   Button,
   Card,
   Checkbox,
@@ -48,13 +47,13 @@ import {
   type PreloadedQuery,
   usePreloadedQuery,
 } from "react-relay";
-import { z } from "zod";
 
 import type { ProcessingActivityGraphNodeQuery } from "#/__generated__/core/ProcessingActivityGraphNodeQuery.graphql";
 import { PeopleSelectField } from "#/components/form/PeopleSelectField";
 import { ThirdPartiesMultiSelectField } from "#/components/form/ThirdPartiesMultiSelectField";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 import {
   DataProtectionImpactAssessmentOptions,
@@ -411,29 +410,17 @@ export default function ProcessingActivityDetailsPage(props: Props) {
     }
   });
 
-  const breadcrumbProcessingActivitiesUrl
-    = `/organizations/${organizationId}/processing-activities`;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb
-          items={[
-            {
-              label: t("processingActivityDetailsPage.breadcrumb.activities"),
-              to: breadcrumbProcessingActivitiesUrl,
-            },
-            { label: activity.name! },
-          ]}
-        />
-        {activity.canDelete && (
+      {activity.canDelete && (
+        <div className="flex items-center justify-end">
           <ActionDropdown>
             <DropdownItem onClick={deleteActivity} variant="danger">
               {t("processingActivityDetailsPage.actions.delete")}
             </DropdownItem>
           </ActionDropdown>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{activity.name}</h1>

@@ -52,6 +52,7 @@ const deviceRowFragment = graphql`
     model
     platform
     osVersion
+    agentVersion
     lastSeenAt
     owner {
       id
@@ -102,37 +103,15 @@ export function DeviceRow({
         deviceKey={device}
         organizationId={organizationId}
       />
-      <Tr to={`/organizations/${organizationId}/devices/${device.id}`}>
-        {/*
-          A synced device never reports a hostname — it has no agent — so the
-          "(pending)" placeholder would be wrong: nothing is pending. Its
-          model and serial are the identity the operator recognises.
-        */}
-        <Td>
-          {device.source === "AGENT"
-            ? displayValue(device.hostname, pendingLabel)
-            : displayValue(device.model ?? device.serialNumber, pendingLabel)}
-        </Td>
-        <Td>
-          {device.source === "AGENT"
-            ? (
-                <Badge variant="neutral">{t("devices.sources.agent")}</Badge>
-              )
-            : (
-                <Badge variant="info">
-                  {t("devices.sources.appleBusinessManager")}
-                </Badge>
-              )}
-        </Td>
+      <Tr to={`/organizations/${organizationId}/itam/devices/${device.id}`}>
+        <Td>{displayValue(device.hostname, pendingLabel)}</Td>
         <Td>{device.owner?.fullName ?? t("devices.values.unassigned")}</Td>
         <Td>
           <Badge variant={stateVariant(device.state)}>{device.state}</Badge>
         </Td>
-        {/*
-          Platform, OS version and last-seen come from agent telemetry. A
-          synced device has none, and an em dash reads as "not applicable"
-          where "(pending)" would read as "not yet reported".
-        */}
+        <Td>{displayValue(device.platform, pendingLabel)}</Td>
+        <Td>{displayValue(device.osVersion, pendingLabel)}</Td>
+        <Td>{displayValue(device.agentVersion, pendingLabel)}</Td>
         <Td>
           {device.source === "AGENT"
             ? displayValue(device.platform, pendingLabel)

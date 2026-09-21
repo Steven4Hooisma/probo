@@ -13,10 +13,12 @@ import (
 
 	"github.com/vikstrous/dataloadgen"
 	"go.gearno.de/kit/log"
+	"go.probo.inc/probo/pkg/complianceportal/management"
 	"go.probo.inc/probo/pkg/coredata"
 	"go.probo.inc/probo/pkg/gid"
 	"go.probo.inc/probo/pkg/iam"
 	"go.probo.inc/probo/pkg/page"
+	"go.probo.inc/probo/pkg/pdfutils"
 	"go.probo.inc/probo/pkg/probo"
 	"go.probo.inc/probo/pkg/resourcealias"
 	"go.probo.inc/probo/pkg/server/api/authn"
@@ -58,6 +60,62 @@ func (r *documentResolver) Organization(ctx context.Context, obj *types.Document
 	}
 
 	return types.NewOrganization(organization), nil
+}
+
+// CompliancePortalDocument is the resolver for the compliancePortalDocument field.
+func (r *documentResolver) CompliancePortalDocument(ctx context.Context, obj *types.Document, compliancePortalID gid.GID) (*types.CompliancePortalDocument, error) {
+	scope, err := r.authorize(ctx, compliancePortalID, management.ActionCompliancePortalGet)
+	if err != nil {
+		return nil, err
+	}
+
+	link, err := dataloader.FromContext(ctx).CompliancePortalDocument.Load(
+		ctx,
+		dataloader.CompliancePortalDocumentKey{
+			TenantID:           scope.GetTenantID(),
+			CompliancePortalID: compliancePortalID,
+			DocumentID:         obj.ID,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, dataloadgen.ErrNotFound) {
+			return nil, nil
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot load compliance portal document", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewCompliancePortalDocument(link), nil
+}
+
+// CompliancePortalDocumentAccess is the resolver for the compliancePortalDocumentAccess field.
+func (r *documentResolver) CompliancePortalDocumentAccess(ctx context.Context, obj *types.Document, compliancePortalAccessID gid.GID) (*types.CompliancePortalDocumentAccess, error) {
+	scope, err := r.authorize(ctx, compliancePortalAccessID, management.ActionCompliancePortalAccessGet)
+	if err != nil {
+		return nil, err
+	}
+
+	access, err := dataloader.FromContext(ctx).CompliancePortalDocumentAccessByDocument.Load(
+		ctx,
+		dataloader.CompliancePortalDocumentAccessByDocumentKey{
+			TenantID:                 scope.GetTenantID(),
+			CompliancePortalAccessID: compliancePortalAccessID,
+			DocumentID:               obj.ID,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, dataloadgen.ErrNotFound) {
+			return nil, nil
+		}
+
+		r.logger.ErrorCtx(ctx, "cannot load compliance portal document access", log.Error(err))
+
+		return nil, gqlutils.Internal(ctx)
+	}
+
+	return types.NewCompliancePortalDocumentAccess(access), nil
 }
 
 // Versions is the resolver for the versions field.
@@ -727,20 +785,6 @@ func (r *employeeDocumentResolver) Versions(ctx context.Context, obj *types.Empl
 		return nil, err
 	}
 
-	pageOrderBy := page.OrderBy[coredata.DocumentVersionOrderField]{
-		Field:     coredata.DocumentVersionOrderFieldCreatedAt,
-		Direction: page.OrderDirectionDesc,
-	}
-
-	if orderBy != nil {
-		pageOrderBy = page.OrderBy[coredata.DocumentVersionOrderField]{
-			Field:     orderBy.Field,
-			Direction: orderBy.Direction,
-		}
-	}
-
-	cursor := types.NewCursor(first, after, last, before, pageOrderBy)
-
 	identity := authn.IdentityFromContext(ctx)
 
 	var filterMode coredata.EmployeeFilterMode
@@ -757,6 +801,28 @@ func (r *employeeDocumentResolver) Versions(ctx context.Context, obj *types.Empl
 
 	versionFilter := coredata.NewDocumentVersionFilter().
 		WithEmployeeIdentityID(&identity.ID, filterMode)
+
+	if gqlutils.OnlyTotalCountSelected(ctx) {
+		return &types.EmployeeDocumentVersionConnection{
+			Resolver: r,
+			ParentID: obj.ID,
+			Filters:  versionFilter,
+		}, nil
+	}
+
+	pageOrderBy := page.OrderBy[coredata.DocumentVersionOrderField]{
+		Field:     coredata.DocumentVersionOrderFieldCreatedAt,
+		Direction: page.OrderDirectionDesc,
+	}
+
+	if orderBy != nil {
+		pageOrderBy = page.OrderBy[coredata.DocumentVersionOrderField]{
+			Field:     orderBy.Field,
+			Direction: orderBy.Direction,
+		}
+	}
+
+	cursor := types.NewCursor(first, after, last, before, pageOrderBy)
 
 	versionsPage, err := r.probo.Documents.ListVersions(ctx, scope, obj.ID, cursor, versionFilter)
 	if err != nil {
@@ -781,9 +847,29 @@ func (r *employeeDocumentResolver) Versions(ctx context.Context, obj *types.Empl
 		}
 	}
 
-	p := page.NewPage(employeeVersions, versionsPage.Cursor)
+	p := &page.Page[*types.EmployeeDocumentVersion, coredata.DocumentVersionOrderField]{
+		Info:   versionsPage.Info,
+		Cursor: versionsPage.Cursor,
+		Data:   employeeVersions,
+	}
 
-	return types.NewEmployeeDocumentVersionConnection(p), nil
+	return types.NewEmployeeDocumentVersionConnection(p, r, obj.ID, versionFilter), nil
+}
+
+// TotalCount is the resolver for the totalCount field.
+func (r *employeeDocumentConnectionResolver) TotalCount(ctx context.Context, obj *types.EmployeeDocumentConnection) (int, error) {
+	scope, err := r.authorize(ctx, obj.ParentID, probo.ActionEmployeeDocumentList)
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := r.probo.Documents.CountForOrganizationID(ctx, scope, obj.ParentID, obj.Filters)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot count employee documents", log.Error(err))
+		return 0, gqlutils.Internal(ctx)
+	}
+
+	return count, nil
 }
 
 // Signed is the resolver for the signed field.
@@ -830,6 +916,27 @@ func (r *employeeDocumentVersionResolver) ApprovalDecision(ctx context.Context, 
 	}
 
 	return types.NewDocumentVersionApprovalDecision(decision), nil
+}
+
+// TotalCount is the resolver for the totalCount field.
+func (r *employeeDocumentVersionConnectionResolver) TotalCount(ctx context.Context, obj *types.EmployeeDocumentVersionConnection) (int, error) {
+	scope, err := r.authorize(ctx, obj.ParentID, probo.ActionEmployeeDocumentGet)
+	if err != nil {
+		return 0, err
+	}
+
+	filter := &coredata.DocumentVersionFilter{}
+	if obj.Filters != nil {
+		filter = obj.Filters
+	}
+
+	count, err := r.probo.Documents.CountVersionsForDocumentID(ctx, scope, obj.ParentID, filter)
+	if err != nil {
+		r.logger.ErrorCtx(ctx, "cannot count employee document versions", log.Error(err))
+		return 0, gqlutils.Internal(ctx)
+	}
+
+	return count, nil
 }
 
 // CreateDocument is the resolver for the createDocument field.
@@ -1263,10 +1370,25 @@ func (r *mutationResolver) BulkExportDocuments(ctx context.Context, input types.
 	scope := coredata.NewScopeFromObjectID(input.DocumentIds[0])
 	identity := authn.IdentityFromContext(ctx)
 
+	watermarkText := input.WatermarkText
+	if watermarkText == nil && input.WatermarkEmail != nil {
+		watermarkText = new(pdfutils.TruncateWatermarkText(input.WatermarkEmail.String()))
+	}
+
+	if input.WithWatermark && watermarkText == nil {
+		watermarkText = new(pdfutils.TruncateWatermarkText(identity.EmailAddress.String()))
+	}
+
+	if input.WithWatermark {
+		if err := pdfutils.ValidateWatermarkText(*watermarkText); err != nil {
+			return nil, gqlutils.Invalid(ctx, err)
+		}
+	}
+
 	options := probo.ExportPDFOptions{
 		WithWatermark:  input.WithWatermark,
 		WithSignatures: input.WithSignatures,
-		WatermarkEmail: input.WatermarkEmail,
+		WatermarkText:  watermarkText,
 	}
 
 	documentExport, exportErr := r.probo.Documents.RequestExport(ctx, scope, input.DocumentIds, identity.EmailAddress, identity.FullName, options)
@@ -1277,29 +1399,6 @@ func (r *mutationResolver) BulkExportDocuments(ctx context.Context, input types.
 
 	return &types.BulkExportDocumentsPayload{
 		ExportJobID: documentExport.ID,
-	}, nil
-}
-
-// GenerateDocumentChangelog is the resolver for the generateDocumentChangelog field.
-func (r *mutationResolver) GenerateDocumentChangelog(ctx context.Context, input types.GenerateDocumentChangelogInput) (*types.GenerateDocumentChangelogPayload, error) {
-	scope, err := r.authorize(ctx, input.DocumentID, probo.ActionDocumentChangelogGenerate)
-	if err != nil {
-		return nil, err
-	}
-
-	changelog, err := r.probo.Documents.GenerateChangelog(ctx, scope, input.DocumentID)
-	if err != nil {
-		if errArchived, ok := errors.AsType[*probo.ErrDocumentArchived](err); ok {
-			return nil, gqlutils.Conflict(ctx, errArchived)
-		}
-
-		r.logger.ErrorCtx(ctx, "cannot generate document changelog", log.Error(err))
-
-		return nil, gqlutils.Internal(ctx)
-	}
-
-	return &types.GenerateDocumentChangelogPayload{
-		Changelog: *changelog,
 	}, nil
 }
 
@@ -1563,16 +1662,26 @@ func (r *mutationResolver) ExportDocumentVersionPDF(ctx context.Context, input t
 		return nil, err
 	}
 
-	watermarkEmail := input.WatermarkEmail
-	if input.WithWatermark && watermarkEmail == nil {
+	watermarkText := input.WatermarkText
+	if watermarkText == nil && input.WatermarkEmail != nil {
+		watermarkText = new(pdfutils.TruncateWatermarkText(input.WatermarkEmail.String()))
+	}
+
+	if input.WithWatermark && watermarkText == nil {
 		identity := authn.IdentityFromContext(ctx)
-		watermarkEmail = &identity.EmailAddress
+		watermarkText = new(pdfutils.TruncateWatermarkText(identity.EmailAddress.String()))
+	}
+
+	if input.WithWatermark {
+		if err := pdfutils.ValidateWatermarkText(*watermarkText); err != nil {
+			return nil, gqlutils.Invalid(ctx, err)
+		}
 	}
 
 	options := probo.ExportPDFOptions{
 		WithSignatures: input.WithSignatures,
 		WithWatermark:  input.WithWatermark,
-		WatermarkEmail: watermarkEmail,
+		WatermarkText:  watermarkText,
 	}
 
 	pdf, err := r.probo.Documents.ExportPDF(ctx, scope, input.DocumentVersionID, options)
@@ -1620,7 +1729,7 @@ func (r *mutationResolver) ExportEmployeeDocumentVersionPDF(ctx context.Context,
 	options := probo.ExportPDFOptions{
 		WithSignatures: false,
 		WithWatermark:  true,
-		WatermarkEmail: &identity.EmailAddress,
+		WatermarkText:  new(pdfutils.TruncateWatermarkText(identity.EmailAddress.String())),
 	}
 
 	pdf, err := r.probo.Documents.ExportPDF(ctx, scope, input.DocumentVersionID, options)
@@ -1687,9 +1796,19 @@ func (r *Resolver) EmployeeDocument() schema.EmployeeDocumentResolver {
 	return &employeeDocumentResolver{r}
 }
 
+// EmployeeDocumentConnection returns schema.EmployeeDocumentConnectionResolver implementation.
+func (r *Resolver) EmployeeDocumentConnection() schema.EmployeeDocumentConnectionResolver {
+	return &employeeDocumentConnectionResolver{r}
+}
+
 // EmployeeDocumentVersion returns schema.EmployeeDocumentVersionResolver implementation.
 func (r *Resolver) EmployeeDocumentVersion() schema.EmployeeDocumentVersionResolver {
 	return &employeeDocumentVersionResolver{r}
+}
+
+// EmployeeDocumentVersionConnection returns schema.EmployeeDocumentVersionConnectionResolver implementation.
+func (r *Resolver) EmployeeDocumentVersionConnection() schema.EmployeeDocumentVersionConnectionResolver {
+	return &employeeDocumentVersionConnectionResolver{r}
 }
 
 type (
@@ -1704,5 +1823,7 @@ type (
 	documentVersionSignatureResolver                  struct{ *Resolver }
 	documentVersionSignatureConnectionResolver        struct{ *Resolver }
 	employeeDocumentResolver                          struct{ *Resolver }
+	employeeDocumentConnectionResolver                struct{ *Resolver }
 	employeeDocumentVersionResolver                   struct{ *Resolver }
+	employeeDocumentVersionConnectionResolver         struct{ *Resolver }
 )

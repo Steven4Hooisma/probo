@@ -34,11 +34,11 @@ import { useTranslation } from "react-i18next";
 import { useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
-import { z } from "zod";
 
 import type { CreateStatementOfApplicabilityDialogMutation } from "#/__generated__/core/CreateStatementOfApplicabilityDialogMutation.graphql";
 import { useFormWithSchema } from "#/hooks/useFormWithSchema";
 import { useOrganizationId } from "#/hooks/useOrganizationId";
+import { z } from "#/lib/zod";
 
 const createMutation = graphql`
     mutation CreateStatementOfApplicabilityDialogMutation(
@@ -111,7 +111,7 @@ export function CreateStatementOfApplicabilityDialog({
           = response.createStatementOfApplicability.statementOfApplicabilityEdge
             .node.id;
         void navigate(
-          `/organizations/${organizationId}/statements-of-applicability/${statementOfApplicabilityId}`,
+          `/organizations/${organizationId}/governance/statements-of-applicability/${statementOfApplicabilityId}`,
         );
       },
       onError(error) {

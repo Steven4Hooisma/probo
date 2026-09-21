@@ -31,9 +31,10 @@ import {
 } from "@probo/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useMutation } from "react-relay";
+import { useFragment, useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
 
+import type { ClientCredentialsConnectorDialog_provider$key } from "#/__generated__/core/ClientCredentialsConnectorDialog_provider.graphql";
 import type { ClientCredentialsConnectorDialogCreateClientCredentialsConnectorMutation } from "#/__generated__/core/ClientCredentialsConnectorDialogCreateClientCredentialsConnectorMutation.graphql";
 
 import { useCreateAccessReviewSource } from "../_hooks/useCreateAccessReviewSource";
@@ -42,7 +43,19 @@ import {
   hasRequiredExtraSettings,
   mapClientCredentialsExtraSettingToField,
 } from "../_lib/connectorSettings";
-import type { ProviderInfo } from "../AddAccessReviewSourceDialog";
+
+const clientCredentialsConnectorDialogFragment = graphql`
+  fragment ClientCredentialsConnectorDialog_provider on ConnectorProviderInfo {
+    provider
+    displayName
+    clientCredentialsTokenUrl
+    clientCredentialsExtraSettings {
+      key
+      label
+      required
+    }
+  }
+`;
 
 const createClientCredentialsConnectorMutation = graphql`
   mutation ClientCredentialsConnectorDialogCreateClientCredentialsConnectorMutation(
@@ -58,7 +71,7 @@ const createClientCredentialsConnectorMutation = graphql`
 `;
 
 type Props = {
-  provider: ProviderInfo | null;
+  providerKey: ClientCredentialsConnectorDialog_provider$key | null;
   organizationId: string;
   connectionId: string;
   onClose: () => void;
@@ -66,7 +79,7 @@ type Props = {
 };
 
 export function ClientCredentialsConnectorDialog({
-  provider,
+  providerKey,
   organizationId,
   connectionId,
   onClose,
@@ -74,6 +87,10 @@ export function ClientCredentialsConnectorDialog({
 }: Props) {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const provider = useFragment(
+    clientCredentialsConnectorDialogFragment,
+    providerKey,
+  );
   const dialogRef = useDialogRef();
 
   const [clientId, setClientId] = useState("");
@@ -101,10 +118,16 @@ export function ClientCredentialsConnectorDialog({
     if (provider) {
       dialogRef.current?.open();
     }
-  }, [provider]);
+  }, [dialogRef, provider]);
 
   const connectClientCredentialsProvider = () => {
-    if (!provider || !clientId.trim() || !clientSecret.trim() || !tokenUrl.trim()) {
+    if (!provider || !clientId.trim() || !clientSecret.trim()) {
+      return;
+    }
+
+    // A provider that pins its token endpoint renders no field for it, and the
+    // server ignores the value regardless: sending null keeps the two honest.
+    if (!provider.clientCredentialsTokenUrl && !tokenUrl.trim()) {
       return;
     }
 
@@ -129,7 +152,7 @@ export function ClientCredentialsConnectorDialog({
           provider: provider.provider,
           clientId: clientId.trim(),
           clientSecret: clientSecret.trim(),
-          tokenUrl: tokenUrl.trim(),
+          tokenUrl: provider.clientCredentialsTokenUrl ? null : tokenUrl.trim(),
           scope: scope.trim() || null,
           ...extraFields,
         },
@@ -222,12 +245,14 @@ export function ClientCredentialsConnectorDialog({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setClientSecret(e.target.value)}
             required
           />
-          <Field
-            label={t("clientCredentialsConnectorDialog.fields.tokenUrl")}
-            value={tokenUrl}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTokenUrl(e.target.value)}
-            required
-          />
+          {!provider?.clientCredentialsTokenUrl && (
+            <Field
+              label={t("clientCredentialsConnectorDialog.fields.tokenUrl")}
+              value={tokenUrl}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTokenUrl(e.target.value)}
+              required
+            />
+          )}
           <Field
             label={t("clientCredentialsConnectorDialog.fields.scope")}
             value={scope}
@@ -281,7 +306,7 @@ export function ClientCredentialsConnectorDialog({
               isConnectingClientCredentials
               || !clientId.trim()
               || !clientSecret.trim()
-              || !tokenUrl.trim()
+              || (!provider?.clientCredentialsTokenUrl && !tokenUrl.trim())
               || !clientCredentialsExtraSettingsValid
             }
           >
